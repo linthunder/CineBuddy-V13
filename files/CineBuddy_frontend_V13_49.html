@@ -1,0 +1,1700 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineBuddy 2.0 - V13.1 (Icon Fix)</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* --- CSS BASE --- */
+        :root { --bg-body: #f4f4f4; --bg-panel: #ffffff; --primary: #111111; --accent: #f5c518; --text-main: #333333; --text-muted: #666666; --border: #e0e0e0; --input-bg: #fafafa; --success: #28a745; --danger: #dc3545; --container-dark: #3a3a3a; --font-stack: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+        body { font-family: var(--font-stack); background: var(--bg-body); margin: 0; padding-top: 80px; padding-bottom: 90px; color: var(--text-main); transition: background 0.3s; }
+        .global-header { position: fixed; top: 0; left: 0; width: 100%; height: 70px; background: var(--primary); color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border-bottom: 1px solid #333; }
+        .gh-left { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.2em; letter-spacing: 1px; }
+        .gh-center { text-align: center; font-size: 0.9em; opacity: 0; transition: opacity 0.5s; border-left: 1px solid #444; border-right: 1px solid #444; padding: 0 30px; }
+        .gh-center strong { display: block; color: var(--accent); font-size: 1.2em; }
+        .gh-center span { color: #ccc; }
+        .gh-right { display: flex; gap: 10px; align-items: center; }
+        .btn-action { background: transparent !important; border: 1px solid #555 !important; color: white !important; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: 600; transition: 0.1s; display: flex; align-items: center; gap: 8px; outline: none !important; }
+        .btn-action:hover, .btn-action:focus { border-color: var(--accent) !important; color: var(--accent) !important; background: transparent !important; box-shadow: 0 0 5px rgba(245, 197, 24, 0.3) !important; }
+        .btn-highlight { background: var(--accent) !important; color: var(--primary) !important; border: none !important; }
+        .btn-highlight:hover { background-color: #d4a90c !important; color: black !important; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2000; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .modal-box { background: var(--bg-panel); width: 600px; max-width: 95%; border-radius: 8px; border: 1px solid var(--accent); box-shadow: 0 10px 25px rgba(0,0,0,0.5); overflow: hidden; display: flex; flex-direction: column; max-height: 90vh; }
+        .modal-header { background: var(--primary); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--accent); }
+        .modal-header h3 { margin: 0; font-weight: 800; color: var(--accent); letter-spacing: 1px; text-transform: uppercase; font-size: 1.1em; }
+        .btn-close-modal { background: none; border: none; color: white; font-size: 1.5em; cursor: pointer; transition: 0.2s; outline: none !important; }
+        .btn-close-modal:hover { color: var(--accent); }
+        .modal-body { padding: 20px; overflow-y: auto; color: var(--text-main); }
+        .project-list-item { padding: 15px; border-bottom: 1px solid var(--border); cursor: pointer !important; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
+        .project-list-item:hover { background: rgba(245,197,24,0.1) !important; border-left: 4px solid var(--accent) !important; }
+        .project-search-bar { width: 100%; padding: 12px; border: 1px solid var(--accent); background: var(--input-bg); color: var(--text-main); font-weight: 600; margin-bottom: 15px; border-radius: 4px; box-sizing: border-box; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 15px; }
+        .hidden { display: none !important; }
+        
+        /* WORKFLOW & LOCKING CSS */
+        .locked-module { opacity: 0.4; pointer-events: none; transition: opacity 0.3s; }
+        /* Btn Lock: Default Green (Finalizar/Lock) */
+        .btn-lock { background: var(--success) !important; color: white !important; font-size: 0.8em; margin-left: auto; display: flex; align-items: center; gap: 5px; }
+        /* Btn Unlock: Orange (Abrir/Unlock) */
+        .btn-unlock { background: #e67e22 !important; }
+        
+        .locked-sheet { pointer-events: none; opacity: 0.7; }
+        .locked-sheet input, .locked-sheet select { background: #eee !important; color: #777 !important; border: 1px solid transparent !important; }
+        .nav-btn.dimmed { opacity: 0.3 !important; pointer-events: none !important; filter: grayscale(100%); }
+
+        /* Tables & Layout */
+        .card { background: var(--bg-panel); border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding: 25px; margin-bottom: 20px; border: 1px solid var(--border); }
+        .dept-block { margin-bottom: 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 6px; }
+        .dept-header { background: var(--primary); color: var(--accent); padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-radius: 6px 6px 0 0; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; font-size: 1.1em; }
+        .dept-body { background: var(--container-dark); padding: 15px; border-radius: 0 0 6px 6px; border: 1px solid #ccc; border-top: none; }
+        .dept-body.form-body { background: var(--bg-panel); border-color: var(--border); }
+        .cb-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; background: white; }
+        .cb-table th { text-align: left; background: #ddd; color: #333; padding: 10px 8px; font-size: 0.7em; text-transform: uppercase; font-weight: 700; border-bottom: 2px solid #bbb; }
+        .cb-table td { border-bottom: 1px solid #eee; padding: 4px; vertical-align: middle; height: 42px; color: #333; }
+        .cb-table tbody tr { background-color: #ffffff; transition: background-color 0.2s; } 
+        .cb-table tbody tr:nth-child(even) { background-color: #f7f7f7 !important; }
+        .cb-table tbody tr:hover td { background-color: rgba(0,0,0,0.05) !important; color: #000 !important; }
+        .cb-input-cell { border: 1px solid transparent; background: transparent; width: 96%; margin: 0 auto; display: block; padding: 4px 6px; height: 30px; line-height: 20px; font-size: 0.9em; color: #333; border-radius: 4px; transition: 0.1s; outline: none !important; }
+        .cb-input-cell:hover { background: rgba(0,0,0,0.03); border-color: #eee; }
+        .cb-input-cell:focus { border-color: var(--accent) !important; background: #fff !important; box-shadow: 0 0 0 1px var(--accent) !important; }
+        .cb-input-cell:disabled { color: #888; background: transparent !important; border-color: transparent !important; cursor: default; }
+        .td-remove { padding: 0 !important; width: 35px; text-align: center; vertical-align: middle; }
+        .row-remove { cursor: pointer; color: #ccc; font-weight: bold; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 1.2em; transition: 0.2s; }
+        .row-remove:hover { color: var(--danger) !important; background: transparent !important; }
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        .btn-add-row { width: 100%; padding: 10px; border: 1px dashed #777; background: rgba(255,255,255,0.05); margin-top: 10px; cursor: pointer; color: #ccc; font-weight: 600; text-transform: uppercase; font-size: 0.8em; letter-spacing: 1px; transition: 0.1s; outline: none !important; }
+        .btn-add-row:hover { border-color: var(--accent) !important; color: var(--accent) !important; background-color: rgba(245, 197, 24, 0.1) !important; }
+        .diff-cell { font-weight: bold; font-size: 0.9em; text-align: center; }
+        .diff-pos { color: var(--success) !important; }
+        .diff-neg { color: var(--danger) !important; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        label { display: block; font-size: 0.75em; color: var(--text-muted); margin-bottom: 5px; font-weight: 700; text-transform: uppercase; }
+        input:not(.cb-input-cell):not(.fin-input):not(.fin-input-small), select:not(.cb-input-cell), textarea { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.95em; background: var(--input-bg); color: var(--text-main); box-sizing: border-box; outline: none !important; }
+        input:focus, select:focus, textarea:focus { border-color: var(--accent) !important; box-shadow: 0 0 0 1px var(--accent) !important; }
+        .btn-cancel { background: #555 !important; color: white !important; border: none !important; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: 600; }
+        .btn-cancel:hover { background: #333 !important; }
+        .finance-strip { background: var(--bg-panel); border-bottom: 4px solid var(--accent); display: grid; grid-template-columns: 1.3fr 1fr 1fr 1.2fr 0.8fr; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 30px; }
+        .fin-box { padding: 15px 10px; text-align: center; border-right: 1px solid var(--border); display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; }
+        .fin-box:last-child { border-right: none; }
+        .fin-box label { font-size: 0.7em; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 5px; font-weight: 700; }
+        .fin-row-center { display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; }
+        .fin-input { border: none; background: transparent; color: var(--text-main); font-size: 1.4em; font-weight: 800; text-align: center; padding: 2px; width: 100%; }
+        .fin-input:focus { outline: none; border-bottom: 2px solid var(--accent); }
+        .fin-input-small { width: 35px; font-size: 0.9em; font-weight: normal; border: 1px solid var(--border); border-radius: 4px; padding: 4px; text-align: center; background: var(--input-bg); }
+        .val { font-size: 1.4em; font-weight: 800; color: var(--text-main); white-space: nowrap; }
+        .val.lucro { color: var(--success); }
+        .btn-markup { background: var(--primary); color: var(--accent); border: none; font-size: 0.7em; padding: 2px 6px; border-radius: 3px; cursor: pointer; font-weight: bold; margin-left: 5px; vertical-align: middle; }
+        .budget-tabs { display: flex; gap: 15px; margin-bottom: 25px; padding-left: 5px; }
+        .tab-pill { background: #e0e0e0; border: none; padding: 10px 25px; font-weight: 700; border-radius: 20px; color: #666; cursor: pointer; transition: 0.3s; font-size: 0.9em; letter-spacing: 0.5px; text-transform: uppercase; }
+        .tab-pill:hover { background: #d0d0d0 !important; color: #333 !important; border-color: var(--accent) !important; }
+        .tab-pill.active { background: var(--primary) !important; color: var(--accent) !important; box-shadow: 0 4px 6px rgba(0,0,0,0.15); }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: 70px; background: var(--primary); display: flex; justify-content: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.1); z-index: 900; border-top: 1px solid #333; }
+        .nav-btn { flex: 1; max-width: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #888; cursor: pointer; border-top: 4px solid transparent; transition: 0.3s; }
+        .nav-btn.active { color: var(--accent); border-top-color: var(--accent); background: rgba(245, 197, 24, 0.1); }
+        .nav-btn.disabled { opacity: 0.3; pointer-events: none; }
+        .autocomplete-list { position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-panel); border: 1px solid var(--accent); z-index: 500; max-height: 200px; overflow-y: auto; display: none; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+        .autocomplete-item { padding: 10px; cursor: pointer; border-bottom: 1px solid var(--border); font-size: 0.9em; text-align: left; color: var(--text-main); }
+        .autocomplete-item:hover { background: var(--accent); color: var(--primary); }
+
+        /* === ELEMENTOR CANVAS - FULL WIDTH OTIMIZADO === */
+        
+        /* Reset completo - sem limitações */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        /* Body full width */
+        body {
+            width: 100%;
+            overflow-x: hidden;
+        }
+        
+        /* Container principal full width */
+        .container { 
+            max-width: 100% !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 20px 60px !important;
+            box-sizing: border-box !important;
+        }
+        /* Espaço entre global-header (70px fixed) e primeiro conteúdo na página FILME */
+        #view-filme .container {
+            padding-top: 30px !important;
+        }
+        
+        /* Layout 2 Colunas EXTRA GRANDES */
+        #budget-tables-container .phase-wrapper {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+            width: 100%;
+        }
+        
+        /* Cada bloco de departamento */
+        #budget-tables-container .dept-block {
+            min-width: 0;
+        }
+        
+        /* Font-size NORMAL+ (extra legível) */
+        #budget-tables-container .cb-table {
+            font-size: 1.02em;
+        }
+        
+        /* Inputs GRANDES (muito fácil de clicar) */
+        #budget-tables-container .cb-input-cell {
+            padding: 9px 14px;
+            font-size: 1em;
+        }
+        
+        /* Headers das tabelas */
+        .dept-header {
+            font-size: 0.95em;
+        }
+        
+        /* Finance Strip expandido */
+        .finance-strip { 
+            padding: 25px 60px;
+            gap: 40px;
+        }
+        
+        /* Menus full width com padding */
+        .global-header {
+            padding-left: 60px !important;
+            padding-right: 60px !important;
+        }
+        
+        .bottom-nav {
+            padding-left: 60px !important;
+            padding-right: 60px !important;
+        }
+        
+        /* Responsivo: 1 coluna em telas pequenas */
+        @media (max-width: 1200px) {
+            #budget-tables-container .phase-wrapper {
+                grid-template-columns: 1fr;
+            }
+            .container {
+                padding: 20px 30px !important;
+            }
+        }
+        
+
+        /* Ajuste do campo TIPO - mostrar palavras completas e centralizar */
+        .cb-input-cell select,
+        select.cb-input-cell {
+            min-width: 100px !important;
+            max-width: 100px !important;
+            width: 100px !important;
+            height: 34px !important;
+            padding: 0 24px 0 8px !important;
+            background-position: right 4px center !important;
+            white-space: nowrap !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+            box-sizing: border-box !important;
+            line-height: 34px !important;
+            vertical-align: middle !important;
+            display: inline-flex !important;
+            align-items: center !important;
+        }
+        
+        /* Option dentro do select */
+        .cb-input-cell select option,
+        select.cb-input-cell option {
+            padding: 4px 8px !important;
+            line-height: normal !important;
+        }
+        
+
+        /* === AJUSTES ESPECÍFICOS V13.30 === */
+        
+        /* Campo TOTAL compacto */
+        .cb-table td.row-total {
+            max-width: 120px !important;
+            font-size: 0.95em !important;
+        }
+        
+        /* Campo TIPO otimizado para "Fechado" e "Cachê" */
+        .cb-input-cell select,
+        select.cb-input-cell {
+            width: 100% !important;
+            min-width: 90px !important;
+            max-width: 100% !important;
+            height: 34px !important;
+            padding: 0 18px 0 6px !important;
+            font-size: 0.95em !important;
+            line-height: 34px !important;
+            box-sizing: border-box !important;
+            background-size: 12px !important;
+            background-position: right 3px center !important;
+            text-overflow: clip !important;
+            white-space: nowrap !important;
+        }
+        
+        /* Options do select */
+        .cb-input-cell select option,
+        select.cb-input-cell option {
+            padding: 5px 8px !important;
+            font-size: 0.95em !important;
+        }
+        
+        /* OBSERVAÇÕES full width */
+        .notes-block {
+            grid-column: 1 / -1 !important;
+            margin-top: 20px !important;
+        }
+        
+        .notes-textarea {
+            width: 100%;
+            padding: 15px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--input-bg);
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 0.95em;
+            line-height: 1.6;
+            resize: vertical;
+            min-height: 120px;
+            box-sizing: border-box;
+        }
+        
+        .notes-textarea:focus {
+            border-color: var(--accent);
+            outline: none;
+        }
+        
+
+        /* === RESPONSIVIDADE === */
+        
+        /* Telas grandes (>1400px): 2 colunas */
+        @media (min-width: 1401px) {
+            #budget-tables-container .phase-wrapper {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        
+        /* Telas médias e pequenas (<=1400px): 1 coluna */
+        @media (max-width: 1400px) {
+            #budget-tables-container .phase-wrapper {
+                grid-template-columns: 1fr !important;
+                gap: 20px !important;
+            }
+            
+            /* Remover separador em 1 coluna */
+            #budget-tables-container .phase-wrapper::after {
+                display: none !important;
+            }
+            
+            /* Ajustar padding do container */
+            .container {
+                padding: 20px 30px !important;
+            }
+            
+            /* Finance Strip em coluna também */
+            .finance-strip {
+                flex-wrap: wrap;
+                gap: 15px;
+            }
+            
+            .fin-item {
+                min-width: 200px;
+            }
+        }
+        
+        /* Telas muito pequenas (<=768px): ajustes adicionais */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px 20px !important;
+            }
+            
+            /* Tabelas com scroll horizontal se necessário */
+            .dept-body {
+                overflow-x: auto;
+            }
+            
+            .cb-table {
+                min-width: 600px;
+            }
+            
+            /* Finance Strip empilhado */
+            .finance-strip {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .fin-item {
+                width: 100%;
+            }
+        }
+        
+
+        /* Botão ADICIONAR VERBA - aparece quando não há verbas */
+        .btn-add-verba {
+            background: linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%);
+            border: 1px solid var(--accent);
+            border-top: none;
+            color: var(--accent);
+            padding: 8px 15px;
+            border-radius: 0 0 6px 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85em;
+            width: 100%;
+            text-align: center;
+            transition: all 0.2s;
+            margin-top: -6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn-add-verba:hover {
+            color: white;  /* Apenas texto branco, mantém fundo */
+        }
+        
+        .btn-add-verba i {
+            font-size: 0.9em;
+        }
+        
+        /* Container de verbas - conectado visualmente à tabela pai */
+        .verba-section {
+            margin-top: -1px;
+            border: 1px solid var(--border);
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            overflow: hidden;
+        }
+        
+        /* Header de VERBAS - amarelo para destacar */
+        .verba-header {
+            background: var(--accent);
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 0.8em;
+            padding: 8px 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .verba-header i {
+            font-size: 1em;
+        }
+        
+        /* Body da tabela de verbas - SEGUIR PADRÃO dept-body */
+        .verba-body {
+            background: var(--container-dark);  /* #3a3a3a - cinza escuro */
+            padding: 15px;
+        }
+        
+        /* Tabela de verbas - mesmo estilo das outras */
+        .verba-section .cb-table {
+            background: var(--bg-panel);
+            margin: 0;
+            border: none;
+            box-shadow: none;
+        }
+        
+        /* Header da tabela de verbas - EXATAMENTE como padrão aprovado */
+        .verba-section .cb-table thead {
+            background: #2a2a2a !important;
+        }
+        
+        .verba-section .cb-table thead th {
+            font-size: 0.75em !important;
+            padding: 8px !important;
+            color: #999 !important;
+            border-bottom: 1px solid #444 !important;
+        }
+        
+        /* Células da tabela de verbas - padrão aprovado */
+        .verba-section .cb-table tbody td {
+            background: var(--bg-panel) !important;
+            border-bottom: 1px solid #eee !important;
+            padding: 4px !important;
+            height: 42px !important;
+            color: #333 !important;
+        }
+        
+        .verba-section .cb-table tbody td {
+            background: var(--bg-panel);
+        }
+        
+        /* Botão adicionar item dentro da seção de verbas - SEGUIR PADRÃO */
+        .verba-section .btn-add-row {
+            /* Usa EXATAMENTE o mesmo estilo do padrão aprovado */
+            width: 100%;
+            padding: 10px;
+            border: 1px dashed #777;
+            background: rgba(255,255,255,0.05) !important;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            color: #ccc;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.8em;
+            letter-spacing: 1px;
+        }
+        
+        .verba-section .btn-add-row:hover {
+            background: rgba(245, 197, 24, 0.1) !important;  /* Película amarelada */
+            border-color: var(--accent);
+            color: white;
+        }
+        
+
+        /* Garantir espaçamento padrão nos botões adicionar */
+        .btn-add-row {
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+        
+
+        /* Linhas da tabela de verbas - EXATAMENTE como padrão */
+        .verba-section .cb-table tbody tr {
+            height: 42px !important;
+        }
+        
+        .verba-section .cb-table tbody td {
+            height: 42px !important;
+            padding: 4px !important;
+            vertical-align: middle !important;
+        }
+        
+
+        /* Botão remover linha - GARANTIR padrão em verbas */
+        .verba-section .btn-remove-row {
+            background: transparent !important;
+            border: none !important;
+            color: #999 !important;
+            cursor: pointer !important;
+            padding: 4px 8px !important;
+            transition: 0.2s !important;
+            font-size: 0.9em !important;
+        }
+        
+        .verba-section .btn-remove-row:hover {
+            color: var(--danger) !important;
+        }
+        
+
+        /* GARANTIR padrão do header de verbas */
+        .verba-section .cb-table thead tr {
+            background: #2a2a2a !important;
+            height: auto !important;
+        }
+        
+        .verba-section .cb-table thead th {
+            background: #2a2a2a !important;
+            font-size: 0.75em !important;
+            padding: 8px !important;
+            color: #999 !important;
+            font-weight: 600 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.5px !important;
+            border-bottom: 1px solid #444 !important;
+        }
+        
+
+        /* Centralizar botão X na célula da tabela de verbas */
+        .verba-section .cb-table tbody td:last-child {
+            text-align: center !important;
+            vertical-align: middle !important;
+        }
+        
+        .verba-section .btn-remove-row {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        
+
+        /* Hover amarelado em TODOS os botões adicionar */
+        .btn-add-row:hover {
+            background: rgba(245, 197, 24, 0.1) !important;  /* Película amarelada */
+            border-color: var(--accent) !important;
+            color: white !important;
+        }
+        
+
+        /* Total em negrito na tabela de verbas */
+        .verba-section .cb-table .row-total {
+            font-weight: 700 !important;
+        }
+        
+
+        /* === MINI TABELAS (CONTINGÊNCIA, CRT, BV AGÊNCIA) === */
+        
+        .mini-tables-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+            margin-top: 20px;
+        }
+        
+        .mini-table-block {
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-radius: 6px;
+        }
+        
+        .mini-table-row {
+            background: var(--primary);  /* #111111 */
+            padding: 12px 15px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .mini-table-label {
+            color: var(--accent);  /* #f5c518 - AMARELO como padrão */
+            font-weight: 700;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+        
+        .mini-table-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid transparent;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 1em;
+            font-weight: 600;
+            box-sizing: border-box;
+            outline: none;
+            border-radius: 4px;
+            text-align: right;
+        }
+        
+        .mini-table-input:focus {
+            border-color: var(--accent);
+            background: rgba(255,255,255,0.15);
+        }
+        
+        .mini-table-input::placeholder {
+            color: rgba(255,255,255,0.4);
+        }
+        
+        /* Responsivo: 1 coluna em telas pequenas */
+        @media (max-width: 1400px) {
+            .mini-tables-container {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+        }
+
+        /* ========== PÁGINA FILME ========== */
+
+        /* Grid custom dos campos do projeto: Nome grande, Agência/Cliente médios, Duração menor */
+        .filme-grid {
+            display: grid;
+            grid-template-columns: 2fr 1.2fr 1.2fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 900px) {
+            .filme-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        @media (max-width: 550px) {
+            .filme-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Duração: input pequeno + select lado a lado */
+        .duracao-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .duracao-input {
+            width: 80px !important;
+            flex-shrink: 0;
+            text-align: center;
+            font-weight: 700;
+        }
+        .duracao-select {
+            flex: 1;
+            min-width: 0;
+            font-size: 0.85em !important;
+            padding: 8px 10px !important;
+            color: var(--text-muted) !important;
+            font-weight: 600;
+            background: var(--input-bg) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 4px !important;
+            cursor: pointer;
+            appearance: auto;
+        }
+        .duracao-select:focus {
+            border-color: var(--accent) !important;
+            box-shadow: 0 0 0 1px var(--accent) !important;
+        }
+
+        /* Botões de ação do filme: 4 blocos grandes */
+        .filme-actions {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-top: 30px;
+        }
+        @media (max-width: 900px) {
+            .filme-actions {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        @media (max-width: 550px) {
+            .filme-actions {
+                grid-template-columns: 1fr;
+            }
+        }
+        .filme-action-btn {
+            background: var(--primary);
+            border: 2px solid #2a2a2a;
+            border-radius: 10px;
+            padding: 28px 20px 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.18);
+            outline: none;
+        }
+        .filme-action-btn:hover {
+            background: rgba(245, 197, 24, 0.1);  /* Película amarelada — padrão aprovado */
+            border-color: var(--accent);
+            box-shadow: 0 6px 22px rgba(245, 197, 24, 0.25);
+            transform: translateY(-2px);
+        }
+        .filme-action-btn i {
+            font-size: 1.8em;
+            color: var(--accent);
+            transition: transform 0.25s ease;
+        }
+        .filme-action-btn:hover i {
+            transform: scale(1.1);
+        }
+        .filme-action-btn span {
+            font-weight: 800;
+            font-size: 0.88em;
+            color: #cccccc;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            transition: color 0.25s ease;
+        }
+        .filme-action-btn:hover span {
+            color: var(--text-main);  /* texto escuro no hover para contraste com película clara */
+        }
+        
+    </style>
+</head>
+<body>
+
+    <header class="global-header">
+        <div class="gh-left"><div style="width:40px; height:40px; background:var(--accent); display:flex; align-items:center; justify-content:center; color:black; border-radius:4px; font-weight:900;">CB</div><span style="margin-left:10px;">CINEBUDDY</span></div>
+        <div class="gh-center" id="project-display"><strong id="disp-name">NOME DO PROJETO</strong><span id="disp-info">JOB #BZ0000 • AGÊNCIA • CLIENTE</span></div>
+        <div class="gh-right">
+            <button class="btn-action" onclick="handleNewBtn()"><i class="fas fa-plus"></i> NOVO</button>
+            <button class="btn-action" onclick="openProjectModal()"><i class="fas fa-folder-open"></i> ABRIR</button>
+            <button class="btn-action" onclick="openCopyModal()"><i class="fas fa-copy"></i> SALVAR CÓPIA</button>
+            <button class="btn-action btn-highlight" id="btn-save-global" onclick="saveContext()"><i class="fas fa-save"></i> SALVAR</button>
+        </div>
+    </header>
+
+    <div id="modal-projects" class="modal-overlay hidden"><div class="modal-box"><div class="modal-header"><h3><i class="fas fa-folder-open"></i> ABRIR PROJETO</h3><button class="btn-close-modal" onclick="closeModal('modal-projects')">×</button></div><div class="modal-body"><input type="text" class="project-search-bar" placeholder="Buscar..." onkeyup="filterProjects(this)"><div id="projects-list-container"></div></div></div></div>
+    <div id="modal-copy" class="modal-overlay hidden"><div class="modal-box"><div class="modal-header"><h3><i class="fas fa-copy"></i> SALVAR CÓPIA</h3><button class="btn-close-modal" onclick="closeModal('modal-copy')">×</button></div><div class="modal-body"><div class="grid-4" style="grid-template-columns:1fr;"><div><label>Nome Cópia</label><input type="text" id="copy-nome"></div><div><label>Agência</label><input type="text" id="copy-agencia"></div><div><label>Cliente</label><input type="text" id="copy-cliente"></div><div><label>Duração</label><input type="text" id="copy-duracao"></div></div><div style="margin-top:20px;display:flex;justify-content:end;gap:10px;"><button class="btn-cancel" onclick="closeModal('modal-copy')">CANCELAR</button><button class="btn-action btn-highlight" onclick="executeCopyProject()">CRIAR CÓPIA</button></div></div></div></div>
+    <div id="modal-new-project" class="modal-overlay hidden"><div class="modal-box"><div class="modal-header"><h3><i class="fas fa-plus"></i> NOVO PROJETO</h3><button class="btn-close-modal" onclick="closeModal('modal-new-project')">×</button></div><div class="modal-body"><div class="grid-4" style="grid-template-columns:1fr;"><div><label>Nome</label><input type="text" id="new-proj-nome"></div><div><label>Agência</label><input type="text" id="new-proj-agencia"></div><div><label>Cliente</label><input type="text" id="new-proj-cliente"></div><div><label>Duração</label><div class="duracao-row"><input type="text" id="new-proj-duracao" class="duracao-input"><select id="new-proj-duracao-unit" class="duracao-select"><option value="segundos">segundos</option><option value="minutos">minutos</option></select></div></div></div><div style="margin-top:20px;display:flex;justify-content:end;gap:10px;"><button class="btn-cancel" onclick="closeModal('modal-new-project')">CANCELAR</button><button class="btn-action btn-highlight" onclick="executeNewProject()">SALVAR E ABRIR</button></div></div></div></div>
+    <div id="modal-team" class="modal-overlay hidden"><div class="modal-box"><div class="modal-header"><h3><i class="fas fa-user-plus"></i> NOVO PROFISSIONAL</h3><button class="btn-close-modal" onclick="closeModal('modal-team')">×</button></div><div class="modal-body"><input type="hidden" id="team-id"><div class="grid-2"><div><label>Nome</label><input type="text" id="team-name"></div><div><label>Função</label><input type="text" id="team-role"></div></div><div class="grid-4" style="margin-top:10px;"><div><label>CPF</label><input type="text" id="team-cpf"></div><div><label>Tel</label><input type="text" id="team-phone"></div></div><div style="margin-top:20px;display:flex;justify-content:end;gap:10px;"><button class="btn-cancel" onclick="closeModal('modal-team')">CANCELAR</button><button class="btn-action btn-highlight" onclick="saveProfessional()">SALVAR</button></div></div></div></div>
+
+    <section id="view-filme" class="view-section">
+        <div class="container">
+            <!-- DADOS DO PROJETO -->
+            <div class="dept-block locked-module" id="card-dados-projeto">
+                <div class="dept-header"><span><i class="fas fa-info-circle"></i> DADOS DO PROJETO</span></div>
+                <div class="dept-body form-body">
+                    <div class="filme-grid">
+                        <div class="filme-campo filme-nome"><label>Nome</label><input type="text" id="in-nome"></div>
+                        <div class="filme-campo filme-agencia"><label>Agência</label><input type="text" id="in-agencia"></div>
+                        <div class="filme-campo filme-cliente"><label>Cliente</label><input type="text" id="in-cliente"></div>
+                        <div class="filme-campo filme-duracao">
+                            <label>Duração</label>
+                            <div class="duracao-row">
+                                <input type="text" id="in-duracao" class="duracao-input">
+                                <select id="in-duracao-unit" class="duracao-select">
+                                    <option value="segundos">segundos</option>
+                                    <option value="minutos">minutos</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BOTÕES AÇÕES DO FILME -->
+            <div class="filme-actions locked-module" id="filme-actions-block">
+                <button class="filme-action-btn" onclick="openFilmeAction('roteiro')">
+                    <i class="fas fa-scroll"></i>
+                    <span>ROTEIRO</span>
+                </button>
+                <button class="filme-action-btn" onclick="openFilmeAction('decupagem')">
+                    <i class="fas fa-th-list"></i>
+                    <span>DECUPAGEM</span>
+                </button>
+                <button class="filme-action-btn" onclick="openFilmeAction('storyboard')">
+                    <i class="fas fa-image"></i>
+                    <span>STORYBOARD</span>
+                </button>
+                <button class="filme-action-btn" onclick="openFilmeAction('ordemDia')">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>ORDEM DO DIA</span>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <section id="view-orcamento" class="view-section hidden">
+        <div class="container">
+            <div class="finance-strip">
+                <div class="fin-box"><label>VALOR TOTAL <button class="btn-markup" onclick="applyMarkup(30)">+30%</button></label><input type="text" id="fin-job-val" class="fin-input currency-input" value="R$ 0,00" onfocus="removeCurrencyFormat(this)" onblur="formatCurrencyOnBlur(this)" onchange="calcFinancials()"></div>
+                <div class="fin-box"><label>CUSTO</label><div class="val" id="fin-cost-total">R$ 0,00</div></div>
+                <div class="fin-box"><label>LUCRO LÍQUIDO</label><div class="val lucro" id="fin-profit">R$ 0,00</div></div>
+                <div class="fin-box"><label>IMPOSTOS <input type="number" id="fin-tax-rate" style="width:50px; padding:3px; margin-left:5px; text-align:center; border:1px solid var(--border); border-radius:3px; background:var(--input-bg);" value="12.5" onchange="calcFinancials()"><span style="margin-left:2px;">%</span></label><div class="val" id="fin-tax-val">R$ 0,00</div></div>
+                <div class="fin-box"><label>MARGEM</label><div class="val" id="fin-margin" style="color:var(--accent);">0%</div></div>
+            </div>
+            <div class="budget-tabs">
+                <button class="tab-pill" id="tab-pre" onclick="switchBudgetPhase('pre')">PRÉ-PRODUÇÃO</button>
+                <button class="tab-pill active" id="tab-prod" onclick="switchBudgetPhase('prod')">PRODUÇÃO</button>
+                <button class="tab-pill" id="tab-pos" onclick="switchBudgetPhase('pos')">PÓS-PRODUÇÃO</button>
+                <button class="tab-pill btn-lock" id="btn-lock-initial" onclick="toggleLock('initial')"><i class="fas fa-lock"></i> FINALIZAR ORÇAMENTO</button>
+            </div>
+
+            <!-- Mini Tabelas: CONTINGÊNCIA, CRT, BV AGÊNCIA -->
+            <div class="mini-tables-container">
+                <div class="mini-table-block">
+                    <div class="mini-table-row">
+                        <span class="mini-table-label">CONTINGÊNCIA</span>
+                        <input 
+                            type="text" 
+                            class="mini-table-input" 
+                            id="mini-contingencia-input"
+                            value="R$ 0,00"
+                            onchange="updateMiniTable('contingencia')"
+                            onfocus="handleMiniTableFocus(this)"
+                            onblur="handleMiniTableBlur(this)"
+                        >
+                    </div>
+                </div>
+                
+                <div class="mini-table-block">
+                    <div class="mini-table-row">
+                        <span class="mini-table-label">CRT</span>
+                        <input 
+                            type="text" 
+                            class="mini-table-input" 
+                            id="mini-crt-input"
+                            value="R$ 0,00"
+                            onchange="updateMiniTable('crt')"
+                            onfocus="handleMiniTableFocus(this)"
+                            onblur="handleMiniTableBlur(this)"
+                        >
+                    </div>
+                </div>
+                
+                <div class="mini-table-block">
+                    <div class="mini-table-row">
+                        <span class="mini-table-label">BV AGÊNCIA</span>
+                        <input 
+                            type="text" 
+                            class="mini-table-input" 
+                            id="mini-bvagencia-input"
+                            value="R$ 0,00"
+                            onchange="updateMiniTable('bvagencia')"
+                            onfocus="handleMiniTableFocus(this)"
+                            onblur="handleMiniTableBlur(this)"
+                        >
+                    </div>
+                </div>
+            </div>
+            
+            <div id="budget-tables-container"></div>
+        </div>
+    </section>
+
+    <section id="view-orc-final" class="view-section hidden">
+        <div class="container">
+            <div class="finance-strip" style="border-bottom-color: var(--success);">
+                <div class="fin-box"><label>CUSTO</label><div class="val" id="final-total-orc" style="color:#888;">R$ 0,00</div></div>
+                <div class="fin-box"><label>CUSTO REAL</label><div class="val" id="final-total-real">R$ 0,00</div></div>
+                <div class="fin-box"><label>DIFERENÇA</label><div class="val" id="final-diff">R$ 0,00</div></div>
+                <div class="fin-box"><label>LUCRO REAL</label><div class="val lucro" id="final-profit-real">R$ 0,00</div></div>
+            </div>
+            <div class="budget-tabs">
+                <button class="tab-pill" id="tab-final-pre" onclick="switchFinalPhase('pre')">PRÉ-PRODUÇÃO</button>
+                <button class="tab-pill active" id="tab-final-prod" onclick="switchFinalPhase('prod')">PRODUÇÃO</button>
+                <button class="tab-pill" id="tab-final-pos" onclick="switchFinalPhase('pos')">PÓS-PRODUÇÃO</button>
+                 <button class="tab-pill btn-lock" id="btn-lock-final" onclick="toggleLock('final')">FINALIZAR ORÇAMENTO</button>
+            </div>
+            <div id="final-tables-container"></div>
+        </div>
+    </section>
+
+    <section id="view-fechamento" class="view-section hidden">
+        <div class="container">
+            <div class="dept-block">
+                <div class="dept-header">
+                    <span><i class="fas fa-wallet"></i> PAGAMENTOS</span>
+                    <button class="tab-pill btn-lock" id="btn-lock-closing" style="font-size:0.7em; margin:0; padding:5px 15px;" onclick="toggleLock('closing')">ENCERRAR PROJETO</button>
+                </div>
+                <div class="dept-body form-body">
+                    <table class="cb-table" id="closing-table">
+                        <thead><tr><th>Fornecedor / Nome</th><th>Valor Final</th><th>Data Pagto</th><th>Nota Fiscal</th><th>Status</th></tr></thead>
+                        <tbody id="closing-list"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="view-team" class="view-section hidden"><div class="container"><div class="dept-block"><div class="dept-header"><span><i class="fas fa-users"></i> EQUIPE</span></div><div class="dept-body form-body"><p style="text-align:center;padding:20px;">Em breve.</p></div></div></div></section>
+
+    <section id="view-config" class="view-section hidden">
+        <div class="container">
+            <div class="budget-tabs" style="margin-bottom:20px;">
+                <button class="tab-pill active" onclick="switchConfigTab('company', this)">MINHA PRODUTORA</button>
+                <button class="tab-pill" onclick="switchConfigTab('users', this)">USUÁRIOS</button>
+                <button class="tab-pill" onclick="switchConfigTab('pros', this)">PROFISSIONAIS</button>
+                <button class="tab-pill" onclick="switchConfigTab('projects', this)">PROJETOS</button>
+                <button class="tab-pill" onclick="switchConfigTab('logs', this)">LOGS</button>
+            </div>
+            <div id="cfg-company" class="dept-block"><div class="dept-header"><span>DADOS DA PRODUTORA</span><button class="btn-action btn-highlight" style="font-size:0.8em;" onclick="saveCompany()">SALVAR</button></div><div class="dept-body form-body"><div class="grid-2"><div><label>Razão Social</label><input type="text" id="comp-name"></div><div><label>Nome Fantasia</label><input type="text" id="comp-fantasy"></div></div><div class="grid-4" style="margin-top:15px;"><div><label>CNPJ</label><input type="text" id="comp-cnpj"></div><div><label>Telefone</label><input type="text" id="comp-phone"></div><div><label>E-mail</label><input type="text" id="comp-email"></div><div><label>Site</label><input type="text" id="comp-site"></div></div><div style="margin-top:15px;"><label>Endereço Completo</label><input type="text" id="comp-addr"></div></div></div>
+            <div id="cfg-users" class="dept-block hidden"><div class="dept-header"><span>USUÁRIOS</span></div><div class="dept-body form-body"><p>Em breve.</p></div></div>
+            <div id="cfg-pros" class="dept-block hidden"><div class="dept-header"><span>PROFISSIONAIS</span><button class="btn-action" style="font-size:0.8em;" onclick="openTeamModal()"><i class="fas fa-plus"></i> NOVO</button></div><div class="dept-body form-body"><table class="cb-table"><thead><tr><th>Nome</th><th>Função</th><th>Tel</th><th>Ações</th></tr></thead><tbody id="pros-list-full"></tbody></table></div></div>
+            <div id="cfg-projects" class="dept-block hidden"><div class="dept-header"><span>PROJETOS</span></div><div class="dept-body form-body"><table class="cb-table"><thead><tr><th>ID</th><th>Nome</th><th>Cliente</th><th></th></tr></thead><tbody id="all-projects-list"></tbody></table></div></div>
+            <div id="cfg-logs" class="dept-block hidden"><div class="dept-header"><span>LOGS</span></div><div class="dept-body form-body"><p>Em breve.</p></div></div>
+        </div>
+    </section>
+
+    <nav class="bottom-nav">
+        <div class="nav-btn active" id="nav-filme" onclick="switchTab('filme', this)"><i class="fas fa-film"></i><span>FILME</span></div>
+        <div class="nav-btn disabled" id="nav-orc1" onclick="switchTab('orcamento', this)"><i class="fas fa-file-invoice-dollar"></i><span>ORÇAMENTO</span></div>
+        <div class="nav-btn disabled dimmed" id="nav-orc2" onclick="switchTab('orc-final', this)"><i class="fas fa-file-contract"></i><span>ORÇ. FINAL</span></div>
+        <div class="nav-btn disabled dimmed" id="nav-fechamento" onclick="switchTab('fechamento', this)"><i class="fas fa-wallet"></i><span>FECHAMENTO</span></div>
+        <div class="nav-btn disabled"><i class="fas fa-chart-pie"></i><span>DASHBOARD</span></div>
+        <div class="nav-btn disabled" id="nav-team" onclick="switchTab('team', this)"><i class="fas fa-users"></i><span>EQUIPE</span></div>
+        <div class="nav-btn" onclick="switchTab('config', this)"><i class="fas fa-cog"></i><span>CONFIG</span></div>
+    </nav>
+
+    <script>
+        // CONFIG
+        const PRE_PROD_LIST = ['DIREÇÃO', 'PRODUÇÃO', 'FOTOGRAFIA E TÉCNICA', 'ARTE E CENOGRAFIA', 'FIGURINO E MAQUIAGEM', 'SOM DIRETO', 'CASTING', 'EQUIPAMENTOS', 'LOCAÇÕES', 'TRANSPORTE', 'CATERING', 'DESPESAS GERAIS'];
+        const DEPARTMENTS = { pre: PRE_PROD_LIST, prod: PRE_PROD_LIST, pos: ['FINALIZAÇÃO', 'ANIMAÇÃO', 'VFX', 'ÁUDIO'] };
+        const LABOR_DEPTS = ['DIREÇÃO', 'PRODUÇÃO', 'FOTOGRAFIA E TÉCNICA', 'ARTE E CENOGRAFIA', 'FIGURINO E MAQUIAGEM', 'SOM DIRETO', 'FINALIZAÇÃO', 'ANIMAÇÃO', 'VFX', 'ÁUDIO'];
+        
+        let currentJobId = null; 
+        let currentStatus = { initial: 'open', final: 'locked', closing: 'locked' }; 
+        let activePhase = 'prod'; let activeFinalPhase = 'prod'; let currentView = 'filme';
+
+        document.addEventListener('DOMContentLoaded', () => { 
+            renderBudgetTables(); renderFinalBudgetTables(); switchBudgetPhase('prod'); loadCompany(); 
+        });
+
+        function saveContext() {
+            if (currentView === 'orc-final' || currentView === 'fechamento') saveRealizedCosts();
+            else saveProject();
+        }
+
+
+        // === FORMATAÇÃO DE MOEDA ===
+
+        // Formatar número (sem símbolo de moeda)
+        function formatNumber(value) {
+            return value.toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+        
+        // Formatar número como moeda (NOVA - para values, não inputs)
+        function formatCurrencyValue(value) {
+            if (typeof value === 'undefined' || value === null) value = 0;
+            return value.toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+        
+                function formatCurrency(input) {
+            let value = input.value.replace(/[^0-9]/g, '');
+            if(value === '') {
+                input.value = '';
+                return;
+            }
+            let num = parseInt(value);
+            let formatted = (num / 100).toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+                minimumFractionDigits: 2
+            });
+            input.value = formatted;
+        }
+        
+        function parseCurrency(str) {
+            if(!str) return 0;
+            return parseFloat(str.replace(/[^0-9,-]/g, '').replace(',', '.')) || 0;
+        }
+        
+        function applyCurrencyFormat(input) {
+            input.addEventListener('focus', function() {
+                let val = parseCurrency(this.value);
+                this.value = val > 0 ? val.toFixed(2) : '';
+            });
+            input.addEventListener('blur', function() {
+                if(this.value !== '') {
+                    let val = parseFloat(this.value) || 0;
+                    this.value = val.toLocaleString('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL',
+                        minimumFractionDigits: 2
+                    });
+                }
+            });
+        }
+        
+
+        function formatCurrencyOnBlur(input) {
+            let val = parseCurrencyInput(input.value);
+            if(val > 0) {
+                input.value = val.toLocaleString('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                    minimumFractionDigits: 2
+                });
+            } else {
+                input.value = '';
+            }
+        }
+        
+        function removeCurrencyFormat(input) {
+            let val = parseCurrencyInput(input.value);
+            input.value = val > 0 ? val.toFixed(2) : '';
+        }
+        
+        function parseCurrencyInput(str) {
+            if(!str || str === '') return 0;
+            
+            // Converter para string
+            str = String(str);
+            
+            // Remover "R$", espaços e outros caracteres (mantém apenas dígitos, vírgula e ponto)
+            str = str.replace(/[^0-9,.]/g, '');
+            
+            // Formato brasileiro: 1.739,13 ou 1000,00 ou 500
+            // Formato JS precisa: 1739.13
+            
+            // Se tem ponto E vírgula (formato completo brasileiro: 1.739,13)
+            if (str.includes('.') && str.includes(',')) {
+                // Remove todos os pontos (separadores de milhar)
+                str = str.replace(/\./g, '');
+                // Troca vírgula por ponto (separador decimal)
+                str = str.replace(',', '.');
+            }
+            // Se tem APENAS vírgula (ex: 1739,13 ou 100,50)
+            else if (str.includes(',') && !str.includes('.')) {
+                str = str.replace(',', '.');
+            }
+            // Se tem APENAS ponto (ex: 1739.13) - já está correto para parseFloat
+            
+            let value = parseFloat(str);
+            return isNaN(value) ? 0 : value;
+        }
+        
+
+        // Adicionar seção de VERBA a um departamento
+        function addVerbaSection(deptBlock, deptName, phase) {
+            const safeId = deptName.replace(/[^a-zA-Z0-9]/g, '') + '-verba-' + phase;
+            const tableId = 'tbl-' + safeId;
+            
+            // Verificar se já existe
+            if (deptBlock.querySelector('.verba-section')) return;
+            
+            // Esconder botão "ADICIONAR VERBA"
+            const btnVerba = deptBlock.querySelector('.btn-add-verba');
+            if (btnVerba) {
+                btnVerba.style.display = 'none';
+            }
+            
+            // Criar seção de verbas
+            const verbaSection = document.createElement('div');
+            verbaSection.className = 'verba-section';
+            
+            // Header amarelo
+            const verbaHeader = document.createElement('div');
+            verbaHeader.className = 'verba-header';
+            verbaHeader.innerHTML = '<i class="fas fa-wallet"></i> VERBAS';
+            
+            // Body
+            const verbaBody = document.createElement('div');
+            verbaBody.className = 'verba-body';
+            
+            // Tabela
+            const colGroup = '<col style="width:50%"><col style="width:20%"><col style="width:10%"><col style="width:18%"><col style="width:40px">';
+            const thead = '<tr><th>Descrição</th><th>Valor</th><th>Qtd</th><th>Total</th><th></th></tr>';
+            
+            verbaBody.innerHTML = `<table class="cb-table" id="${tableId}" data-dept="${deptName}" data-type="verba"><colgroup>${colGroup}</colgroup><thead>${thead}</thead><tbody></tbody></table>`;
+            
+            // Botão adicionar item - FORA da tabela, no fundo cinza
+            const addBtn = document.createElement('button');
+            addBtn.className = 'btn-add-row';
+            addBtn.innerHTML = '+ ADICIONAR ITEM';
+            addBtn.onclick = () => addVerbaRow(tableId);
+            
+            verbaBody.appendChild(addBtn);
+            
+            verbaSection.appendChild(verbaHeader);
+            verbaSection.appendChild(verbaBody);
+            
+            // Inserir na dept-body (dentro do bloco)
+            const deptBody = deptBlock.querySelector('.dept-body');
+            if (deptBody) {
+                deptBody.appendChild(verbaSection);
+            }
+            
+            // Adicionar primeira linha automaticamente
+            addVerbaRow(tableId);
+        }
+        
+        // Adicionar linha na tabela de verba
+        function addVerbaRow(tableId) {
+            const tbody = document.querySelector(`#${tableId} tbody`);
+            if (!tbody) return;
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="text" class="cb-input-cell"></td>
+                <td><input type="text" class="cb-input-cell input-rate currency-input" value="" placeholder="R$ 0,00" onfocus="removeCurrencyFormat(this)" onblur="formatCurrencyOnBlur(this); calcVerbaRow(this);" onchange="calcVerbaRow(this)"></td>
+                <td><input type="number" class="cb-input-cell input-qty" value="1" onchange="calcVerbaRow(this)"></td>
+                <td class="row-total">R$ 0,00</td>
+                <td><button class="btn-remove-row" onclick="removeRow(this)"><i class="fas fa-times"></i></button></td>
+            `;
+            tbody.appendChild(tr);
+            calcVerbaRow(tr.querySelector('.input-rate'));
+        }
+        
+        // Calcular linha de verba
+        function calcVerbaRow(input) {
+            const tr = input.closest('tr');
+            if (!tr) return;
+            
+            const valorInput = tr.querySelector('.input-rate');
+            const qtdInput = tr.querySelector('.input-qty');
+            
+            // USAR parseCurrencyInput para valor
+            const valor = parseCurrencyInput(valorInput.value);
+            const qtd = parseFloat(qtdInput.value) || 0;
+            const total = valor * qtd;
+            
+            // Atualizar total
+            tr.querySelector('.row-total').textContent = formatCurrencyValue(total);
+            tr.dataset.total = total;
+            
+            // Recalcular total do departamento
+            const table = tr.closest('.cb-table');
+            const deptBlock = table.closest('.dept-block');
+            updateDeptTotal(deptBlock);
+        }
+        
+        // Atualizar total do departamento (incluindo verbas)
+        function updateDeptTotal(deptBlock) {
+            let total = 0;
+            
+            // Somar tabela principal
+            const mainTable = deptBlock.querySelector('.cb-table:not([data-type="verba"])');
+            if (mainTable) {
+                mainTable.querySelectorAll('tbody tr').forEach(tr => {
+                    total += parseFloat(tr.dataset.total || 0);
+                });
+            }
+            
+            // Somar tabela de verbas
+            const verbaTable = deptBlock.querySelector('.cb-table[data-type="verba"]');
+            if (verbaTable) {
+                verbaTable.querySelectorAll('tbody tr').forEach(tr => {
+                    total += parseFloat(tr.dataset.total || 0);
+                });
+            }
+            
+            // Atualizar display
+            const totalSpan = deptBlock.querySelector('[id^="total-"]');
+            if (totalSpan) {
+                totalSpan.textContent = total.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+            }
+            
+            calcFinancials();
+        }
+        
+
+        // === MINI TABELAS (CONTINGÊNCIA, CRT, BV AGÊNCIA) ===
+        
+        // Valores das mini tabelas
+        window.miniTablesData = {
+            contingencia: 0,
+            crt: 0,
+            bvagencia: 0
+        };
+        
+        // Atualizar mini tabela - USANDO parseCurrencyInput
+        function updateMiniTable(type) {
+            const input = document.getElementById(`mini-${type}-input`);
+            if (!input) return;
+            
+            // USAR função parseCurrencyInput (formato brasileiro)
+            const value = parseCurrencyInput(input.value);
+            window.miniTablesData[type] = value;
+            
+            // Formatar como moeda brasileira
+            input.value = formatCurrencyValue(value);
+            
+            // Recalcular financials
+            calcFinancials();
+        }
+        
+        // Focar no input (remover formatação)
+        function handleMiniTableFocus(input) {
+            const type = input.id.replace('mini-', '').replace('-input', '');
+            const value = window.miniTablesData[type] || 0;
+            input.value = value === 0 ? '' : formatNumber(value);
+        }
+        
+        // Desfocar do input (formatar como moeda)
+        function handleMiniTableBlur(input) {
+            const type = input.id.replace('mini-', '').replace('-input', '');
+            updateMiniTable(type);
+        }
+        
+        // Obter total das mini tabelas
+        function getMiniTablesTotal() {
+            return window.miniTablesData.contingencia + 
+                   window.miniTablesData.crt + 
+                   window.miniTablesData.bvagencia;
+        }
+        
+        function toggleLock(stage) {
+            if(!currentJobId) return;
+            let newStatus = 'locked';
+            if(stage === 'initial' && currentStatus.initial === 'locked') newStatus = 'open';
+            if(stage === 'final' && currentStatus.final === 'locked') newStatus = 'open';
+            if(stage === 'closing' && currentStatus.closing === 'locked') newStatus = 'open';
+
+            const btn = document.getElementById(`btn-lock-${stage}`);
+            const oldHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ...';
+
+            let p = Promise.resolve();
+            if(stage === 'initial') {
+                const btnSave = document.getElementById('btn-save-global');
+                saveBudgetLines(currentJobId, btnSave, btnSave.innerHTML); 
+                p = new Promise(r => setTimeout(r, 1000));
+            } else if(stage === 'final') {
+                saveRealizedCosts();
+                p = new Promise(r => setTimeout(r, 1000));
+            } else if(stage === 'closing') {
+                saveRealizedCosts(); 
+                p = new Promise(r => setTimeout(r, 1000));
+            }
+
+            p.then(() => {
+                const fd = new FormData();
+                fd.append('action', 'cb_update_stage_status');
+                fd.append('job_id', currentJobId);
+                fd.append('stage', stage);
+                fd.append('status', newStatus);
+                return fetch('/wp-admin/admin-ajax.php', { method: 'POST', body: fd });
+            }).then(r=>r.json()).then(d => {
+                if(d.success) {
+                    currentStatus[stage] = newStatus;
+                    if(stage === 'initial' && newStatus === 'locked') {
+                         currentStatus.final = 'open';
+                         loadBudgetForFinal(); 
+                    }
+                    if(stage === 'final' && newStatus === 'locked') {
+                        currentStatus.closing = 'open';
+                        renderClosingTable(); 
+                    }
+                    updateLockUI();
+                }
+                // btn.innerHTML restored by updateLockUI
+            });
+        }
+
+        // --- NEW STANDARDIZED BUTTON STATE FUNCTION ---
+        function setButtonState(btnId, isLocked, textLocked, textOpen) {
+            const btn = document.getElementById(btnId);
+            if(!btn) return;
+            if(isLocked) {
+                // Estado Travado -> Mostrar Botão "ABRIR" (Destravar)
+                btn.classList.add('btn-unlock'); // Laranja
+                btn.innerHTML = `<i class="fas fa-lock-open"></i> ${textLocked}`;
+            } else {
+                // Estado Aberto -> Mostrar Botão "FINALIZAR" (Travar)
+                btn.classList.remove('btn-unlock'); // Verde Padrão
+                btn.innerHTML = `<i class="fas fa-lock"></i> ${textOpen}`;
+            }
+        }
+
+        function updateLockUI() {
+            // 1. INICIAL
+            const ctrInit = document.getElementById('budget-tables-container');
+            const lockedInit = (currentStatus.initial === 'locked');
+            
+            if(lockedInit) ctrInit.classList.add('locked-sheet'); else ctrInit.classList.remove('locked-sheet');
+            setButtonState('btn-lock-initial', lockedInit, 'ABRIR ORÇAMENTO', 'FINALIZAR ORÇAMENTO');
+
+            // 2. FINAL
+            const ctrFinal = document.getElementById('final-tables-container');
+            const lockedFinal = (currentStatus.final === 'locked');
+            
+            // Lógica de Acesso (Só acessa se Inicial estiver Travado)
+            if(lockedInit) {
+                document.getElementById('nav-orc2').classList.remove('dimmed', 'disabled');
+                if(lockedFinal) ctrFinal.classList.add('locked-sheet'); else ctrFinal.classList.remove('locked-sheet');
+                setButtonState('btn-lock-final', lockedFinal, 'ABRIR ORÇAMENTO', 'FINALIZAR ORÇAMENTO');
+            } else {
+                // Inacessível
+                document.getElementById('nav-orc2').classList.add('dimmed', 'disabled');
+            }
+
+            // 3. FECHAMENTO
+            const ctrClosing = document.getElementById('closing-table');
+            const lockedClosing = (currentStatus.closing === 'locked');
+            
+            // Lógica de Acesso (Só acessa se Final estiver Travado)
+            if(lockedFinal && lockedInit) {
+                document.getElementById('nav-fechamento').classList.remove('dimmed', 'disabled');
+                if(lockedClosing) ctrClosing.classList.add('locked-sheet'); else ctrClosing.classList.remove('locked-sheet');
+                setButtonState('btn-lock-closing', lockedClosing, 'REABRIR PROJETO', 'ENCERRAR PROJETO');
+            } else {
+                // Inacessível
+                document.getElementById('nav-fechamento').classList.add('dimmed', 'disabled');
+            }
+        }
+
+        // --- RENDER TABLES (V10) ---
+        function renderBudgetTables() {
+            const container = document.getElementById('budget-tables-container'); container.innerHTML = '';
+            
+            // Definir headers customizados por departamento
+            const customHeaders = {
+                'CASTING': { item: 'Nome', supplier: 'Descrição' },
+                'LOCAÇÕES': { item: 'Item', supplier: 'Descrição' },
+                'EQUIPAMENTOS': { item: 'Item', supplier: 'Fornecedor' },
+                'CATERING': { item: 'Item', supplier: 'Descrição' },
+                'TRANSPORTE': { item: 'Item', supplier: 'Descrição' },
+                'DESPESAS GERAIS': { item: 'Item', supplier: 'Descrição' }
+            };
+            
+            for (const [phase, depts] of Object.entries(DEPARTMENTS)) {
+                const phaseDiv = document.createElement('div'); 
+                phaseDiv.id = `phase-${phase}`; 
+                phaseDiv.className = 'phase-wrapper hidden'; 
+                if(phase === 'prod') phaseDiv.classList.remove('hidden');
+                
+                depts.forEach(deptName => {
+                    const safeId = deptName.replace(/[^a-zA-Z0-9]/g, '') + '-' + phase; 
+                    const tableId = `tbl-${safeId}`; 
+                    const isLabor = LABOR_DEPTS.includes(deptName);
+                    
+                    const deptBlock = document.createElement('div'); 
+                    deptBlock.className = 'dept-block';
+                    
+                    const header = document.createElement('div'); 
+                    header.className = 'dept-header'; 
+                    header.innerHTML = `<span>${deptName}</span> <span id="total-${tableId}">R$ 0,00</span>`;
+                    
+                    const body = document.createElement('div'); 
+                    body.className = 'dept-body';
+                    
+                    let colGroup, thead;
+                    
+                    if(isLabor) {
+                        colGroup = `<col style="width:19%"><col style="width:31%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col style="width:5%"><col style="width:10%"><col style="width:40px">`;
+                        thead = `<tr><th>Função</th><th>Nome</th><th>Tipo</th><th>Cachê</th><th>Desl.</th><th>Qtd</th><th>Total</th><th></th></tr>`;
+                    } else {
+                        colGroup = `<col style="width:29%"><col style="width:29%"><col style="width:10%"><col style="width:11%"><col style="width:5%"><col style="width:14%"><col style="width:40px">`;
+                        
+                        // Usar headers customizados se existirem
+                        const custom = customHeaders[deptName];
+                        const itemLabel = custom ? custom.item : 'Item';
+                        const supplierLabel = custom ? custom.supplier : 'Fornecedor';
+                        
+                        thead = `<tr><th>${itemLabel}</th><th>${supplierLabel}</th><th>Tipo</th><th>Valor</th><th>Qtd</th><th>Total</th><th></th></tr>`;
+                    }
+                    
+                    body.innerHTML = `<table class="cb-table" id="${tableId}" data-dept="${deptName}" data-type="${isLabor?'labor':'cost'}"><colgroup>${colGroup}</colgroup><thead>${thead}</thead><tbody></tbody></table><button class="btn-add-row" onclick="addBudgetRow('${tableId}')">+ ADICIONAR ${isLabor?'PROFISSIONAL':'ITEM'}</button>`;
+                    
+                    deptBlock.appendChild(header); 
+                    deptBlock.appendChild(body);
+                    
+                    // Adicionar botão "ADICIONAR VERBA" para departamentos específicos
+                    if (['PRODUÇÃO', 'FOTOGRAFIA E TÉCNICA', 'ARTE E CENOGRAFIA'].includes(deptName)) {
+                        const btnVerba = document.createElement('button');
+                        btnVerba.className = 'btn-add-verba';
+                        btnVerba.innerHTML = '<i class="fas fa-wallet"></i> ADICIONAR VERBA';
+                        btnVerba.onclick = () => addVerbaSection(deptBlock, deptName, phase);
+                        deptBlock.appendChild(btnVerba);
+                    }
+                    
+                    phaseDiv.appendChild(deptBlock);
+                }); 
+                
+                // ADICIONAR OBSERVAÇÕES (todas as fases)
+                {
+                    const notesBlock = document.createElement('div');
+                    notesBlock.className = 'dept-block notes-block';
+                    notesBlock.style.gridColumn = '1 / -1';
+                    
+                    const notesHeader = document.createElement('div');
+                    notesHeader.className = 'dept-header';
+                    notesHeader.innerHTML = '<span><i class="fas fa-sticky-note"></i> OBSERVAÇÕES</span>';
+                    
+                    const notesBody = document.createElement('div');
+                    notesBody.className = 'dept-body';
+                    notesBody.innerHTML = `<textarea 
+                        id="notes-${phase}" 
+                        class="notes-textarea" 
+                        placeholder="Digite aqui observações sobre este orçamento..."
+                        rows="6"
+                    ></textarea>`;
+                    
+                    notesBlock.appendChild(notesHeader);
+                    notesBlock.appendChild(notesBody);
+                    phaseDiv.appendChild(notesBlock);
+                }
+                
+                container.appendChild(phaseDiv);
+            }
+        }
+        function renderFinalBudgetTables() {
+            const container = document.getElementById('final-tables-container'); container.innerHTML = '';
+            
+            // Mesmos headers customizados do Orçamento Inicial
+            const customHeaders = {
+                'CASTING': { item: 'Nome', supplier: 'Descrição' },
+                'LOCAÇÕES': { item: 'Item', supplier: 'Descrição' },
+                'EQUIPAMENTOS': { item: 'Item', supplier: 'Fornecedor' },
+                'CATERING': { item: 'Item', supplier: 'Descrição' },
+                'TRANSPORTE': { item: 'Item', supplier: 'Descrição' },
+                'DESPESAS GERAIS': { item: 'Item', supplier: 'Descrição' }
+            };
+            
+            for (const [phase, depts] of Object.entries(DEPARTMENTS)) {
+                const phaseDiv = document.createElement('div'); 
+                phaseDiv.id = `final-phase-${phase}`; 
+                phaseDiv.className = 'phase-wrapper hidden'; 
+                if(phase === 'prod') phaseDiv.classList.remove('hidden');
+                
+                depts.forEach(deptName => {
+                    const safeId = deptName.replace(/[^a-zA-Z0-9]/g, '') + '-final-' + phase; const tableId = `tbl-${safeId}`; const isLabor = LABOR_DEPTS.includes(deptName);
+                    const deptBlock = document.createElement('div'); deptBlock.className = 'dept-block';
+                    deptBlock.innerHTML = `<div class="dept-header"><span>${deptName}</span><span id="ftotal-${tableId}">R$ 0,00</span></div>`;
+                    const body = document.createElement('div'); body.className = 'dept-body';
+                    let colGroup = `<col style="width:25%"><col style="width:15%"><col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:10%">`;
+                    let thead = `<tr><th>ITEM</th><th>FUNÇÃO</th><th style="color:#666">ORÇADO</th><th>REAL(UN)</th><th>QTD</th><th>EXTRA</th><th>TOTAL</th><th>DIF</th></tr>`;
+                    body.innerHTML = `<table class="cb-table" id="${tableId}" data-dept="${deptName}" data-type="${isLabor?'labor':'cost'}"><colgroup>${colGroup}</colgroup><thead>${thead}</thead><tbody></tbody></table>`;
+                    deptBlock.appendChild(body); phaseDiv.appendChild(deptBlock);
+                }); container.appendChild(phaseDiv);
+            }
+        }
+        function renderClosingTable() {
+            const tbody = document.getElementById('closing-list'); tbody.innerHTML = '';
+            document.querySelectorAll('#view-orc-final tbody tr').forEach(row => {
+                const rTotal = parseFloat(row.dataset.real)||0;
+                if(rTotal > 0) {
+                     const tr = document.createElement('tr');
+                     tr.dataset.refId = row.dataset.id;
+                     const item = row.cells[0].innerText;
+                     const status = row.dataset.payStatus || 'pendente';
+                     const doc = row.dataset.payDoc || '';
+                     tr.innerHTML = `<td><strong>${item}</strong></td><td style="font-weight:bold;">${rTotal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</td><td><input type="date" class="cb-input-cell pay-date" onchange="syncPay(this)"></td><td><input type="text" class="cb-input-cell pay-doc" value="${doc}" placeholder="NF" onchange="syncPay(this)"></td><td><select class="cb-input-cell pay-status" onchange="syncPay(this)"><option value="pendente" ${status=='pendente'?'selected':''}>Pendente</option><option value="pago" ${status=='pago'?'selected':''}>Pago</option></select></td>`;
+                     tbody.appendChild(tr);
+                }
+            });
+        }
+
+        // --- CORE FUNCTIONS (V10) ---
+        function syncPay(el) {
+            const tr = el.closest('tr');
+            const rowFinal = document.querySelector(`#view-orc-final tr[data-id="${tr.dataset.refId}"]`);
+            if(rowFinal) {
+                rowFinal.dataset.payStatus = tr.querySelector('.pay-status').value;
+                rowFinal.dataset.payDoc = tr.querySelector('.pay-doc').value;
+                rowFinal.dataset.payDate = tr.querySelector('.pay-date').value;
+            }
+        }
+        function switchBudgetPhase(phase) { activePhase = phase; document.querySelectorAll('#view-orcamento .tab-pill').forEach(b => b.classList.remove('active')); document.getElementById(`tab-${phase}`).classList.add('active'); document.querySelectorAll('#view-orcamento .phase-wrapper').forEach(d => d.classList.add('hidden')); document.getElementById(`phase-${phase}`).classList.remove('hidden'); }
+        function switchFinalPhase(phase) { activeFinalPhase = phase; document.querySelectorAll('#view-orc-final .tab-pill').forEach(b => b.classList.remove('active')); document.getElementById(`tab-final-${phase}`).classList.add('active'); document.querySelectorAll('#view-orc-final .phase-wrapper').forEach(d => d.classList.add('hidden')); document.getElementById(`final-phase-${phase}`).classList.remove('hidden'); }
+        function addBudgetRow(tableId, data = null) {
+            const table = document.getElementById(tableId); 
+            const type = table.getAttribute('data-type'); 
+            const tbody = table.querySelector('tbody'); 
+            const tr = document.createElement('tr');
+            const qty = data ? data.quantity : '1'; 
+            const total = data ? data.total_cost : 0;
+            
+            if (type === 'labor') {
+                const role = data ? data.role_function : ''; 
+                const name = data ? data.item_name : ''; 
+                const uType = data ? data.unit_type : 'dia'; 
+                const rate = data ? data.unit_cost : ''; 
+                const travel = data ? data.extra_cost : '';
+                tr.innerHTML = `<td style="position:relative;"><input type="text" class="cb-input-cell role-search" value="${role}" onkeyup="searchDB(this, 'role')" autocomplete="off"><div class="autocomplete-list"></div></td><td style="position:relative;"><input type="text" class="cb-input-cell name-search" value="${name}" onkeyup="searchDB(this, 'name')" autocomplete="off"><div class="autocomplete-list"></div></td><td><select class="cb-input-cell" onchange="calcRow(this)"><option value="dia" ${uType=='dia'?'selected':''}>Diária</option><option value="sem" ${uType=='sem'?'selected':''}>Semana</option><option value="flat" ${uType=='flat'?'selected':''}>Fechado</option></select></td><td><input type="text" class="cb-input-cell input-rate currency-input" value="${rate?'R$ '+parseFloat(rate).toFixed(2):''}" placeholder="R$ 0,00" onblur="formatCurrencyOnBlur(this)" onfocus="removeCurrencyFormat(this)" onchange="calcRow(this)"></td><td><input type="text" class="cb-input-cell input-travel currency-input" value="${travel?'R$ '+parseFloat(travel).toFixed(2):''}" placeholder="R$ 0,00" onblur="formatCurrencyOnBlur(this)" onfocus="removeCurrencyFormat(this)" onchange="calcRow(this)"></td><td><input type="number" class="cb-input-cell input-qty" value="${qty}" onchange="calcRow(this)"></td><td class="row-total" style="font-weight:bold;">R$ 0,00</td><td class="td-remove"><div class="row-remove" onclick="removeRow(this)">×</div></td>`;
+            } else {
+                const item = data ? data.item_name : ''; 
+                const supplier = data ? data.role_function : ''; 
+                const uType = data ? data.unit_type : 'cache'; 
+                const val = data ? data.unit_cost : '';
+                tr.innerHTML = `<td><input type="text" class="cb-input-cell item-input" value="${item}"></td><td><input type="text" class="cb-input-cell supplier-input" value="${supplier}"></td><td><select class="cb-input-cell" onchange="calcRow(this)"><option value="cache" ${uType=='cache'?'selected':''}>Cachê</option><option value="verba" ${uType=='verba'?'selected':''}>Verba</option><option value="extra" ${uType=='extra'?'selected':''}>Extra</option></select></td><td><input type="text" class="cb-input-cell input-rate currency-input" value="${val?'R$ '+parseFloat(val).toFixed(2):''}" placeholder="R$ 0,00" onblur="formatCurrencyOnBlur(this)" onfocus="removeCurrencyFormat(this)" onchange="calcRow(this)"></td><td><input type="number" class="cb-input-cell input-qty" value="${qty}" onchange="calcRow(this)"></td><td class="row-total" style="font-weight:bold;">R$ 0,00</td><td class="td-remove"><div class="row-remove" onclick="removeRow(this)">×</div></td>`;
+            }
+            tbody.appendChild(tr); 
+            tr.dataset.total = total; 
+            calcRow(tr.querySelector('select'));
+        }
+        function saveProject() { 
+            const nome = document.getElementById('in-nome').value; if(!nome) { document.getElementById('in-nome').style.borderColor = 'var(--danger)'; return; } 
+            const btn = document.getElementById('btn-save-global'); const originalHTML = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> SALVANDO...';
+            const formData = new FormData(); formData.append('action', 'cb_save_project'); formData.append('title', nome); formData.append('agency', document.getElementById('in-agencia').value); formData.append('client', document.getElementById('in-cliente').value); formData.append('duration', document.getElementById('in-duracao').value); formData.append('duration_unit', document.getElementById('in-duracao-unit').value); if(currentJobId) formData.append('current_job_id', currentJobId);
+            fetch('/wp-admin/admin-ajax.php', { method: 'POST', body: formData }).then(r => r.json()).then(data => { 
+                if(data.success) { 
+                    currentJobId = data.data.job_id; 
+                    if(data.data.status) currentStatus = data.data.status; 
+                    updateHeaderUI(nome, currentJobId, document.getElementById('in-agencia').value, document.getElementById('in-cliente').value, document.getElementById('in-duracao').value);
+                    saveBudgetLines(currentJobId, btn, originalHTML); 
+                    updateLockUI(); 
+                } else { alert('Erro: ' + (data.data ? data.data.message : 'Unknown')); btn.innerHTML = originalHTML; } 
+            });
+        }
+        function saveBudgetLines(jobId, btn, originalHTML) { const lines = []; document.querySelectorAll('#view-orcamento .cb-table tbody tr').forEach(tr => { const table = tr.closest('table'); const type = table.getAttribute('data-type'); let role, name, travel; if(type === 'labor') { role = tr.querySelector('.role-search').value; name = tr.querySelector('.name-search').value; travel = tr.querySelector('.input-travel').value; } else { name = tr.querySelector('.item-input').value; role = tr.querySelector('.supplier-input').value; travel = 0; } if(role || name) { lines.push({ department: table.getAttribute('data-dept'), role: role, name: name, type: tr.querySelector('select').value, rate: tr.querySelector('.input-rate').value, travel: travel, qty: tr.querySelector('.input-qty').value, total: tr.dataset.total || 0 }); } }); const formData = new FormData(); formData.append('action', 'cb_save_budget_lines'); formData.append('job_id', jobId); formData.append('lines', JSON.stringify(lines)); fetch('/wp-admin/admin-ajax.php', { method: 'POST', body: formData }).then(r => r.json()).then(data => { btn.innerHTML = '<i class="fas fa-check"></i> OK'; setTimeout(() => { btn.innerHTML = originalHTML; }, 2000); }); }
+        function loadProject(projData) { 
+            currentJobId = projData.job_id; document.getElementById('in-nome').value = projData.title; document.getElementById('in-cliente').value = projData.client || ''; document.getElementById('in-agencia').value = projData.agency || ''; document.getElementById('in-duracao').value = projData.duration || ''; if(projData.duration_unit) document.getElementById('in-duracao-unit').value = projData.duration_unit;
+            updateHeaderUI(projData.title, projData.job_id, projData.agency, projData.client, projData.duration); document.getElementById('card-dados-projeto').classList.remove('locked-module'); document.getElementById('filme-actions-block').classList.remove('locked-module'); document.querySelectorAll('.nav-btn').forEach(n => n.classList.remove('disabled')); document.getElementById('nav-team').classList.remove('disabled'); document.getElementById('nav-orc2').classList.remove('disabled'); closeModal('modal-projects'); document.querySelectorAll('.cb-table tbody').forEach(tb => tb.innerHTML = '');
+            fetch(`/wp-admin/admin-ajax.php?action=cb_get_budget_lines&job_id=${currentJobId}`, { cache: "no-store" }).then(r => r.json()).then(data => { 
+                if(data.success) { 
+                    if(data.data.status) currentStatus = data.data.status;
+                    if(data.data.lines.length > 0) { data.data.lines.forEach(line => { const targetTable = document.querySelector(`.cb-table[data-dept="${line.department}"]`); if(targetTable) addBudgetRow(targetTable.id, line); }); } 
+                    calcFinancials(); 
+                    if(currentStatus.initial === 'locked') loadBudgetForFinal();
+                    updateLockUI();
+                } 
+            });
+            switchTab('filme', document.querySelector('.nav-btn.active')); 
+        }
+
+        // --- MODALS & UTILS ---
+        function handleNewBtn() { 
+            if (currentView === 'filme') {
+                unlockNewProject();
+                // Reset Visual Workflow
+                currentStatus = { initial: 'open', final: 'locked', closing: 'locked' };
+                updateLockUI();
+            } else { document.getElementById('modal-new-project').classList.remove('hidden'); }
+        }
+        function openProjectModal() { document.getElementById('modal-projects').classList.remove('hidden'); const container = document.getElementById('projects-list-container'); container.innerHTML = '<div style="padding:20px; text-align:center; color:#888;"><i class="fas fa-spinner fa-spin"></i> Buscando...</div>'; fetch('/wp-admin/admin-ajax.php?action=cb_list_projects').then(r => r.json()).then(data => { container.innerHTML = ''; if(data.success && data.data.length > 0) { data.data.forEach(proj => { const div = document.createElement('div'); div.className = 'project-list-item'; div.innerHTML = `<div><div class="project-title">${proj.title}</div><div class="project-meta">${proj.job_id} • ${proj.client || ''}</div></div><div><i class="fas fa-chevron-right"></i></div>`; div.onclick = () => loadProject(proj); container.appendChild(div); }); } else container.innerHTML = '<div style="padding:20px; text-align:center;">Nenhum projeto encontrado.</div>'; }); }
+        function openCopyModal() { if (!currentJobId) { alert("Salve antes de copiar."); return; } document.getElementById('copy-nome').value = document.getElementById('in-nome').value + " (Cópia)"; document.getElementById('copy-agencia').value = document.getElementById('in-agencia').value; document.getElementById('copy-cliente').value = document.getElementById('in-cliente').value; document.getElementById('copy-duracao').value = document.getElementById('in-duracao').value; document.getElementById('modal-copy').classList.remove('hidden'); }
+        function executeNewProject() { const nome = document.getElementById('new-proj-nome').value; if(!nome) { alert('Nome obrigatório'); return; } const fd = new FormData(); fd.append('action', 'cb_save_project'); fd.append('title', nome); fd.append('agency', document.getElementById('new-proj-agencia').value); fd.append('client', document.getElementById('new-proj-cliente').value); fd.append('duration', document.getElementById('new-proj-duracao').value); fd.append('duration_unit', document.getElementById('new-proj-duracao-unit').value); fetch('/wp-admin/admin-ajax.php', { method: 'POST', body: fd }).then(r=>r.json()).then(data => { if(data.success) { loadProject({ job_id: data.data.job_id, title: nome, agency: document.getElementById('new-proj-agencia').value, client: document.getElementById('new-proj-cliente').value, duration: document.getElementById('new-proj-duracao').value, duration_unit: document.getElementById('new-proj-duracao-unit').value }); closeModal('modal-new-project'); } else { alert(data.data.message); } }); }
+        function executeCopyProject() { const nome = document.getElementById('copy-nome').value; if(!nome) { alert("Nome obrigatório"); return; } const fd = new FormData(); fd.append('action', 'cb_save_project'); fd.append('title', nome); fd.append('agency', document.getElementById('copy-agencia').value); fd.append('client', document.getElementById('copy-cliente').value); fd.append('duration', document.getElementById('copy-duracao').value); fetch('/wp-admin/admin-ajax.php', { method: 'POST', body: fd }).then(r=>r.json()).then(data => { if(data.success) { const newJobId = data.data.job_id; saveBudgetLines(newJobId, document.querySelector('#modal-copy .btn-highlight'), "CRIAR CÓPIA"); currentJobId = newJobId; updateHeaderUI(nome, newJobId, document.getElementById('copy-agencia').value, document.getElementById('copy-cliente').value, document.getElementById('copy-duracao').value); document.getElementById('in-nome').value = nome; document.getElementById('in-agencia').value = document.getElementById('copy-agencia').value; document.getElementById('in-cliente').value = document.getElementById('copy-cliente').value; document.getElementById('in-duracao').value = document.getElementById('copy-duracao').value; closeModal('modal-copy'); alert(`Cópia criada: ${newJobId}`); } }); }
+        function updateHeaderUI(t, id, agency, client, duration) { document.getElementById('disp-name').innerText=t.toUpperCase(); const parts = []; if(id) parts.push(`JOB ${id}`); if(agency) parts.push(agency); if(client) parts.push(client); if(duration) parts.push(duration); document.getElementById('disp-info').innerText=parts.join(' • '); document.getElementById('project-display').style.opacity = '1'; }
+        function populateFinalTables(lines) { document.querySelectorAll('#view-orc-final .cb-table tbody').forEach(tb => tb.innerHTML = ''); lines.forEach(l => { const tables = document.querySelectorAll(`#view-orc-final table[data-dept="${l.department}"]`); tables.forEach(table => { const tbody = table.querySelector('tbody'); const tr = document.createElement('tr'); tr.dataset.id = l.id; tr.dataset.orc = l.total_cost; const rUnit = l.real_unit_cost > 0 ? l.real_unit_cost : 0; const rQty = l.real_quantity > 0 ? l.real_quantity : l.quantity; const rExtra = l.real_extra_cost > 0 ? l.real_extra_cost : 0; const rTotal = l.real_total_cost > 0 ? l.real_total_cost : 0; 
+        tr.dataset.payStatus = l.pay_status; tr.dataset.payDoc = l.pay_doc; tr.dataset.payDate = l.pay_date; // NEW
+        tr.innerHTML = `<td><strong>${l.item_name||l.role_function}</strong></td><td>${l.unit_type}</td><td style="color:#666;font-weight:bold;">${parseFloat(l.total_cost).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</td><td><input type="number" class="cb-input-cell real-unit" value="${rUnit}" onchange="calcFinalRow(this)"></td><td><input type="number" class="cb-input-cell real-qty" value="${rQty}" onchange="calcFinalRow(this)"></td><td><input type="number" class="cb-input-cell real-extra" value="${rExtra}" onchange="calcFinalRow(this)"></td><td class="real-total">${parseFloat(rTotal).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</td><td class="diff-cell">0</td>`; tbody.appendChild(tr); calcFinalRow(tr.querySelector('input')); }); }); calcFinalFinancials(); }
+        function calcFinalRow(input) { 
+            const tr = input.closest('tr'); 
+            const unit = parseFloat(tr.querySelector('.real-unit').value)||0; 
+            const qty = parseFloat(tr.querySelector('.real-qty').value)||0; 
+            const extra = parseFloat(tr.querySelector('.real-extra').value)||0; 
+            const total = (unit*qty)+extra; 
+            tr.dataset.real = total; 
+            tr.querySelector('.real-total').innerText = total.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); 
+            const diff = parseFloat(tr.dataset.orc) - total; 
+            const diffCell = tr.querySelector('.diff-cell'); 
+            diffCell.innerText = diff.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); 
+            diffCell.style.color = diff >= 0 ? 'var(--success)' : 'var(--danger)';
+            
+            // Cor de fundo da linha
+            if(diff < 0) {
+                tr.style.backgroundColor = 'rgba(220, 53, 69, 0.05)';
+            } else if(diff > 0) {
+                tr.style.backgroundColor = 'rgba(40, 167, 69, 0.05)';
+            } else {
+                tr.style.backgroundColor = '';
+            }
+            
+            calcFinalFinancials(); 
+        }
+        function calcFinalFinancials() { 
+            let totalOrc = 0; 
+            let totalReal = 0; 
+            document.querySelectorAll('#view-orc-final tbody tr').forEach(tr => { 
+                totalOrc += parseFloat(tr.dataset.orc)||0; 
+                totalReal += parseFloat(tr.dataset.real)||0; 
+            }); 
+            
+            const jobVal = window.initialBudgetData ? window.initialBudgetData.jobValue : 0;
+            const profitReal = jobVal - totalReal; 
+            const profitInitial = window.initialBudgetData ? window.initialBudgetData.profitNet : 0;
+            const profitDiff = profitReal - profitInitial;
+            const margin = jobVal > 0 ? ((profitReal / jobVal) * 100) : 0;
+            
+            document.getElementById('final-job-val').innerText = jobVal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); 
+            document.getElementById('final-total-real').innerText = totalReal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); 
+            
+            const elProf = document.getElementById('final-profit-real'); 
+            elProf.innerText = profitReal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); 
+            elProf.style.color = profitReal >= 0 ? 'var(--success)' : 'var(--danger)'; 
+            
+            const elDiff = document.getElementById('final-profit-diff');
+            elDiff.innerText = profitDiff.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+            elDiff.style.color = profitDiff >= 0 ? 'var(--success)' : 'var(--danger)';
+            
+            const marginEl = document.getElementById('final-margin');
+            marginEl.innerText = margin.toFixed(1) + '%';
+            marginEl.style.color = margin >= 20 ? 'var(--success)' : (margin >= 10 ? 'var(--accent)' : 'var(--danger)');
+        }
+        function saveRealizedCosts() { const btn = document.getElementById('btn-save-global'); const old = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ...'; const lines = []; document.querySelectorAll('#view-orc-final tbody tr').forEach(tr => { lines.push({ id: tr.dataset.id, real_rate: tr.querySelector('.real-unit').value, real_qty: tr.querySelector('.real-qty').value, real_travel: tr.querySelector('.real-extra').value, real_total: tr.dataset.real, pay_status: tr.dataset.payStatus, pay_doc: tr.dataset.payDoc, pay_date: tr.dataset.payDate }); }); const fd = new FormData(); fd.append('action', 'cb_save_realized'); fd.append('lines', JSON.stringify(lines)); fetch('/wp-admin/admin-ajax.php', { method: 'POST', body: fd }).then(r=>r.json()).then(d=>{ btn.innerHTML = '<i class="fas fa-check"></i> OK'; setTimeout(() => { btn.innerHTML = old; }, 2000); }); }
+        function filterProjects(input) { const term = input.value.toLowerCase(); document.querySelectorAll('.project-list-item').forEach(item => { item.style.display = item.innerText.toLowerCase().includes(term) ? 'flex' : 'none'; }); }
+        function removeRow(btn) { btn.closest('tr').remove(); calcFinancials(); }
+        function searchDB(input, type) { const list = input.nextElementSibling; const term = input.value; if(term.length < 2) { list.style.display = 'none'; return; } const action = type === 'role' ? 'cb_get_roles' : 'cb_get_pros'; clearTimeout(searchTimeout); searchTimeout = setTimeout(() => { fetch(`/wp-admin/admin-ajax.php?action=${action}&term=${term}`).then(r=>r.json()).then(resp=>{ list.innerHTML = ''; if(resp.success && resp.data.length > 0) { resp.data.forEach(item => { const div = document.createElement('div'); div.className = 'autocomplete-item'; if(type === 'role') { div.innerHTML = `<strong>${item.role_name}</strong><small>D: ${item.daily_rate}</small>`; div.onclick = () => selectRole(input, item); } else { div.innerHTML = `<strong>${item.name}</strong>`; div.onclick = () => selectPro(input, item); } list.appendChild(div); }); list.style.display = 'block'; } else list.style.display = 'none'; }); }, 300); }
+        function selectRole(input, data) { const tr = input.closest('tr'); input.value = data.role_name; tr.querySelector('.input-rate').value = data.daily_rate; input.nextElementSibling.style.display = 'none'; calcRow(input); }
+        function selectPro(input, data) { input.value = data.name; input.nextElementSibling.style.display = 'none'; }
+        function calcRow(el) { 
+            const tr = el.closest('tr'); 
+            const rateInput = tr.querySelector('.input-rate');
+            const r = parseCurrencyInput(rateInput ? rateInput.value : '0');
+            const q = parseFloat(tr.querySelector('.input-qty').value)||0; 
+            const travelInput = tr.querySelector('.input-travel');
+            const travel = travelInput ? parseCurrencyInput(travelInput.value) : 0;
+            const t = (r+travel)*q; 
+            tr.querySelector('.row-total').innerText = t.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); 
+            tr.dataset.total = t; 
+            calcFinancials(); 
+        }
+        function calcFinancials() { 
+            // Calcular custo total
+            let totalCost = 0;
+            
+            // SOMAR MINI TABELAS (CONTINGÊNCIA, CRT, BV AGÊNCIA)
+            const miniTablesTotal = getMiniTablesTotal();
+            totalCost += miniTablesTotal; 
+            document.querySelectorAll('#view-orcamento tbody tr').forEach(r => totalCost += parseFloat(r.dataset.total)||0); 
+            
+            // Atualizar totais por departamento (principal + verbas juntas)
+            document.querySelectorAll('.dept-block').forEach(block => {
+                const mainTable = block.querySelector('.cb-table:not([data-type="verba"])');
+                if (!mainTable) return;
+                let deptTotal = 0;
+                // Somar todas as tabelas dentro do bloco (principal + verba)
+                block.querySelectorAll('.cb-table tbody tr').forEach(tr => {
+                    deptTotal += parseFloat(tr.dataset.total) || 0;
+                });
+                const totalEl = document.getElementById(`total-${mainTable.id}`);
+                if (totalEl) totalEl.innerText = deptTotal.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+            });
+            
+            // Cálculos do Finance Strip
+            const jobValue = parseCurrencyInput(document.getElementById('fin-job-val').value);
+            const taxPercent = parseFloat(document.getElementById('fin-tax-rate').value) || 0;
+            const taxValue = jobValue * (taxPercent / 100);
+            const profitNet = jobValue - totalCost - taxValue;
+            const margin = jobValue > 0 ? ((profitNet / jobValue) * 100) : 0;
+            
+            // Atualizar UI
+            document.getElementById('fin-cost-total').innerText = totalCost.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+            document.getElementById('fin-tax-val').innerText = taxValue.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+            
+            const profitEl = document.getElementById('fin-profit');
+            profitEl.innerText = profitNet.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+            profitEl.style.color = profitNet >= 0 ? 'var(--success)' : 'var(--danger)';
+            
+            const marginEl = document.getElementById('fin-margin');
+            marginEl.innerText = margin.toFixed(1) + '%';
+            marginEl.style.color = margin >= 20 ? 'var(--success)' : (margin >= 10 ? 'var(--accent)' : 'var(--danger)');
+            
+            // Armazenar para comparações
+            window.initialBudgetData = { jobValue, totalCost, taxValue, profitNet, margin };
+        }
+        function applyMarkup(percent) { 
+            let totalCost = 0;
+            
+            // SOMAR MINI TABELAS (CONTINGÊNCIA, CRT, BV AGÊNCIA)
+            const miniTablesTotal = getMiniTablesTotal();
+            totalCost += miniTablesTotal; 
+            document.querySelectorAll('#view-orcamento tr[data-total]').forEach(tr => {
+                totalCost += parseFloat(tr.dataset.total) || 0
+            }); 
+            
+            if(totalCost === 0) {
+                alert('Adicione itens ao orçamento primeiro!');
+                return;
+            }
+            
+            // Obter taxa de imposto
+            let taxPercent = parseFloat(document.getElementById('fin-tax-rate').value) || 0;
+            let taxRate = taxPercent / 100;
+            
+            // Calcular valor total considerando margem e impostos
+            // Fórmula: ValorTotal = Custo / (1 - Margem - TaxaImposto)
+            let marginRate = percent / 100;
+            let newVal = totalCost / (1 - marginRate - taxRate);
+            
+            document.getElementById('fin-job-val').value = newVal.toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+                minimumFractionDigits: 2
+            }); 
+            
+            calcFinancials();
+            
+            // Remover foco do botão para voltar ao estado normal
+            document.activeElement.blur();
+        }
+        function switchTab(viewId, btn) { currentView = viewId; if(btn.classList.contains('disabled')) return; document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden')); document.getElementById('view-' + viewId).classList.remove('hidden'); document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active')); btn.classList.add('active'); if(viewId === 'orc-final') loadBudgetForFinal(); }
+        function loadBudgetForFinal() { if(!currentJobId) return; fetch(`/wp-admin/admin-ajax.php?action=cb_get_budget_lines&job_id=${currentJobId}`).then(r => r.json()).then(data => { if(data.success) { populateFinalTables(data.data.lines); } }); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+        function openFilmeAction(action) { /* placeholder — será implementado futuramente */ alert('Em breve: ' + action); }
+        function unlockNewProject() { currentJobId = null; document.getElementById('in-nome').value = ''; document.getElementById('in-agencia').value = ''; document.getElementById('in-cliente').value = ''; document.getElementById('in-duracao').value = ''; document.getElementById('in-duracao-unit').value = 'segundos'; document.querySelectorAll('.cb-table tbody').forEach(tb => tb.innerHTML = ''); document.getElementById('card-dados-projeto').classList.remove('locked-module'); document.getElementById('filme-actions-block').classList.remove('locked-module'); document.getElementById('in-nome').focus(); document.getElementById('disp-name').innerText = "NOVO PROJETO"; document.getElementById('disp-info').innerText = "Preencha e Salve"; document.getElementById('project-display').style.opacity = '1'; }
+        function switchConfigTab(tab, btn) { document.querySelectorAll('#view-config .dept-block').forEach(el => el.classList.add('hidden')); document.getElementById(`cfg-${tab}`).classList.remove('hidden'); document.querySelectorAll('#view-config .tab-pill').forEach(b => b.classList.remove('active')); if(btn) btn.classList.add('active'); if(tab === 'projects') loadAllProjects(); }
+        function loadAllProjects() { const tb = document.getElementById('all-projects-list'); tb.innerHTML = '<tr><td colspan="4">Carregando...</td></tr>'; fetch('/wp-admin/admin-ajax.php?action=cb_list_projects').then(r=>r.json()).then(d=>{ tb.innerHTML = ''; if(d.success) d.data.forEach(p => { tb.innerHTML += `<tr><td>${p.job_id}</td><td>${p.title}</td><td>${p.client}</td><td></td></tr>`; }); }); }
+        function saveCompany() { alert('Salvo!'); } 
+        function loadCompany() { }
+        document.addEventListener('click', function(e) { if(!e.target.classList.contains('role-search')) document.querySelectorAll('.autocomplete-list').forEach(l => l.style.display = 'none'); });
+        let searchTimeout;
+
+        // Aplicar formatação de moeda ao carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            const valInput = document.getElementById('fin-job-val');
+            if(valInput && valInput.value === '0') {
+                valInput.value = 'R$ 0,00';
+            }
+        });
+    </script>
+</body>
+</html>

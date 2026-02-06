@@ -1,0 +1,27 @@
+---
+description: Contexto do projeto CineBuddy e objetivo de migração para Next.js/Vercel/Supabase
+alwaysApply: true
+---
+
+# CineBuddy — Contexto do Projeto
+
+## O que é o CineBuddy
+- Sistema de **orçamento**, **gestão financeira** e **gestão de projetos audiovisuais**.
+- Será hospedado no site do usuário com o nome CineBuddy.
+
+## Estado atual
+- **Frontend:** HTML (inserido em widget HTML do Elementor no WordPress).
+- **Backend:** PHP (inserido no plugin WPCode do WordPress).
+- Arquivos de referência em `files/`: `CineBuddy_frontend_V13_*.html` e `CineBuddy_backend_V13_*.php`.
+- Documentação do projeto em `files/`: `INSTRUCOES_PROJETO.md`, `01_CONTEXTO_MESTRE.md`, `02_WORKFLOW_BACKEND.md`, `03_SPEC_IMPLEMENTACAO.md`.
+- **Workspace:** pasta do projeto é `E:\_Projetos\Cinebuddy\CineBuddy-V13`; sempre abrir esta pasta no Cursor. Repositório GitHub deve ser o remoto `origin`; ver `CONECTAR_ESTE_PROJETO_AO_GITHUB.md` se ainda não estiver conectado.
+
+## Objetivo da migração
+- Migrar para **Next.js/React**.
+- Hospedagem em **Vercel**.
+- Backend e banco em **Supabase** (substituindo PHP + WordPress).
+
+## Como ajudar o usuário
+- O usuário é **leigo em programação**; explicar passo a passo, sem pular etapas.
+- Instruir de forma **detalhada** em implementações (configuração, comandos, onde clicar).
+- Manter consistência com a lógica e o fluxo já existentes no HTML/PHP ao migrar para Next.js e Supabase.

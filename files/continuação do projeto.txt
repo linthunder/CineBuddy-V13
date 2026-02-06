@@ -1,0 +1,128 @@
+ORÇAMENTO FINAL: Orçamento final após a assinatura do contrato, contratação de equipe e etc. Estrutura exatamente igual ao ORÇAMENTO INICIAL. Algumas verbas podem alterar para mais ou para menos, ou a quantidade de profissionais da equipe pode aumentar ou diminuir em relação ao orçamento inicial que foi previamente planejado. Isso é importante para termos um comparativo do que foi planejado financeiramente para o filme e o que realmente se tornou o orçamento que será produzido. A única diferença entre o ORÇAMENTO FINAL e o ORÇAMENTO INICIAL, é que no ORÇAMENTO FINAL não se pode alterar o VALOR do filme. o VALOR só pode ser editado no ORÇAMENTO INICIAL. Contendo as abas de pré-produção, produção e pós-produção. E contendo também o Painel Financeiro (Header). No final da página deve ter dois botões "SALVAR" que ao clicar, copia as informações deste orçamento para o "FECHAMENTO" e "fecha" a planilha, deixando os campos não editáveis. E "EDITAR" que "abre" a planilha e libera os campos para edição.
+
+
+
+FECHAMENTO: Orçamento de fechamento. Feito após ser o filme ser finalizado e o orçamento executado, fechando o ciclo de análise financeira do nosso sistema de orçamento. Receberá os dados do ORÇAMENTO FINAL e têm uma estrutura igual ao ORÇAMENTO FINAL, com alguns diferenciais. Abaixo de cada linha de profissionais que trabalham em de todos os departamentos, devera ser adicionado duas linhas a mais, uma que será o campo de cálculo de "FECHAMENTO" para horas extras, adicionais e nota fiscal que terá os campos | DIÁRIA DE: | ADICIONAL: | QUANTIDADE: | HORAS EXTRAS: | NOTA FISCAL. E outra (Linha 2) que exibirá as informações de fechamento do profissional e alguns detalhes adicionais.
+
+
+
+LINHA 1:
+
+Linha de cálculo das horas extras.
+
+
+
+DIÁRIA DE: Aqui tem um menu vertical que o usuário vai inserir quantas horas de trabalho foram firmadas em contrado para cada diária. É basicamente a duração da diária do set de filmagem. Quase sempre é 8h, 10h ou 12h, mas vamos inserir no menu 4h, 5h, 6h, 7h, 8h, 9h, 10h, 11h, 12h, 13h, 14h, 15h e 16h (4-16).
+
+
+
+ADICIONAL: Base de cálculo de valor adicional para cada hora extra. Também deve ter um menu vertical com as opções de 0% a 100%. Esse cálculo deve ser feito levando em consideração o cachê do profissional (DIA) dividido pela quantidade de horas do set (inserido anteriormente em "DIÁRIA DE"), definindo o custo de cada hora. Ao selecionar a porcentagem, esse valor deve ser adicionado ao custo da hora.
+
+
+
+QUANTIDADE: Aqui o usuário seleciona a quantidade de horas extras que foram trabalhadas, já levando em consideração a porcentagem adicional. Abre-se novamente um menu vertical com opções de 1h a 12h (1-12)
+
+
+
+NOTA FISCAL: Aqui é um campo que possui um botão, que ao clicar irá direcionar para um link (provavelmente do google drive) onde o usuário irá fazer upload da sua nota fiscal.
+
+
+
+LINHA 2:
+
+Essa linha deve exibir o valor total da nota fiscal com cachê + horas extras (em destaque), o valor separado das horas extras (calculadas na linha acima, para sabermos quanto pagamos de horas extras para cada um), um botão com símbolo de sifrão ($) que ao clicar abre um pop-up com o PIX e dados bancários do profissional (linkado ao banco de dados "profissionais") e um botão para marcar quando o pagamento for feito. Este botão pode ser vermelho "A PAGAR" e ao clicar ele fica verde "PAGO"
+
+
+
+Este botão (para marcar quando o pagamento for feito. Este botão pode ser vermelho "A PAGAR" e ao clicar ele fica verde "PAGO") deve ser adicionado em todos os campos de todas as tabelas, de departamento ou não, nesta planilha de fechamento.
+
+
+
+Em FECHAMENTO também deve haver uma tabela nova adicional, chamada PRESTAÇÃO DE CONTAS. Com as colunas | NOME | DESCRIÇÃO | VALOR | NOTA FISCAL:
+
+
+
+NOME: mesmo funcionamento de busca inteligente, conectado ao Banco de Dados de Profissionais com a opção "Adicionar novo profissional".
+
+
+
+DESCRIÇÃO: campo onde o usuário deve inserir manualmente uma descrição do que se refere esta conta.
+
+
+
+VALOR: campo onde o usuário deve inserir manualmente o valor da nota.
+
+
+
+NOTA FISCAL: com um botão que ao clicar abre um link para um drive, onde ele deve fazer o upload da nota fiscal.
+
+
+
+FUNCIONAMENTO DO BOTÃO "FINALIZAR ORÇAMENTO"
+
+Ao abrir um novo projeto, tratando-se das 3 abas que gerenciam o orçamento (ORÇAMENTO INICIAL, ORÇAMENTO FINAL e FECHAMENTO), apenas a aba ORÇAMENTO INICIAL deve estar disponível. O acesso às abas ORÇAMENTO FINAL e FECHAMENTO precisam estar bloqueadas  e os botões referentes a elas no menu inferior precisam ter uma sinalização visual deste bloqueio (como estarem levemente opacas em relação aos botões das outras abas).
+
+
+
+O botão FINALIZAR ORÇAMENTO, ao ser clicado, salva o projeto, bloqueia as tabelas presentes nele, libera a próxima aba e copia as informações para a proxima aba. Por exemplo: se o usuário estiver trabalhando com o ORÇAMENTO INICIAL e terminar seu trabalho, ele vai clicar em FINALIZAR ORÇAMENTO. A página que ele está terá as tabelas bloqueadas para a edição (apenas as abas editáveis, a página e o botão de acesso inferior para o ORÇAMENTO INICIAL precisam continuar ativas) e evitar que haja alterações depois desse processo. Além disso, ele irá liberar o acesso do botão para próxima aba de orçamento, no caso ORÇAMENTO FINAL e copiar todas as informações do ORÇAMENTO INICIAL para o ORÇAMENTO FINAL. 
+
+
+
+O mesmo acontece do ORÇAMENTO FINAL para o FECHAMENTO.
+
+
+
+No FECHAMENTO, o botão muda de nome para ENCERRAR PROJETO. E agora, ao clicar, ele apenas bloqueia a edição das tabelas do FECHAMENTO.
+
+
+
+Importante: o botão precisa variar entre FECHAR ORÇAMENTO (com o ícone do cadeado fechado) e ABRIR ORÇAMENTO (com o ícone do cadeado aberto).
+
+
+Algumas questões importantes:
+ORÇAMENTO FINAL - Mini Tables: As mini tables (CONTINGÊNCIA, CRT, BV AGÊNCIA) devem aparecer no FINAL? Se sim, devem ser editáveis ou readonly (copiadas do INICIAL)?
+Resposta: apenas readonly
+
+ORÇAMENTO FINAL - Verbas: As seções de VERBAS (em PRODUÇÃO, FOTOGRAFIA E TÉCNICA, ARTE E CENOGRAFIA) devem aparecer no FINAL? Se sim, editáveis ou readonly?
+Resposta: Sim, editáveis.
+
+FECHAMENTO - Linhas extras: As 2 linhas extras (cálculo de horas + resumo) são apenas para departamentos LABOR (profissionais), correto? Para COST (itens/fornecedores) seria apenas o botão A PAGAR/PAGO?
+Resposta: Correto.
+
+Cálculo de Horas Extras - Fórmula: Confirmo meu entendimento:
+
+   valorHora = cachêDiário / horasDaDiária
+   valorComAdicional = valorHora * (1 + adicionalPct/100)
+   totalHorasExtras = valorComAdicional * qtdHorasExtras
+   totalNF = cachêTotal + totalHorasExtras
+Está correto?
+Resposta: Correto.
+
+NOTA FISCAL - Link do Drive: Por enquanto será apenas um campo de texto para inserir o link manualmente, ou precisa de integração com Google Drive API?
+Resposta: Por hora apenas o campo, mas será feita integração com API futuramente.
+
+Qual fase devo começar? FASE 1 (ORÇAMENTO FINAL) ou FASE 2 (FECHAMENTO)?
+Resposta: Fase 1.
+
+
+* Impostos no FINAL: O percentual de impostos deve ser editável no FINAL ou também readonly (copiado do INICIAL)?
+Resposta: readonly
+
+
+* Botão +30%: O botão de markup deve aparecer no FINAL? (Provavelmente não, já que VALOR JOB é readonly)
+Resposta: não.
+
+* Dados copiados: Quando o usuário FINALIZA o INICIAL, os dados devem ser copiados para o FINAL. Isso inclui:
+   * Valor do Job ✓
+   * Taxa de impostos ✓
+   * Linhas de orçamento ✓ (já funciona via backend)
+   * Mini Tables (CONTINGÊNCIA, CRT, BV) - preciso confirmar se devem ser copiados
+   * Observações - preciso confirmar se devem ser copiadas
+Resposta:Sim.
+
+* Salvamento: O botão SALVAR no header global já salva os dados do FINAL via `saveRealizedCosts()`. Devo manter essa lógica ou criar uma nova função `saveFinalBudget()`?
+Resposta: Apenas o botão SALVAR no global header.
+
+O ORÇAMENTO FINAL também deve incluir no global header a informação que indiquei a diferença entre o orçamento inicial e o final, chamado DIFERENÇA. DIFERENÇA deve substituir o box IMPOSTOS no financial strip no orçamento final (sai o box IMPOSTOS, entrando DIFERENÇA em seu lugar e mantendo o financial strip com 5 boxes) e deve informar a diferença de lucro entre o ORÇAMENTO INICIAL e o ORÇAMENTO FINAL. O Valor fica verde se a diferença for positiva para lucro e vermelha se for negativa para prejuízo. Esta lógica de cores (verde e vermelho) também deve acontecer em todos os campos de valores do orçamento final que forem alterados e também em novos valores adicionados em linhas adicionais.
+
+
