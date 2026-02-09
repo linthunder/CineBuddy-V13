@@ -147,7 +147,7 @@ O Git na sua máquina precisa de permissão para enviar e puxar código do GitHu
 1. No GitHub: **Settings** (da sua conta) → **Developer settings** → **Personal access tokens** → **Tokens (classic)**.
 2. **Generate new token (classic)**. Dê um nome (ex.: “Cursor CineBuddy”) e marque pelo menos **repo**.
 3. Gere e **copie o token** (ele não aparece de novo).
-4. Quando o Git pedir senha ao fazer push, use **o token** no lugar da senha.
+4. **Onde inserir o token (push/pull pelo terminal do Cursor):** você **não** cola o token em arquivo nenhum. Na primeira vez que rodar `git push` ou `git fetch` no terminal, o Git pede **Username** (seu usuário GitHub, ex.: `linthunder`) e **Password** — cole o **token** no lugar da senha. O Windows guarda o token; depois não pede de novo. Se não aparecer esse pedido e der erro de credenciais: abra o **Gerenciador de Credenciais do Windows** (Win + digite "Credenciais do Windows"), em Credenciais do Windows remova entradas como `git:https://github.com` ou `github.com`, e rode de novo `git fetch origin`; aí deve pedir usuário e senha — use o token como senha.
 
 **Como saber que deu certo:** Depois de configurar, ao fazer o primeiro `git push` (mais abaixo), não aparecer erro de “authentication failed” ou “permission denied”.
 

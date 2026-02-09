@@ -1,0 +1,270 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* DaVinci Resolve–inspired theme: fundo escuro + amarelo (hover) e roxo */
+:root {
+  --resolve-bg: #0d0d0f;
+  --resolve-panel: #1a1a1e;
+  --resolve-border: #2e2e32;
+  --resolve-text: #e8e8ec;
+  --resolve-muted: #8e8e93;
+  --resolve-accent: #5c7c99;
+  --resolve-yellow: #f5c518;
+  --resolve-yellow-dark: #b8a035;
+  --resolve-purple: #6b5b95;
+  --resolve-purple-light: #8b7ab5;
+  --cinema-success: #2d8a5e;
+  --cinema-danger: #c94a4a;
+
+  /* Layout mestre: margem horizontal máxima (estender sistema) */
+  --page-gutter: 40px;
+  /* Espaçamento entre seções (replicar em todas as páginas) */
+  --page-section-gap: 1rem;      /* 16px mobile */
+  --page-section-gap-sm: 1.25rem;
+  --page-section-gap-md: 1.5rem;
+  --page-section-gap-lg: 2rem;
+}
+
+html {
+  background-color: #0d0d0f;
+}
+
+@media (max-width: 480px) {
+  :root {
+    --page-gutter: 24px;
+  }
+}
+
+body {
+  background-color: #0d0d0f !important;
+  color: #e8e8ec !important;
+  font-size: 13px;
+  min-height: 100vh;
+}
+
+/* Remove spin buttons from number inputs */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+/* Budget table: cards no mobile (< lg), tabela no desktop */
+@media (max-width: 1023px) {
+  .budget-table-cards thead {
+    display: none;
+  }
+  .budget-table-cards tbody tr {
+    display: block;
+    border: 1px solid var(--resolve-border);
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+    padding: 0.75rem;
+    background-color: var(--resolve-panel);
+  }
+  .budget-table-cards tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.35rem 0;
+    border: none;
+  }
+  .budget-table-cards tbody td::before {
+    content: attr(data-label);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--resolve-muted);
+    flex-shrink: 0;
+  }
+  .budget-table-cards tbody td:last-child {
+    justify-content: flex-end;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--resolve-border);
+  }
+  .budget-table-cards tbody td:last-child::before {
+    display: none;
+  }
+  .budget-table-cards tbody td input,
+  .budget-table-cards tbody td select {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .budget-table-cards tbody tr {
+    display: table-row;
+  }
+  .budget-table-cards tbody td {
+    display: table-cell;
+  }
+  .budget-table-cards tbody td::before {
+    display: none;
+  }
+  /* Colunas QTD e Total: espaço mínimo; input não pode invadir a célula ao lado */
+  .budget-table-cards tbody td input[type="number"],
+  .budget-table-cards tbody td input[placeholder="R$ 0,00"] {
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  /* Célula Qtd: evitar que o input sobreponha o botão remover */
+  .budget-table-cards tbody td.budget-cell-qty {
+    overflow: hidden;
+    max-width: 72px;
+    min-width: 56px;
+    width: 72px;
+  }
+  /* Célula do botão remover: largura fixa para nunca ser comprimida */
+  .budget-table-cards .budget-row-remove {
+    width: 48px !important;
+    min-width: 48px !important;
+    max-width: 48px !important;
+    padding: 4px !important;
+    text-align: center;
+    vertical-align: middle;
+    border-left: 1px solid var(--resolve-border);
+    overflow: visible;
+  }
+  .budget-table-cards .btn-remove-row {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    font-size: 1.25rem;
+    line-height: 1;
+    font-weight: 700;
+    color: var(--resolve-muted);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: color 0.2s, background-color 0.2s, border-color 0.2s;
+  }
+  .budget-table-cards .btn-remove-row:hover {
+    color: var(--cinema-danger) !important;
+    border-color: var(--cinema-danger);
+    background: rgba(201, 74, 74, 0.1);
+  }
+}
+
+/* Workflow lock: orçamento/final travado */
+.locked-sheet {
+  pointer-events: none;
+  opacity: 0.7;
+}
+.locked-sheet input,
+.locked-sheet select,
+.locked-sheet textarea {
+  background: #222 !important;
+  color: #777 !important;
+  border-color: transparent !important;
+}
+
+/* Hover amarelo (Resolve) em botões e nav */
+.btn-resolve-hover:hover {
+  border-color: var(--resolve-yellow) !important;
+  color: var(--resolve-yellow) !important;
+}
+.nav-btn-resolve:hover {
+  color: var(--resolve-yellow) !important;
+  border-color: var(--resolve-yellow) !important;
+}
+.nav-btn-resolve.active {
+  color: var(--resolve-yellow) !important;
+  border-color: var(--resolve-yellow) !important;
+}
+
+/* ========== LAYOUT MESTRE (páginas: Orçamento, Filme, Config, etc.) ========== */
+.page-layout {
+  padding-top: 0.25rem;
+  padding-bottom: var(--page-section-gap-lg);
+  max-width: 100%;
+}
+
+.page-layout__title {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: var(--page-section-gap);
+  margin-left: 0;
+  margin-right: 0;
+}
+
+@media (min-width: 640px) {
+  .page-layout__title {
+    margin-bottom: var(--page-section-gap-sm);
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-layout__title {
+    margin-bottom: var(--page-section-gap-md);
+  }
+}
+
+.page-layout__strip {
+  margin-bottom: var(--page-section-gap);
+}
+
+@media (min-width: 640px) {
+  .page-layout__strip {
+    margin-bottom: var(--page-section-gap-md);
+  }
+}
+
+.page-layout__tabs {
+  margin-bottom: var(--page-section-gap);
+}
+
+@media (min-width: 640px) {
+  .page-layout__tabs {
+    margin-bottom: var(--page-section-gap-md);
+  }
+}
+
+.page-layout__toolbar {
+  margin-bottom: var(--page-section-gap);
+}
+
+@media (min-width: 640px) {
+  .page-layout__toolbar {
+    margin-bottom: var(--page-section-gap-md);
+  }
+}
+
+.page-layout__content {
+  margin-top: 0;
+  width: 100%;
+  max-width: none;
+}
+
+.page-layout__content--grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--page-section-gap);
+}
+
+@media (min-width: 640px) {
+  .page-layout__content--grid {
+    gap: var(--page-section-gap-md);
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-layout__content--grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--page-section-gap-lg);
+  }
+}

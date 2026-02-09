@@ -1,0 +1,220 @@
+'use client'
+
+import { useState, useCallback } from 'react'
+import { formatCurrency, parseCurrencyInput } from '@/lib/utils'
+import type { BudgetRow, VerbaRow } from '@/lib/types'
+import { CUSTOM_HEADERS, LABOR_DEPTS } from '@/lib/constants'
+import { computeRowTotal, computeVerbaRowTotal } from '@/lib/budgetUtils'
+import { resolve } from '@/lib/theme'
+import BudgetTableRow from './BudgetTableRow'
+
+interface BudgetDeptBlockProps {
+  department: string
+  rows: BudgetRow[]
+  verbaRows: VerbaRow[]
+  showVerbaButton: boolean
+  onAddRow: () => void
+  onUpdateRow: (rowId: string, updates: Partial<BudgetRow>) => void
+  onRemoveRow: (rowId: string) => void
+  onAddVerbaRow: () => void
+  onUpdateVerbaRow: (rowId: string, updates: Partial<VerbaRow>) => void
+  onRemoveVerbaRow: (rowId: string) => void
+}
+
+const inputStyle = { backgroundColor: resolve.bg, border: `1px solid ${resolve.border}`, color: resolve.text, borderRadius: 2 }
+const inputClassName = 'w-full py-1 px-2 text-sm focus:outline-none min-w-[4.5rem]'
+
+function toVerbaEditValue(n: number): string {
+  if (n <= 0) return ''
+  return n.toFixed(2).replace('.', ',')
+}
+
+export default function BudgetDeptBlock({
+  department,
+  rows,
+  verbaRows,
+  showVerbaButton,
+  onAddRow,
+  onUpdateRow,
+  onRemoveRow,
+  onAddVerbaRow,
+  onUpdateVerbaRow,
+  onRemoveVerbaRow,
+}: BudgetDeptBlockProps) {
+  const isLabor = LABOR_DEPTS.includes(department as never)
+  const custom = CUSTOM_HEADERS[department]
+  const itemLabel = custom?.item ?? 'Item'
+  const supplierLabel = custom?.supplier ?? 'Fornecedor'
+  const deptTotal = rows.reduce((sum, r) => sum + computeRowTotal(r), 0)
+  const verbaTotal = verbaRows.reduce((sum, v) => sum + computeVerbaRowTotal(v), 0)
+  const totalDisplay = deptTotal + verbaTotal
+  const hasVerbaSection = verbaRows.length > 0
+
+  const [editingVerbaId, setEditingVerbaId] = useState<string | null>(null)
+  const [editingVerbaValue, setEditingVerbaValue] = useState('')
+  const verbaCurrencyDisplay = useCallback((v: VerbaRow) => {
+    if (editingVerbaId !== v.id) return v.unitCost > 0 ? formatCurrency(v.unitCost) : ''
+    return editingVerbaValue
+  }, [editingVerbaId, editingVerbaValue])
+
+  return (
+    <div className="overflow-hidden border rounded" style={{ borderColor: resolve.border, borderRadius: 3 }}>
+      <div className="px-2 sm:px-3 py-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 text-[11px] font-medium uppercase tracking-wider border-b" style={{ backgroundColor: resolve.panel, color: resolve.muted, borderColor: resolve.border }}>
+        <span>{department}</span>
+        <span className="font-mono font-normal normal-case text-sm" style={{ color: resolve.text }}>{formatCurrency(totalDisplay)}</span>
+      </div>
+      <div className="p-2 sm:p-3 border-t overflow-x-auto" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
+        <table className="budget-table-cards w-full border-collapse text-sm lg:table-fixed min-w-[720px]">
+          <colgroup>
+            {isLabor ? (
+              <>
+                <col style={{ width: '18%' }} />
+                <col style={{ width: '22%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '9%' }} />
+                <col style={{ width: '72px' }} />
+                <col style={{ width: '11%' }} />
+                <col style={{ width: '48px' }} />
+              </>
+            ) : (
+              <>
+                <col style={{ width: '24%' }} />
+                <col style={{ width: '24%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '72px' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '48px' }} />
+              </>
+            )}
+          </colgroup>
+          <thead>
+            <tr className="border-b" style={{ borderColor: resolve.border }}>
+              {isLabor ? (
+                <>
+                  {['Função', 'Nome', 'Tipo', 'Cachê', 'Desl.', 'Qtd', 'Total'].map((h) => (
+                    <th key={h} className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>{h}</th>
+                  ))}
+                  <th className="w-10" />
+                </>
+              ) : (
+                <>
+                  <th className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>{itemLabel}</th>
+                  <th className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>{supplierLabel}</th>
+                  <th className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>Tipo</th>
+                  <th className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>Valor</th>
+                  <th className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>Qtd</th>
+                  <th className="text-right text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>Total</th>
+                  <th className="w-10" />
+                </>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <BudgetTableRow
+                key={row.id}
+                row={row}
+                department={department}
+                onUpdate={(updates) => onUpdateRow(row.id, updates)}
+                onRemove={() => onRemoveRow(row.id)}
+              />
+            ))}
+          </tbody>
+        </table>
+        <button
+          type="button"
+          className="btn-resolve-hover w-full mt-2 py-2.5 border border-dashed rounded text-[11px] font-medium uppercase tracking-wider transition-colors cursor-pointer"
+          style={{ borderColor: resolve.border, color: resolve.muted, borderRadius: 3 }}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onAddRow()
+          }}
+          aria-label={`Adicionar ${isLabor ? 'profissional' : 'item'}`}
+        >
+          + Adicionar {isLabor ? 'profissional' : 'item'}
+        </button>
+        {showVerbaButton && !hasVerbaSection && (
+          <button
+            type="button"
+            className="btn-resolve-hover w-full mt-2 py-2.5 border rounded-b text-[11px] font-medium uppercase tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-2"
+            style={{ borderColor: resolve.accent, color: resolve.accent, borderTop: 'none', borderRadius: '0 0 6px 6px' }}
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onAddVerbaRow()
+            }}
+            aria-label="Adicionar verba"
+          >
+            <span aria-hidden>💼</span> Adicionar verba
+          </button>
+        )}
+        {hasVerbaSection && (
+          <div className="mt-2 border rounded-b overflow-hidden" style={{ borderColor: resolve.border, borderTop: 'none', borderRadius: '0 0 6px 6px' }}>
+            <div className="px-2 py-1.5 text-[11px] font-medium uppercase tracking-wider flex items-center gap-2" style={{ backgroundColor: resolve.accent, color: '#0d0d0f' }}>
+              <span aria-hidden>💼</span> Verbas
+            </div>
+            <div className="p-2 border-t" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
+              <table className="budget-table-cards w-full border-collapse text-sm min-w-[400px]">
+                <colgroup>
+                  <col style={{ width: '50%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '72px' }} />
+                  <col style={{ width: '18%' }} />
+                  <col style={{ width: '48px' }} />
+                </colgroup>
+                <thead>
+                  <tr className="border-b" style={{ borderColor: resolve.border }}>
+                    <th className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>Descrição</th>
+                    <th className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>Valor</th>
+                    <th className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>Qtd</th>
+                    <th className="text-right text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>Total</th>
+                    <th className="w-[44px]" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {verbaRows.map((v) => (
+                    <tr key={v.id} className="border-b transition-colors" style={{ borderColor: resolve.border }}>
+                      <td className="p-1.5 align-middle">
+                        <input className={inputClassName} style={inputStyle} value={v.itemName} onChange={(e) => onUpdateVerbaRow(v.id, { itemName: e.target.value })} placeholder="Descrição" />
+                      </td>
+                      <td className="p-1.5 align-middle">
+                        <input
+                          className={inputClassName}
+                          style={inputStyle}
+                          value={verbaCurrencyDisplay(v)}
+                          placeholder="R$ 0,00"
+                          onFocus={() => { setEditingVerbaId(v.id); setEditingVerbaValue(toVerbaEditValue(v.unitCost)) }}
+                          onChange={(e) => { setEditingVerbaValue(e.target.value); onUpdateVerbaRow(v.id, { unitCost: parseCurrencyInput(e.target.value) }) }}
+                          onBlur={() => { setEditingVerbaId(null); setEditingVerbaValue('') }}
+                        />
+                      </td>
+                      <td className="p-1.5 align-middle budget-cell-qty">
+                        <input type="number" className={`${inputClassName} text-center`} style={inputStyle} value={v.quantity || ''} onChange={(e) => onUpdateVerbaRow(v.id, { quantity: parseFloat(e.target.value) || 0 })} min={0} step="any" />
+                      </td>
+                      <td className="p-1.5 align-middle font-mono text-sm text-right font-medium min-w-[4.5rem]" style={{ color: resolve.text }}>{formatCurrency(computeVerbaRowTotal(v))}</td>
+                      <td className="budget-row-remove">
+                        <button type="button" onClick={() => onRemoveVerbaRow(v.id)} className="btn-remove-row" aria-label="Remover linha">×</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button
+                type="button"
+                className="btn-resolve-hover w-full mt-2 py-2 border border-dashed rounded text-[11px] font-medium uppercase tracking-wider transition-colors cursor-pointer"
+                style={{ borderColor: resolve.border, color: resolve.muted, borderRadius: 3 }}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAddVerbaRow() }}
+                aria-label="Adicionar item na verba"
+              >
+                + Adicionar item
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
