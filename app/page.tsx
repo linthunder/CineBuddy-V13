@@ -184,7 +184,7 @@ export default function Home() {
         tax_rate_final: orcState?.taxRate ?? 12.5,
         notes_final: (orcFinalState?.notes ?? { pre: '', prod: '', pos: '' }) as unknown as Record<string, string>,
         // Fechamento
-        closing_lines: (fechamentoState ? [fechamentoState.closingLines, fechamentoState.expenses] : []) as unknown[],
+        closing_lines: (fechamentoState ? [fechamentoState.closingLines, fechamentoState.expenses, fechamentoState.saving ?? null] : []) as unknown[],
       }
 
       let result: ProjectRecord | null
@@ -239,7 +239,7 @@ export default function Home() {
       job_value_final: orcState?.jobValue ?? 0,
       tax_rate_final: orcState?.taxRate ?? 12.5,
       notes_final: (orcFinalState?.notes ?? { pre: '', prod: '', pos: '' }) as unknown as Record<string, string>,
-      closing_lines: (fechamentoState ? [fechamentoState.closingLines, fechamentoState.expenses] : []) as unknown[],
+      closing_lines: (fechamentoState ? [fechamentoState.closingLines, fechamentoState.expenses, fechamentoState.saving ?? null] : []) as unknown[],
     }
 
     // Sempre cria um NOVO projeto (nunca atualiza o existente)
@@ -326,12 +326,13 @@ export default function Home() {
       viewOrcRef.current?.loadState(orcData)
       viewOrcFinalRef.current?.loadState(orcFinalData)
 
-      // Restaurar fechamento
+      // Restaurar fechamento (closing_lines: [closingLines, expenses, saving?])
       const closingData = project.closing_lines as unknown[]
-      if (Array.isArray(closingData) && closingData.length === 2) {
+      if (Array.isArray(closingData) && closingData.length >= 2) {
         viewFechamentoRef.current?.loadState({
           closingLines: closingData[0] as never[],
           expenses: closingData[1] as never[],
+          saving: closingData[2] ?? undefined,
         })
       }
     }, 50)
@@ -433,6 +434,7 @@ export default function Home() {
           <ViewFechamento
             ref={viewFechamentoRef}
             finalSnapshot={finalSnapshot}
+            initialSnapshot={initialSnapshot}
             initialJobValue={initialSnapshot?.jobValue ?? 0}
             isLocked={projectStatus.closing === 'locked'}
             onToggleLock={handleToggleLockClosing}

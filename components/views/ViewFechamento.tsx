@@ -6,7 +6,7 @@ import { DEPARTMENTS, LABOR_DEPTS, VERBA_DEPTS } from '@/lib/constants'
 import { resolve, cinema } from '@/lib/theme'
 import { formatCurrency, parseCurrencyInput } from '@/lib/utils'
 import type { BudgetLinesByPhase, VerbaLinesByPhase, MiniTablesData, BudgetRow, BudgetRowLabor } from '@/lib/types'
-import { computeRowTotal, computeVerbaRowTotal } from '@/lib/budgetUtils'
+import { computeRowTotal, computeVerbaRowTotal, sumDeptTotal } from '@/lib/budgetUtils'
 
 /* ── Tipos internos ── */
 interface ClosingLine {
@@ -68,6 +68,46 @@ const DAILY_HOURS_OPTIONS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 const ADDITIONAL_OPTIONS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 const OVERTIME_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
+/** Itens que podem entrar no cálculo do Saving (verbas + departamentos de custo) */
+const SAVING_ITEMS: { key: string; label: string }[] = [
+  { key: 'verba-PRODUÇÃO', label: 'Verba de Produção' },
+  { key: 'verba-ARTE E CENOGRAFIA', label: 'Verba de Arte e Cenografia' },
+  { key: 'verba-FOTOGRAFIA E TÉCNICA', label: 'Verba de Fotografia e Técnica' },
+  { key: 'verba-FIGURINO E MAQUIAGEM', label: 'Verba de Figurino e Maquiagem' },
+  { key: 'dept-EQUIPAMENTOS', label: 'Equipamentos' },
+  { key: 'dept-LOCAÇÕES', label: 'Locações' },
+  { key: 'dept-TRANSPORTE', label: 'Transporte' },
+  { key: 'dept-CATERING', label: 'Catering' },
+  { key: 'dept-DESPESAS GERAIS', label: 'Despesas Gerais' },
+]
+
+const SAVING_PCT_OPTIONS = [5, 10, 15, 20, 25] as const
+
+export interface SavingConfig {
+  items: string[]
+  pct: number
+  responsibleId: string | null
+}
+
+function sumSnapshotTotal(
+  budgetLines: BudgetLinesByPhase,
+  verbaLines: VerbaLinesByPhase,
+  itemKey: string
+): number {
+  const [kind, dept] = itemKey.startsWith('verba-') ? ['verba', itemKey.slice(6)] : ['dept', itemKey.slice(5)]
+  let total = 0
+  ;(['pre', 'prod', 'pos'] as const).forEach((phase) => {
+    if (kind === 'verba') {
+      const rows = verbaLines[phase]?.[dept] ?? []
+      total += rows.reduce((s, r) => s + computeVerbaRowTotal(r), 0)
+    } else {
+      const rows = budgetLines[phase]?.[dept] ?? []
+      total += sumDeptTotal(rows)
+    }
+  })
+  return total
+}
+
 /* ── Props ── */
 interface ViewFechamentoProps {
   finalSnapshot: {
@@ -78,6 +118,10 @@ interface ViewFechamentoProps {
     taxRate: number
     notes: Record<'pre' | 'prod' | 'pos', string>
   } | null
+  initialSnapshot?: {
+    budgetLines: BudgetLinesByPhase
+    verbaLines: VerbaLinesByPhase
+  } | null
   initialJobValue: number
   isLocked?: boolean
   /** Callback do botão CONCLUIR FECHAMENTO / REABRIR FECHAMENTO */
@@ -85,23 +129,27 @@ interface ViewFechamentoProps {
 }
 
 export interface ViewFechamentoHandle {
-  getState: () => { closingLines: ClosingLine[]; expenses: ExpenseLine[] }
-  loadState: (state: { closingLines: ClosingLine[]; expenses: ExpenseLine[] }) => void
+  getState: () => { closingLines: ClosingLine[]; expenses: ExpenseLine[]; saving: SavingConfig | undefined }
+  loadState: (state: { closingLines: ClosingLine[]; expenses: ExpenseLine[]; saving?: SavingConfig | null }) => void
 }
 
 /* ── Componente ── */
-const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(function ViewFechamento({ finalSnapshot, initialJobValue, isLocked = false, onToggleLock }, ref) {
+const defaultSaving: SavingConfig = { items: [], pct: 10, responsibleId: null }
+
+const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(function ViewFechamento({ finalSnapshot, initialSnapshot, initialJobValue, isLocked = false, onToggleLock }, ref) {
   const [closingLines, setClosingLines] = useState<ClosingLine[]>([])
   const [expenses, setExpenses] = useState<ExpenseLine[]>([])
+  const [saving, setSaving] = useState<SavingConfig>(defaultSaving)
+  const [savingModalOpen, setSavingModalOpen] = useState(false)
   const loadedFromDB = useRef(false)
 
   useImperativeHandle(ref, () => ({
-    getState: () => ({ closingLines, expenses }),
+    getState: () => ({ closingLines, expenses, saving: saving.items.length > 0 || saving.responsibleId ? saving : undefined }),
     loadState: (state) => {
-      // Só ativa o flag se houver dados reais (evita bloquear a cascata ao resetar)
       loadedFromDB.current = state.closingLines.length > 0 || state.expenses.length > 0
       setClosingLines(state.closingLines)
       setExpenses(state.expenses)
+      setSaving(state.saving != null ? { ...defaultSaving, ...state.saving } : defaultSaving)
     },
   }))
 
@@ -214,6 +262,21 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
   }, [closingLines, expenses])
   const lucroFinal = initialJobValue - totalCustoFinal - totalExpenses
 
+  /* Saving: economia inicial vs final nos itens selecionados; valor a pagar = economia × % */
+  const { totalEconomy, valueToPay } = useMemo(() => {
+    if (!finalSnapshot || saving.items.length === 0) return { totalEconomy: 0, valueToPay: 0 }
+    const init = initialSnapshot
+    let economy = 0
+    saving.items.forEach((key) => {
+      const initialTotal = init ? sumSnapshotTotal(init.budgetLines, init.verbaLines, key) : 0
+      const finalTotal = sumSnapshotTotal(finalSnapshot.budgetLines, finalSnapshot.verbaLines, key)
+      const diff = initialTotal - finalTotal
+      if (diff > 0) economy += diff
+    })
+    const pct = Math.min(25, Math.max(5, saving.pct)) / 100
+    return { totalEconomy: economy, valueToPay: economy * pct }
+  }, [finalSnapshot, initialSnapshot, saving.items, saving.pct])
+
   /* Prestação de contas */
   const addExpense = useCallback(() => {
     if (isLocked) return
@@ -267,23 +330,113 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
     </div>
   )
 
-  const closingTabs = onToggleLock ? (
-    <div className="flex flex-wrap gap-2 sm:gap-1 items-center">
-      <button
-        type="button"
-        onClick={onToggleLock}
-        className="ml-auto h-9 sm:h-8 px-3 sm:px-4 rounded text-xs font-medium uppercase tracking-wide transition-colors border flex items-center gap-1.5"
-        style={{
-          backgroundColor: isLocked ? '#e67e22' : cinema.success,
-          borderColor: isLocked ? '#e67e22' : cinema.success,
-          color: '#ffffff',
-        }}
-      >
-        <span aria-hidden>{isLocked ? '🔓' : '🔒'}</span>
-        {isLocked ? 'Reabrir fechamento' : 'Concluir fechamento'}
-      </button>
+  const laborLinesForSaving = useMemo(() => closingLines.filter((l) => l.isLabor && (l.name || l.role)), [closingLines])
+
+  const closingTabs = (
+    <div className="flex flex-wrap gap-2 sm:gap-3 items-center w-full">
+      {/* Saving: alinhado à esquerda */}
+      <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
+        <button
+          type="button"
+          onClick={() => setSavingModalOpen(true)}
+          disabled={isLocked}
+          className="h-9 sm:h-8 px-3 sm:px-4 rounded text-xs font-medium uppercase tracking-wide transition-colors border flex items-center gap-1.5"
+          style={{
+            backgroundColor: resolve.panel,
+            borderColor: resolve.border,
+            color: resolve.text,
+          }}
+        >
+          Saving
+        </button>
+        <span className="text-[11px] whitespace-nowrap" style={{ color: resolve.muted }}>
+          Total economia: <strong className="font-mono" style={{ color: resolve.text }}>{formatCurrency(totalEconomy)}</strong>
+        </span>
+        <select
+          className="h-9 sm:h-8 px-2 rounded text-xs font-medium border focus:outline-none"
+          style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}
+          value={saving.pct}
+          onChange={(e) => setSaving((prev) => ({ ...prev, pct: Number(e.target.value) }))}
+          disabled={isLocked}
+        >
+          {SAVING_PCT_OPTIONS.map((p) => (
+            <option key={p} value={p}>{p}%</option>
+          ))}
+        </select>
+        <span className="text-[11px] whitespace-nowrap" style={{ color: resolve.muted }}>
+          A pagar: <strong className="font-mono" style={{ color: cinema.success }}>{formatCurrency(valueToPay)}</strong>
+        </span>
+        <select
+          className="h-9 sm:h-8 px-2 rounded text-xs font-medium border focus:outline-none min-w-[140px]"
+          style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}
+          value={saving.responsibleId ?? ''}
+          onChange={(e) => setSaving((prev) => ({ ...prev, responsibleId: e.target.value || null }))}
+          disabled={isLocked}
+        >
+          <option value="">Responsável pelo saving</option>
+          {laborLinesForSaving.map((l) => (
+            <option key={l.id} value={l.id}>{l.name || l.role || '—'} ({l.department})</option>
+          ))}
+        </select>
+      </div>
+      {onToggleLock && (
+        <button
+          type="button"
+          onClick={onToggleLock}
+          className="ml-auto h-9 sm:h-8 px-3 sm:px-4 rounded text-xs font-medium uppercase tracking-wide transition-colors border flex items-center gap-1.5"
+          style={{
+            backgroundColor: isLocked ? '#e67e22' : cinema.success,
+            borderColor: isLocked ? '#e67e22' : cinema.success,
+            color: '#ffffff',
+          }}
+        >
+          <span aria-hidden>{isLocked ? '🔓' : '🔒'}</span>
+          {isLocked ? 'Reabrir fechamento' : 'Concluir fechamento'}
+        </button>
+      )}
+      {/* Modal de seleção dos itens do Saving */}
+      {savingModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
+          onClick={() => setSavingModalOpen(false)}
+        >
+          <div
+            className="rounded border p-4 max-w-md w-full shadow-xl"
+            style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: resolve.text }}>Itens incluídos no Saving</h3>
+            <div className="flex flex-col gap-2 mb-4">
+              {SAVING_ITEMS.map(({ key, label }) => (
+                <label key={key} className="flex items-center gap-2 cursor-pointer text-[12px]" style={{ color: resolve.text }}>
+                  <input
+                    type="checkbox"
+                    checked={saving.items.includes(key)}
+                    onChange={(e) => {
+                      setSaving((prev) => ({
+                        ...prev,
+                        items: e.target.checked ? [...prev.items, key] : prev.items.filter((i) => i !== key),
+                      }))
+                    }}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setSavingModalOpen(false)}
+              className="w-full py-2 rounded text-xs font-medium uppercase border"
+              style={{ backgroundColor: resolve.yellowDark, borderColor: resolve.yellow, color: resolve.bg }}
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
-  ) : null
+  )
 
   return (
     <PageLayout title="Fechamento" strip={financeStrip} tabs={closingTabs}>
@@ -361,6 +514,9 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                             {overtime > 0 && (
                               <span>HE: <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency(overtime)}</strong></span>
                             )}
+                            {saving.responsibleId === line.id && valueToPay > 0 && (
+                              <span>Saving: <strong className="font-mono" style={{ color: cinema.success }}>{formatCurrency(valueToPay)}</strong></span>
+                            )}
                           </>
                         ) : (
                           <>
@@ -374,7 +530,9 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                           </>
                         )}
                         <div className="ml-auto flex items-center gap-2 flex-shrink-0">
-                          <span className="font-mono text-[11px] font-medium whitespace-nowrap" style={{ color: resolve.yellow }}>{formatCurrency(totalNF)}</span>
+                          <span className="font-mono text-[11px] font-medium whitespace-nowrap" style={{ color: resolve.yellow }}>
+                            {formatCurrency(saving.responsibleId === line.id && valueToPay > 0 ? totalNF + valueToPay : totalNF)}
+                          </span>
                           <button
                             type="button"
                             className="text-[10px] font-medium uppercase px-2.5 py-0.5 rounded transition-colors whitespace-nowrap"
