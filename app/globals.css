@@ -56,6 +56,19 @@ input[type='number'] {
   -moz-appearance: textfield;
 }
 
+/* MiniTables (e inputs escuros): evita fundo branco no Safari/WebKit (Mac) por autofill/estilos nativos */
+.minitables-input::-webkit-autofill,
+.minitables-input::-webkit-autofill:hover,
+.minitables-input::-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--resolve-text);
+  -webkit-box-shadow: 0 0 0 1000px var(--resolve-bg) inset;
+  caret-color: var(--resolve-text);
+}
+.minitables-input {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 /* Budget table: sempre layout de tabela horizontal; overflow no container do bloco */
 .budget-table-cards {
   min-width: 0;
@@ -303,8 +316,13 @@ input[type='number'] {
   }
 }
 
+/* Financial strip: fixa abaixo do header ao rolar (sticky) */
 .page-layout__strip {
+  position: sticky;
+  top: 72px; /* altura do header */
+  z-index: 40;
   margin-bottom: var(--page-section-gap);
+  background-color: var(--resolve-bg);
 }
 
 @media (min-width: 640px) {
@@ -356,7 +374,8 @@ input[type='number'] {
   }
 }
 
-@media (min-width: 1280px) {
+/* 2 colunas apenas em telas grandes (ex.: > 15"); 13" (1280–1440px) fica em 1 coluna */
+@media (min-width: 1536px) {
   .page-layout__content--grid {
     grid-template-columns: repeat(2, 1fr);
     gap: var(--page-section-gap-lg);

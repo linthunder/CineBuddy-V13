@@ -25,9 +25,14 @@ export type BudgetSnapshot = {
   notes: Record<'pre' | 'prod' | 'pos', string>
 }
 
-function generateJobId(): string {
-  const num = Math.floor(Math.random() * 9000) + 1000
-  return `BZ${num}`
+async function getNextJobId(): Promise<string> {
+  const res = await fetch('/api/next-job-id')
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err?.error ?? 'Falha ao obter próximo ID')
+  }
+  const { jobId } = await res.json()
+  return jobId ?? ''
 }
 
 const EMPTY_PROJECT: ProjectData = {
@@ -69,9 +74,10 @@ export default function Home() {
   const viewFechamentoRef = useRef<ViewFechamentoHandle>(null)
 
   /* Criar novo projeto (modal NOVO) */
-  const handleNewProject = useCallback((data: { nome: string; agencia: string; cliente: string; duracao: string; duracaoUnit: 'segundos' | 'minutos' }) => {
+  const handleNewProject = useCallback(async (data: { nome: string; agencia: string; cliente: string; duracao: string; duracaoUnit: 'segundos' | 'minutos' }) => {
+    const jobId = await getNextJobId()
     setProjectData({
-      jobId: generateJobId(),
+      jobId,
       nome: data.nome,
       agencia: data.agencia,
       cliente: data.cliente,
@@ -220,7 +226,7 @@ export default function Home() {
     const orcFinalState = viewOrcFinalRef.current?.getState()
     const fechamentoState = viewFechamentoRef.current?.getState()
 
-    const newJobId = generateJobId()
+    const newJobId = await getNextJobId()
 
     const payload = {
       job_id: newJobId,

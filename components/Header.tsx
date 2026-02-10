@@ -24,7 +24,7 @@ interface ProjectSummary {
 interface HeaderProps {
   projectData: ProjectData
   logoUrl?: string
-  onNewProject: (data: { nome: string; agencia: string; cliente: string; duracao: string; duracaoUnit: 'segundos' | 'minutos' }) => void
+  onNewProject: (data: { nome: string; agencia: string; cliente: string; duracao: string; duracaoUnit: 'segundos' | 'minutos' }) => void | Promise<void>
   onSave: () => void
   onSaveCopy: (data: { nome: string; agencia: string; cliente: string; duracao: string; duracaoUnit: 'segundos' | 'minutos' }) => Promise<void>
   onOpenProject: (id: string) => void
@@ -61,9 +61,9 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
     setModalOpen('novo')
   }
 
-  const handleCreateNew = () => {
+  const handleCreateNew = async () => {
     if (!newNome.trim()) return
-    onNewProject({ nome: newNome.trim(), agencia: newAgencia.trim(), cliente: newCliente.trim(), duracao: newDuracao.trim(), duracaoUnit: newDuracaoUnit })
+    await onNewProject({ nome: newNome.trim(), agencia: newAgencia.trim(), cliente: newCliente.trim(), duracao: newDuracao.trim(), duracaoUnit: newDuracaoUnit })
     closeModal()
   }
 

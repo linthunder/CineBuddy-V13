@@ -58,8 +58,9 @@ export default function MiniTables({ data, onChange }: MiniTablesProps) {
             </span>
             <input
               type="text"
-              className="flex-1 min-w-[5rem] py-1.5 px-2 border rounded text-right text-sm font-mono focus:outline-none"
+              className="minitables-input flex-1 min-w-[5rem] py-1.5 px-2 border rounded text-right text-sm font-mono focus:outline-none"
               style={inputStyle}
+              autoComplete="off"
               value={displayValue(key)}
               onFocus={() => handleFocus(key)}
               onChange={(e) => handleChange(key, e.target.value)}
