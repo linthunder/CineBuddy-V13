@@ -70,6 +70,12 @@ const orbitron = Orbitron({
 export const metadata: Metadata = {
   title: 'CineBuddy - Orçamento Audiovisual',
   description: 'Sistema de orçamento e gestão de projetos audiovisuais',
+  themeColor: '#1a1a1e',
+  appleWebApp: {
+    capable: true,
+    title: 'CineBuddy',
+    statusBarStyle: 'black-translucent',
+  },
 }
 
 export default function RootLayout({
