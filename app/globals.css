@@ -119,9 +119,9 @@ input[type='number'] {
   /* Célula Qtd: evitar que o input sobreponha o botão remover */
   .budget-table-cards tbody td.budget-cell-qty {
     overflow: hidden;
-    max-width: 72px;
-    min-width: 56px;
-    width: 72px;
+    max-width: 52px;
+    min-width: 40px;
+    width: 52px;
   }
   /* Célula do botão remover: largura fixa para nunca ser comprimida */
   .budget-table-cards .budget-row-remove {

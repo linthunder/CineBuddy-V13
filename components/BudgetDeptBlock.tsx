@@ -22,7 +22,7 @@ interface BudgetDeptBlockProps {
 }
 
 const inputStyle = { backgroundColor: resolve.bg, border: `1px solid ${resolve.border}`, color: resolve.text, borderRadius: 2 }
-const inputClassName = 'w-full py-1 px-2 text-sm focus:outline-none min-w-[4.5rem]'
+const inputClassName = 'w-full py-1 px-2 text-[11px] focus:outline-none min-w-[4.5rem]'
 
 function toVerbaEditValue(n: number): string {
   if (n <= 0) return ''
@@ -59,12 +59,12 @@ export default function BudgetDeptBlock({
 
   return (
     <div className="overflow-hidden border rounded" style={{ borderColor: resolve.border, borderRadius: 3 }}>
-      <div className="px-2 sm:px-3 py-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 text-[11px] font-medium uppercase tracking-wider border-b" style={{ backgroundColor: resolve.panel, color: resolve.muted, borderColor: resolve.border }}>
-        <span>{department}</span>
-        <span className="font-mono font-normal normal-case text-sm" style={{ color: resolve.text }}>{formatCurrency(totalDisplay)}</span>
+      <div className="px-2 sm:px-3 py-2.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 border-b" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
+        <span className="text-[13px] font-semibold uppercase tracking-wider" style={{ color: resolve.accent }}>{department}</span>
+        <span className="font-mono text-[13px] font-medium normal-case" style={{ color: resolve.yellow }}>{formatCurrency(totalDisplay)}</span>
       </div>
       <div className="p-2 sm:p-3 border-t overflow-x-auto" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
-        <table className="budget-table-cards w-full border-collapse text-sm lg:table-fixed min-w-[720px]">
+        <table className="budget-table-cards w-full border-collapse text-[11px] lg:table-fixed min-w-[720px]">
           <colgroup>
             {isLabor ? (
               <>
@@ -73,7 +73,7 @@ export default function BudgetDeptBlock({
                 <col style={{ width: '10%' }} />
                 <col style={{ width: '10%' }} />
                 <col style={{ width: '9%' }} />
-                <col style={{ width: '72px' }} />
+                <col style={{ width: '52px' }} />
                 <col style={{ width: '11%' }} />
                 <col style={{ width: '48px' }} />
               </>
@@ -83,29 +83,29 @@ export default function BudgetDeptBlock({
                 <col style={{ width: '24%' }} />
                 <col style={{ width: '10%' }} />
                 <col style={{ width: '12%' }} />
-                <col style={{ width: '72px' }} />
+                <col style={{ width: '52px' }} />
                 <col style={{ width: '12%' }} />
                 <col style={{ width: '48px' }} />
               </>
             )}
           </colgroup>
           <thead>
-            <tr className="border-b" style={{ borderColor: resolve.border }}>
+            <tr className="border-b" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.04)' }}>
               {isLabor ? (
                 <>
                   {['Função', 'Nome', 'Tipo', 'Cachê', 'Desl.', 'Qtd', 'Total'].map((h) => (
-                    <th key={h} className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>{h}</th>
+                    <th key={h} className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>{h}</th>
                   ))}
                   <th className="w-10" />
                 </>
               ) : (
                 <>
-                  <th className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>{itemLabel}</th>
-                  <th className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>{supplierLabel}</th>
-                  <th className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>Tipo</th>
-                  <th className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>Valor</th>
-                  <th className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>Qtd</th>
-                  <th className="text-right text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>Total</th>
+                  <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>{itemLabel}</th>
+                  <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>{supplierLabel}</th>
+                  <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Tipo</th>
+                  <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Valor</th>
+                  <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Qtd</th>
+                  <th className="text-right text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Total</th>
                   <th className="w-10" />
                 </>
               )}
@@ -157,20 +157,20 @@ export default function BudgetDeptBlock({
               <span aria-hidden>💼</span> Verbas
             </div>
             <div className="p-2 border-t" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
-              <table className="budget-table-cards w-full border-collapse text-sm min-w-[400px]">
+              <table className="budget-table-cards w-full border-collapse text-[11px] min-w-[400px]">
                 <colgroup>
                   <col style={{ width: '50%' }} />
                   <col style={{ width: '20%' }} />
-                  <col style={{ width: '72px' }} />
+                  <col style={{ width: '52px' }} />
                   <col style={{ width: '18%' }} />
                   <col style={{ width: '48px' }} />
                 </colgroup>
                 <thead>
-                  <tr className="border-b" style={{ borderColor: resolve.border }}>
-                    <th className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>Descrição</th>
-                    <th className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>Valor</th>
-                    <th className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>Qtd</th>
-                    <th className="text-right text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>Total</th>
+                  <tr className="border-b" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.04)' }}>
+                    <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Descrição</th>
+                    <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Valor</th>
+                    <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Qtd</th>
+                    <th className="text-right text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Total</th>
                     <th className="w-[44px]" />
                   </tr>
                 </thead>
@@ -194,7 +194,7 @@ export default function BudgetDeptBlock({
                       <td className="p-1.5 align-middle budget-cell-qty">
                         <input type="number" className={`${inputClassName} text-center`} style={inputStyle} value={v.quantity || ''} onChange={(e) => onUpdateVerbaRow(v.id, { quantity: parseFloat(e.target.value) || 0 })} min={0} step="any" />
                       </td>
-                      <td className="p-1.5 align-middle font-mono text-sm text-right font-medium min-w-[4.5rem]" style={{ color: resolve.text }}>{formatCurrency(computeVerbaRowTotal(v))}</td>
+                      <td className="p-1.5 align-middle font-mono text-[11px] text-right font-medium min-w-[4.5rem]" style={{ color: resolve.text }}>{formatCurrency(computeVerbaRowTotal(v))}</td>
                       <td className="budget-row-remove">
                         <button type="button" onClick={() => onRemoveVerbaRow(v.id)} className="btn-remove-row" aria-label="Remover linha">×</button>
                       </td>

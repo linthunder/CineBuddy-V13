@@ -24,7 +24,7 @@ const inputStyle: React.CSSProperties = {
   color: resolve.text,
   borderRadius: 2,
 }
-const inputClassName = 'w-full py-1 px-2 text-sm focus:outline-none'
+const inputClassName = 'w-full py-1 px-2 text-[11px] focus:outline-none'
 
 /** Retorna string para edição (apenas números e vírgula), sem formatação R$ */
 function toEditValue(n: number): string {
@@ -187,7 +187,7 @@ export default function BudgetTableRow({ row, department, onUpdate, onRemove }: 
         <td data-label="Qtd" className="p-1.5 align-middle budget-cell-qty">
           <input type="number" className={`${inputClassName} text-center`} style={inputStyle} value={r.quantity || ''} onChange={(e) => onUpdate({ quantity: parseFloat(e.target.value) || 0 })} min={0} step="any" />
         </td>
-        <td data-label="Total" className="p-1.5 align-middle font-mono text-sm text-right font-medium min-w-[4.5rem]" style={{ color: resolve.text }}>{formatCurrency(total)}</td>
+        <td data-label="Total" className="p-1.5 align-middle font-mono text-[11px] text-right font-medium min-w-[4.5rem]" style={{ color: resolve.text }}>{formatCurrency(total)}</td>
         <td className="budget-row-remove"><button type="button" onClick={onRemove} className="btn-remove-row" aria-label="Remover linha">×</button></td>
       </tr>
     )
@@ -223,7 +223,7 @@ export default function BudgetTableRow({ row, department, onUpdate, onRemove }: 
       <td data-label="Qtd" className="p-1.5 align-middle budget-cell-qty">
         <input type="number" className={`${inputClassName} text-center`} style={inputStyle} value={r.quantity || ''} onChange={(e) => onUpdate({ quantity: parseFloat(e.target.value) || 0 })} min={0} step="any" />
       </td>
-      <td data-label="Total" className="p-1.5 align-middle font-mono text-sm text-right font-medium min-w-[4.5rem]" style={{ color: resolve.text }}>{formatCurrency(total)}</td>
+      <td data-label="Total" className="p-1.5 align-middle font-mono text-[11px] text-right font-medium min-w-[4.5rem]" style={{ color: resolve.text }}>{formatCurrency(total)}</td>
       <td className="budget-row-remove"><button type="button" onClick={onRemove} className="btn-remove-row" aria-label="Remover linha">×</button></td>
     </tr>
   )

@@ -42,7 +42,7 @@ export default function Home() {
   const [projectStatus, setProjectStatus] = useState<ProjectStatus>({
     initial: 'open',
     final: 'locked',
-    closing: 'locked',
+    closing: 'open',
   })
 
   /* Dados do projeto */
@@ -76,7 +76,7 @@ export default function Home() {
       duracaoUnit: data.duracaoUnit,
     })
     setProjectDbId(null)
-    setProjectStatus({ initial: 'open', final: 'locked', closing: 'locked' })
+    setProjectStatus({ initial: 'open', final: 'locked', closing: 'open' })
     setInitialSnapshot(null)
     setFinalSnapshot(null)
     // Reset views via refs
@@ -108,10 +108,10 @@ export default function Home() {
   const handleToggleLockInitial = useCallback((snapshot: BudgetSnapshot) => {
     setProjectStatus((prev) => {
       if (prev.initial === 'locked') {
-        // Reabrindo
-        return { ...prev, initial: 'open', final: 'locked', closing: 'locked' }
+        // Reabrindo: só destrava edição; não altera closing (só CONCLUIR FECHAMENTO bloqueia páginas)
+        return { ...prev, initial: 'open', final: 'locked', closing: 'open' }
       }
-      // Finalizando
+      // Finalizando: libera acesso ao Orçamento Final
       return { ...prev, initial: 'locked', final: 'open' }
     })
     // Sempre atualiza o snapshot (fora do updater para evitar side-effects)
@@ -123,12 +123,24 @@ export default function Home() {
   const handleToggleLockFinal = useCallback((snapshot: BudgetSnapshot) => {
     setProjectStatus((prev) => {
       if (prev.final === 'locked') {
-        return { ...prev, final: 'open', closing: 'locked' }
+        // Reabrindo: só destrava edição; não altera closing (só CONCLUIR FECHAMENTO bloqueia páginas)
+        return { ...prev, final: 'open', closing: 'open' }
       }
+      // Finalizando: libera acesso ao Fechamento
       return { ...prev, final: 'locked', closing: 'open' }
     })
     setFinalSnapshot(snapshot)
     // Auto-save após finalizar
+    setTimeout(() => handleSaveRef.current?.(), 100)
+  }, [])
+
+  const handleToggleLockClosing = useCallback(() => {
+    setProjectStatus((prev) => {
+      if (prev.closing === 'locked') {
+        return { ...prev, closing: 'open' }
+      }
+      return { ...prev, closing: 'locked' }
+    })
     setTimeout(() => handleSaveRef.current?.(), 100)
   }, [])
 
@@ -376,8 +388,11 @@ export default function Home() {
   const disabledViews = useMemo<ViewId[]>(() => {
     const disabled: ViewId[] = []
     if (!projectData.nome) disabled.push('dashboard')
+    // Cascata de liberação: Orçamento Final só após finalizar Inicial; Fechamento só após finalizar Final
     if (projectStatus.initial !== 'locked') disabled.push('orc-final')
-    if (projectStatus.final !== 'locked' || projectStatus.initial !== 'locked') disabled.push('fechamento')
+    if (projectStatus.final !== 'locked') disabled.push('fechamento')
+    // Apenas CONCLUIR FECHAMENTO bloqueia acesso às páginas de orçamento
+    if (projectStatus.closing === 'locked') disabled.push('orcamento', 'orc-final')
     return disabled
   }, [projectStatus, projectData.nome])
 
@@ -420,6 +435,7 @@ export default function Home() {
             finalSnapshot={finalSnapshot}
             initialJobValue={initialSnapshot?.jobValue ?? 0}
             isLocked={projectStatus.closing === 'locked'}
+            onToggleLock={handleToggleLockClosing}
           />
         </div>
         <div style={{ display: currentView === 'dashboard' ? 'block' : 'none' }}>

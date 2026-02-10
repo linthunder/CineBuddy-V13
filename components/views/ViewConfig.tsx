@@ -29,11 +29,11 @@ const TABS: { id: ConfigTab; label: string }[] = [
   { id: 'logs', label: 'LOGS' },
 ]
 
-const inputCls = 'w-full px-2 py-1.5 text-sm rounded border'
+const inputCls = 'w-full px-2 py-1.5 text-[11px] rounded border'
 const inputStyle = { backgroundColor: resolve.bg, borderColor: resolve.border, color: resolve.text }
 const labelCls = 'block text-[11px] uppercase mb-1'
 const thCls = 'text-left text-[11px] uppercase pb-2 pr-3 whitespace-nowrap'
-const tdCls = 'py-1.5 pr-3 text-sm border-b align-middle'
+const tdCls = 'py-1.5 pr-3 text-[11px] border-b align-middle'
 const btnSmall = 'h-7 px-3 text-[11px] font-medium uppercase rounded'
 
 interface ConfigProjectSummary {
@@ -493,7 +493,7 @@ export default function ViewConfig({ onLogoChange }: ViewConfigProps) {
             ) : filteredCollabs.length === 0 ? (
               <div className="text-center py-6 text-sm" style={{ color: resolve.muted }}>Nenhum colaborador encontrado.</div>
             ) : (
-              <table className="w-full text-sm border-collapse" style={{ color: resolve.text }}>
+              <table className="w-full text-[11px] border-collapse" style={{ color: resolve.text }}>
                 <thead>
                   <tr>
                     <th className={thCls} style={{ color: resolve.muted }}>Nome</th>
@@ -586,7 +586,7 @@ export default function ViewConfig({ onLogoChange }: ViewConfigProps) {
             ) : filteredRoles.length === 0 ? (
               <div className="text-center py-6 text-sm" style={{ color: resolve.muted }}>Nenhuma função encontrada.</div>
             ) : (
-              <table className="w-full text-sm border-collapse" style={{ color: resolve.text }}>
+              <table className="w-full text-[11px] border-collapse" style={{ color: resolve.text }}>
                 <thead>
                   <tr>
                     <th className={thCls} style={{ color: resolve.muted }}>Função</th>
@@ -654,7 +654,7 @@ export default function ViewConfig({ onLogoChange }: ViewConfigProps) {
             ) : filteredProjects.length === 0 ? (
               <div className="text-center py-6 text-sm" style={{ color: resolve.muted }}>Nenhum projeto encontrado.</div>
             ) : (
-              <table className="w-full text-sm border-collapse" style={{ color: resolve.text }}>
+              <table className="w-full text-[11px] border-collapse" style={{ color: resolve.text }}>
                 <thead>
                   <tr>
                     <th className={thCls} style={{ color: resolve.muted }}>JOB</th>

@@ -154,12 +154,12 @@ export default function ViewTeam({ getBudgetData }: ViewTeamProps) {
             style={{ borderColor: resolve.border, color: resolve.muted, backgroundColor: 'rgba(255,255,255,0.03)' }}
           >
             <span>{dept.department}</span>
-            <span className="font-mono text-[11px]" style={{ color: resolve.text }}>{formatCurrency(dept.deptTotal)}</span>
+            <span className="font-mono text-[13px] font-medium" style={{ color: resolve.yellow }}>{formatCurrency(dept.deptTotal)}</span>
           </div>
 
           {/* Tabela */}
           <div className="p-2 sm:p-3 overflow-x-auto">
-            <table className="w-full text-sm border-collapse" style={{ color: resolve.text }}>
+            <table className="w-full text-[11px] border-collapse" style={{ color: resolve.text }}>
               <thead>
                 <tr>
                   <th className="text-left text-[11px] uppercase pb-2 pr-3" style={{ color: resolve.muted }}>Nome</th>
@@ -183,7 +183,7 @@ export default function ViewTeam({ getBudgetData }: ViewTeamProps) {
                       {member.role || '—'}
                     </td>
                     <td
-                      className="py-1.5 border-b text-right font-mono"
+                      className="py-1.5 border-b text-right font-mono text-[11px]"
                       style={{ borderColor: resolve.border }}
                     >
                       {formatCurrency(member.totalCost)}

@@ -126,7 +126,7 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
       {/* Esquerda: logo */}
       <div className="flex items-center justify-between sm:justify-start gap-2">
         <div className="flex items-center gap-2.5">
-          <div className="w-12 h-12 rounded flex items-center justify-center font-bold text-xs flex-shrink-0 overflow-hidden" style={{ backgroundColor: resolve.accent, color: resolve.bg }}>
+          <div className="w-9 h-9 rounded flex items-center justify-center font-bold text-[10px] flex-shrink-0 overflow-hidden" style={{ backgroundColor: resolve.accent, color: resolve.bg }}>
             {logoUrl ? (
               <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
             ) : (

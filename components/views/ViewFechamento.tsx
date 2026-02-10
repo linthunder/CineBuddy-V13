@@ -62,7 +62,7 @@ const inputStyle: React.CSSProperties = {
   color: resolve.text,
   borderRadius: 2,
 }
-const inputClassName = 'w-full py-1 px-2 text-sm focus:outline-none'
+const inputClassName = 'w-full py-1 px-2 text-[11px] focus:outline-none'
 
 const DAILY_HOURS_OPTIONS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 const ADDITIONAL_OPTIONS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
@@ -80,6 +80,8 @@ interface ViewFechamentoProps {
   } | null
   initialJobValue: number
   isLocked?: boolean
+  /** Callback do botão CONCLUIR FECHAMENTO / REABRIR FECHAMENTO */
+  onToggleLock?: () => void
 }
 
 export interface ViewFechamentoHandle {
@@ -88,7 +90,7 @@ export interface ViewFechamentoHandle {
 }
 
 /* ── Componente ── */
-const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(function ViewFechamento({ finalSnapshot, initialJobValue, isLocked = false }, ref) {
+const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(function ViewFechamento({ finalSnapshot, initialJobValue, isLocked = false, onToggleLock }, ref) {
   const [closingLines, setClosingLines] = useState<ClosingLine[]>([])
   const [expenses, setExpenses] = useState<ExpenseLine[]>([])
   const loadedFromDB = useRef(false)
@@ -265,18 +267,36 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
     </div>
   )
 
+  const closingTabs = onToggleLock ? (
+    <div className="flex flex-wrap gap-2 sm:gap-1 items-center">
+      <button
+        type="button"
+        onClick={onToggleLock}
+        className="ml-auto h-9 sm:h-8 px-3 sm:px-4 rounded text-xs font-medium uppercase tracking-wide transition-colors border flex items-center gap-1.5"
+        style={{
+          backgroundColor: isLocked ? '#e67e22' : cinema.success,
+          borderColor: isLocked ? '#e67e22' : cinema.success,
+          color: '#ffffff',
+        }}
+      >
+        <span aria-hidden>{isLocked ? '🔓' : '🔒'}</span>
+        {isLocked ? 'Reabrir fechamento' : 'Concluir fechamento'}
+      </button>
+    </div>
+  ) : null
+
   return (
-    <PageLayout title="Fechamento" strip={financeStrip}>
+    <PageLayout title="Fechamento" strip={financeStrip} tabs={closingTabs}>
       {/* Blocos por departamento */}
       <div className={isLocked ? 'locked-sheet' : ''}>
         {linesByDept.map(({ dept, lines }) => {
           const deptTotal = lines.reduce((s, l) => s + calcTotalNF(l), 0)
           return (
-            <div key={dept} className="overflow-hidden border rounded mb-3" style={{ borderColor: resolve.border, borderRadius: 3 }}>
+            <div key={dept} className="overflow-hidden border rounded mb-6" style={{ borderColor: resolve.border, borderRadius: 3 }}>
               {/* Header do departamento */}
               <div className="px-3 py-2 flex justify-between items-center border-b" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
                 <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: resolve.muted }}>{dept}</span>
-                <span className="font-mono text-sm font-medium" style={{ color: resolve.text }}>{formatCurrency(deptTotal)}</span>
+                <span className="font-mono text-[13px] font-medium" style={{ color: resolve.text }}>{formatCurrency(deptTotal)}</span>
               </div>
 
               <div className="overflow-x-auto" style={{ backgroundColor: resolve.panel }}>
@@ -287,31 +307,19 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                   return (
                     <div key={line.id} className="border-b" style={{ borderColor: resolve.border }}>
                       {/* Linha principal */}
-                      <div className="grid items-center gap-2 px-3 py-2.5" style={{ backgroundColor: 'rgba(255,255,255,0.03)', gridTemplateColumns: '1fr auto 1fr auto auto' }}>
+                      <div className="grid items-center gap-2 px-3 py-2.5" style={{ backgroundColor: 'rgba(255,255,255,0.03)', gridTemplateColumns: '1fr auto auto' }}>
                         <div className="min-w-0">
                           <span className="text-xs font-medium" style={{ color: resolve.text }}>{line.name || '—'}</span>
                           {line.role && line.role !== line.name && (
-                            <span className="text-[10px] ml-2" style={{ color: resolve.muted }}>{line.role}</span>
+                            <span className="text-[11px] ml-2" style={{ color: resolve.muted }}>{line.role}</span>
                           )}
                         </div>
-                        <span className="text-[10px] whitespace-nowrap" style={{ color: resolve.muted, justifySelf: 'center' }}>
+                        <span className="text-[11px] whitespace-nowrap" style={{ color: resolve.muted, justifySelf: 'center' }}>
                           Período: <strong style={{ color: resolve.text }}>{periodLabel}</strong>
                         </span>
-                        <span className="text-[10px] whitespace-nowrap" style={{ color: resolve.muted, justifySelf: 'center' }}>
+                        <span className="text-[11px] whitespace-nowrap" style={{ color: resolve.muted, justifySelf: 'center' }}>
                           {line.finalQuantity > 0 && <>Qtd: <strong style={{ color: resolve.text }}>{line.finalQuantity}</strong></>}
                         </span>
-                        <span className="font-mono text-sm font-medium whitespace-nowrap" style={{ color: resolve.text }}>{formatCurrency(totalNF)}</span>
-                        <button
-                          type="button"
-                          className="text-[10px] font-medium uppercase px-2.5 py-0.5 rounded transition-colors whitespace-nowrap"
-                          style={{
-                            backgroundColor: line.payStatus === 'pago' ? cinema.success : cinema.danger,
-                            color: '#fff',
-                          }}
-                          onClick={() => updateLine(line.id, { payStatus: line.payStatus === 'pago' ? 'pendente' : 'pago' })}
-                        >
-                          {line.payStatus === 'pago' ? 'PAGO ✓' : 'A PAGAR'}
-                        </button>
                       </div>
 
                       {/* Linha de fechamento (labor only) */}
@@ -342,7 +350,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                         </div>
                       )}
 
-                      {/* Linha de resumo com detalhes de valores */}
+                      {/* Linha de resumo com detalhes de valores + total e status */}
                       <div className="flex flex-wrap items-center gap-3 px-3 py-1.5 border-t text-[10px]" style={{ borderColor: resolve.border, color: resolve.muted }}>
                         {line.isLabor ? (
                           <>
@@ -365,6 +373,20 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                             {line.isVerba && <span>Verba</span>}
                           </>
                         )}
+                        <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+                          <span className="font-mono text-[11px] font-medium whitespace-nowrap" style={{ color: resolve.yellow }}>{formatCurrency(totalNF)}</span>
+                          <button
+                            type="button"
+                            className="text-[10px] font-medium uppercase px-2.5 py-0.5 rounded transition-colors whitespace-nowrap"
+                            style={{
+                              backgroundColor: line.payStatus === 'pago' ? cinema.success : cinema.danger,
+                              color: '#fff',
+                            }}
+                            onClick={() => updateLine(line.id, { payStatus: line.payStatus === 'pago' ? 'pendente' : 'pago' })}
+                          >
+                            {line.payStatus === 'pago' ? 'PAGO ✓' : 'A PAGAR'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )
@@ -381,14 +403,14 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
           <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: resolve.muted }}>Prestação de contas</span>
         </div>
         <div className="p-2 sm:p-3 overflow-x-auto" style={{ backgroundColor: resolve.panel }}>
-          <table className="w-full border-collapse text-sm min-w-[500px]">
+          <table className="w-full border-collapse text-[11px] min-w-[500px]">
             <thead>
-              <tr className="border-b" style={{ borderColor: resolve.border }}>
-                <th className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>Nome</th>
-                <th className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>Descrição</th>
-                <th className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>Valor</th>
-                <th className="text-left text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>NF</th>
-                <th className="text-center text-[11px] uppercase font-medium py-1.5 px-2" style={{ color: resolve.muted }}>Status</th>
+              <tr className="border-b" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.04)' }}>
+                <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Nome</th>
+                <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Descrição</th>
+                <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Valor</th>
+                <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>NF</th>
+                <th className="text-center text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Status</th>
                 <th className="w-10" />
               </tr>
             </thead>
