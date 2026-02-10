@@ -29,9 +29,10 @@ interface HeaderProps {
   onSaveCopy: (data: { nome: string; agencia: string; cliente: string; duracao: string; duracaoUnit: 'segundos' | 'minutos' }) => Promise<void>
   onOpenProject: (id: string) => void
   saving?: boolean
+  onLogout?: () => void
 }
 
-export default function Header({ projectData, logoUrl, onNewProject, onSave, onSaveCopy, onOpenProject, saving = false }: HeaderProps) {
+export default function Header({ projectData, logoUrl, onNewProject, onSave, onSaveCopy, onOpenProject, saving = false, onLogout }: HeaderProps) {
   const [modalOpen, setModalOpen] = useState<'novo' | 'abrir' | 'copia' | null>(null)
 
   /* NOVO */
@@ -144,6 +145,7 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
           <button type="button" onClick={openAbrir} className={btnBaseClsMobile} style={btnBaseStyle}>Abrir</button>
           <button type="button" onClick={openCopy} className={btnBaseClsMobile} style={btnBaseStyle}>Salvar cópia</button>
           <button type="button" onClick={onSave} disabled={saving} className={`btn-resolve-hover h-7 px-2 text-xs font-medium uppercase rounded`} style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }}>{saving ? '...' : 'Salvar'}</button>
+          {onLogout && <button type="button" onClick={onLogout} className={btnBaseClsMobile} style={btnBaseStyle}>Sair</button>}
         </div>
       </div>
 
@@ -159,6 +161,9 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
         <button type="button" onClick={openAbrir} className={btnBaseCls} style={btnBaseStyle}>Abrir</button>
         <button type="button" onClick={openCopy} className={btnBaseCls} style={btnBaseStyle}>Salvar cópia</button>
         <button type="button" onClick={onSave} disabled={saving} className="btn-resolve-hover h-7 px-3 text-xs font-medium uppercase tracking-wide rounded" style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }}>{saving ? 'Salvando...' : 'Salvar'}</button>
+        {onLogout && (
+          <button type="button" onClick={onLogout} className="btn-resolve-hover h-7 px-3 text-xs font-medium uppercase tracking-wide rounded ml-1" style={{ backgroundColor: 'transparent', color: resolve.muted, borderColor: resolve.border }}>Sair</button>
+        )}
       </div>
 
       {/* ═══════ MODAL: NOVO PROJETO ═══════ */}

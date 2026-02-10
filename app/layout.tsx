@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Plus_Jakarta_Sans, Bebas_Neue, JetBrains_Mono, Montserrat, Poppins, Oswald, Outfit, Space_Grotesk, Rajdhani, Orbitron } from 'next/font/google'
 import './globals.css'
+import { AuthProvider } from '@/lib/auth-context'
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -79,7 +80,9 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className={`${plusJakarta.variable} ${bebasNeue.variable} ${jetbrainsMono.variable} ${montserrat.variable} ${poppins.variable} ${oswald.variable} ${outfit.variable} ${spaceGrotesk.variable} ${rajdhani.variable} ${orbitron.variable}`} style={{ backgroundColor: '#0d0d0f' }}>
       <body className="min-h-screen antialiased font-sans" style={{ backgroundColor: '#0d0d0f', color: '#e8e8ec' }}>
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   )

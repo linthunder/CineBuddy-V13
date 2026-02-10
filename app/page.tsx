@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
+import { useAuth } from '@/lib/auth-context'
+import LoginScreen from '@/components/LoginScreen'
 import Header from '@/components/Header'
 import BottomNav, { type ViewId } from '@/components/BottomNav'
 import ViewFilme from '@/components/views/ViewFilme'
@@ -38,6 +40,7 @@ const EMPTY_PROJECT: ProjectData = {
 }
 
 export default function Home() {
+  const { user, loading, logout, profile } = useAuth()
   const [currentView, setCurrentView] = useState<ViewId>('filme')
   const [projectStatus, setProjectStatus] = useState<ProjectStatus>({
     initial: 'open',
@@ -397,6 +400,17 @@ export default function Home() {
     return disabled
   }, [projectStatus, projectData.nome])
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#0d0d0f', color: '#8e8e93' }}>
+        <span className="text-sm">Carregando...</span>
+      </div>
+    )
+  }
+  if (!user) {
+    return <LoginScreen />
+  }
+
   return (
     <>
       <Header
@@ -407,6 +421,7 @@ export default function Home() {
         onSaveCopy={handleSaveCopy}
         onOpenProject={handleOpenProject}
         saving={saving}
+        onLogout={logout}
       />
       <main
         className="pt-[88px] sm:pt-[88px] pb-20 sm:pb-24 w-full overflow-x-auto min-h-0"
@@ -447,7 +462,7 @@ export default function Home() {
           <ViewTeam getBudgetData={getTeamBudgetData} />
         </div>
         <div style={{ display: currentView === 'config' ? 'block' : 'none' }}>
-          <ViewConfig onLogoChange={setCompanyLogoUrl} />
+          <ViewConfig onLogoChange={setCompanyLogoUrl} currentProfile={profile} isAdmin={profile?.role === 'admin'} />
         </div>
       </main>
       <BottomNav currentView={currentView} onViewChange={setCurrentView} disabledViews={disabledViews} />

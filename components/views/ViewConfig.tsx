@@ -17,6 +17,8 @@ import {
   listProjects, updateProject, deleteProject,
   type ProjectRecord,
 } from '@/lib/services/projects'
+import { listProfiles, updateProfile, type Profile, type ProfileRole } from '@/lib/services/profiles'
+import { supabase } from '@/lib/supabase'
 
 type ConfigTab = 'company' | 'users' | 'collaborators' | 'roles' | 'projects' | 'logs'
 
@@ -62,9 +64,11 @@ function downloadCsv(filename: string, content: string) {
 
 export interface ViewConfigProps {
   onLogoChange?: (url: string) => void
+  currentProfile?: Profile | null
+  isAdmin?: boolean
 }
 
-export default function ViewConfig({ onLogoChange }: ViewConfigProps) {
+export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: ViewConfigProps) {
   const [activeTab, setActiveTab] = useState<ConfigTab>('company')
 
   /* ── Dados da produtora ── */
@@ -80,6 +84,85 @@ export default function ViewConfig({ onLogoChange }: ViewConfigProps) {
   const [logoPreview, setLogoPreview] = useState('')
   const [logoUploading, setLogoUploading] = useState(false)
   const logoFileRef = useRef<HTMLInputElement>(null)
+
+  /* ── Usuários (login) ── */
+  const [profiles, setProfiles] = useState<Profile[]>([])
+  const [profilesLoading, setProfilesLoading] = useState(false)
+  const [userModal, setUserModal] = useState<null | 'new' | Profile>(null)
+  const [uName, setUName] = useState('')
+  const [uSurname, setUSurname] = useState('')
+  const [uEmail, setUEmail] = useState('')
+  const [uPassword, setUPassword] = useState('')
+  const [uRole, setURole] = useState<ProfileRole>('producer')
+  const [userSaving, setUserSaving] = useState(false)
+  const [userError, setUserError] = useState('')
+
+  useEffect(() => {
+    if (activeTab === 'users') {
+      setProfilesLoading(true)
+      listProfiles().then((list) => {
+        setProfiles(list)
+        setProfilesLoading(false)
+      })
+    }
+  }, [activeTab])
+
+  const openUserModal = (p: null | 'new' | Profile) => {
+    if (p && p !== 'new' && !isAdmin && currentProfile && p.id !== currentProfile.id) return
+    setUserModal(p)
+    setUserError('')
+    if (p === 'new') {
+      setUName(''); setUSurname(''); setUEmail(''); setUPassword(''); setURole('producer')
+    } else if (p) {
+      setUName(p.name); setUSurname(p.surname); setUEmail(p.email); setUPassword(''); setURole(p.role)
+    }
+  }
+
+  const saveUser = async () => {
+    if (!currentProfile) return
+    setUserError('')
+    setUserSaving(true)
+    try {
+      if (userModal === 'new') {
+        if (!uEmail.trim() || !uPassword.trim()) {
+          setUserError('E-mail e senha são obrigatórios.')
+          return
+        }
+        const token = (await supabase.auth.getSession()).data.session?.access_token
+        const res = await fetch('/api/auth/create-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+          body: JSON.stringify({ name: uName.trim(), surname: uSurname.trim(), email: uEmail.trim(), password: uPassword, role: uRole }),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          setUserError(data.error || 'Falha ao criar usuário.')
+          return
+        }
+        const list = await listProfiles()
+        setProfiles(list)
+        setUserModal(null)
+      } else if (userModal && userModal.id) {
+        const res = await updateProfile(userModal.id, { name: uName.trim(), surname: uSurname.trim(), email: uEmail.trim(), ...(isAdmin && { role: uRole }) })
+        if (!res.ok) {
+          setUserError(res.error || 'Falha ao salvar.')
+          return
+        }
+        if (userModal.id === currentProfile.id && uPassword.trim()) {
+          const { error } = await supabase.auth.updateUser({ password: uPassword })
+          if (error) {
+            setUserError(error.message)
+            return
+          }
+        }
+        const list = await listProfiles()
+        setProfiles(list)
+        setUserModal(null)
+      }
+    } finally {
+      setUserSaving(false)
+    }
+  }
 
   // Carregar dados da produtora ao selecionar a aba
   useEffect(() => {
@@ -465,8 +548,54 @@ export default function ViewConfig({ onLogoChange }: ViewConfigProps) {
       {/* ═══ USUÁRIOS ═══ */}
       {activeTab === 'users' && (
         <div className="rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
-          <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider" style={{ borderColor: resolve.border, color: resolve.muted }}>USUÁRIOS</div>
-          <div className="p-8 text-center text-sm" style={{ color: resolve.muted }}>Em breve.</div>
+          <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between gap-2" style={{ borderColor: resolve.border, color: resolve.muted }}>
+            <span>USUÁRIOS ({profiles.length})</span>
+            {isAdmin && (
+              <button type="button" className={btnSmall} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openUserModal('new')}>+ Novo usuário</button>
+            )}
+          </div>
+          <div className="p-3">
+            <div className="flex flex-wrap gap-1.5 mb-4 rounded border p-2" style={{ borderColor: resolve.border }}>
+              {profilesLoading ? (
+                <span className="text-[11px]" style={{ color: resolve.muted }}>Carregando...</span>
+              ) : profiles.length === 0 ? (
+                <span className="text-[11px]" style={{ color: resolve.muted }}>Nenhum usuário.</span>
+              ) : (
+                profiles.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => openUserModal(p)}
+                    className="px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider rounded transition-colors"
+                    style={{
+                      backgroundColor: userModal && userModal !== 'new' && userModal.id === p.id ? resolve.accent : 'transparent',
+                      color: userModal && userModal !== 'new' && userModal.id === p.id ? resolve.bg : resolve.muted,
+                    }}
+                  >
+                    {p.name || p.surname ? [p.name, p.surname].filter(Boolean).join(' ') : p.email}
+                  </button>
+                ))
+              )}
+            </div>
+            {(userModal === 'new' || (userModal && userModal.id)) && (
+              <div className="rounded border p-4 space-y-3" style={{ borderColor: resolve.border }}>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className={labelCls} style={{ color: resolve.muted }}>Nome</label><input type="text" className={inputCls} style={inputStyle} value={uName} onChange={(e) => setUName(e.target.value)} /></div>
+                  <div><label className={labelCls} style={{ color: resolve.muted }}>Sobrenome</label><input type="text" className={inputCls} style={inputStyle} value={uSurname} onChange={(e) => setUSurname(e.target.value)} /></div>
+                </div>
+                <div><label className={labelCls} style={{ color: resolve.muted }}>E-mail</label><input type="email" className={inputCls} style={inputStyle} value={uEmail} onChange={(e) => setUEmail(e.target.value)} disabled={userModal !== 'new'} /></div>
+                <div><label className={labelCls} style={{ color: resolve.muted }}>Senha {userModal !== 'new' ? '(deixe em branco para não alterar)' : ''}</label><input type="password" className={inputCls} style={inputStyle} value={uPassword} onChange={(e) => setUPassword(e.target.value)} placeholder={userModal !== 'new' ? '••••••••' : ''} minLength={6} /></div>
+                {isAdmin && (
+                  <div><label className={labelCls} style={{ color: resolve.muted }}>Perfil</label><select className={inputCls} style={inputStyle} value={uRole} onChange={(e) => setURole(e.target.value as ProfileRole)}><option value="producer">Produtor</option><option value="admin">Administrador</option></select></div>
+                )}
+                {userError && <div className="text-[11px]" style={{ color: cinema.danger }}>{userError}</div>}
+                <div className="flex gap-2 justify-end">
+                  <button type="button" onClick={() => setUserModal(null)} className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }}>Cancelar</button>
+                  <button type="button" onClick={saveUser} disabled={userSaving} className={btnSmall} style={{ backgroundColor: resolve.accent, color: resolve.bg }}>{userSaving ? 'Salvando...' : 'Salvar'}</button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
