@@ -41,7 +41,7 @@ export default function Home() {
   const [currentView, setCurrentView] = useState<ViewId>('filme')
   const [projectStatus, setProjectStatus] = useState<ProjectStatus>({
     initial: 'open',
-    final: 'locked',
+    final: 'open',
     closing: 'open',
   })
 
@@ -76,7 +76,7 @@ export default function Home() {
       duracaoUnit: data.duracaoUnit,
     })
     setProjectDbId(null)
-    setProjectStatus({ initial: 'open', final: 'locked', closing: 'open' })
+    setProjectStatus({ initial: 'open', final: 'open', closing: 'open' })
     setInitialSnapshot(null)
     setFinalSnapshot(null)
     // Reset views via refs
@@ -108,8 +108,8 @@ export default function Home() {
   const handleToggleLockInitial = useCallback((snapshot: BudgetSnapshot) => {
     setProjectStatus((prev) => {
       if (prev.initial === 'locked') {
-        // Reabrindo: só destrava edição; não altera closing (só CONCLUIR FECHAMENTO bloqueia páginas)
-        return { ...prev, initial: 'open', final: 'locked', closing: 'open' }
+        // Reabrindo: volta a cascata — bloqueia acesso ao Orçamento Final e ao Fechamento
+        return { ...prev, initial: 'open', final: 'open', closing: 'open' }
       }
       // Finalizando: libera acesso ao Orçamento Final
       return { ...prev, initial: 'locked', final: 'open' }

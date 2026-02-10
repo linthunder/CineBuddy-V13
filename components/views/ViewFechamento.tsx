@@ -277,6 +277,8 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
     return { totalEconomy: economy, valueToPay: economy * pct }
   }, [finalSnapshot, initialSnapshot, saving.items, saving.pct])
 
+  const laborLinesForSaving = useMemo(() => closingLines.filter((l) => l.isLabor && (l.name || l.role)), [closingLines])
+
   /* Prestação de contas */
   const addExpense = useCallback(() => {
     if (isLocked) return
@@ -329,8 +331,6 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
       </div>
     </div>
   )
-
-  const laborLinesForSaving = useMemo(() => closingLines.filter((l) => l.isLabor && (l.name || l.role)), [closingLines])
 
   const closingTabs = (
     <div className="flex flex-wrap gap-2 sm:gap-3 items-center w-full">
