@@ -3,6 +3,13 @@ import { createServerClient } from '@/lib/supabase-server'
 
 /** Retorna o próximo job_id sequencial (BZ0001, BZ0002, …). Usa contador no Supabase. */
 export async function GET() {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('next-job-id: SUPABASE_SERVICE_ROLE_KEY não definida. Configure em Vercel > Settings > Environment Variables.')
+    return NextResponse.json(
+      { error: 'Serviço temporariamente indisponível. Configure SUPABASE_SERVICE_ROLE_KEY no Vercel.' },
+      { status: 503 }
+    )
+  }
   try {
     const supabase = createServerClient()
     const { data, error } = await supabase.rpc('get_next_job_number')
