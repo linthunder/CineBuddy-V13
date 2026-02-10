@@ -332,10 +332,14 @@ export default function Home() {
       // Restaurar fechamento (closing_lines: [closingLines, expenses, saving?])
       const closingData = project.closing_lines as unknown[]
       if (Array.isArray(closingData) && closingData.length >= 2) {
+        const rawSaving = closingData[2]
+        const saving = rawSaving != null && typeof rawSaving === 'object' && 'items' in rawSaving
+          ? (rawSaving as { items: string[]; pct: number; responsibleId: string | null })
+          : undefined
         viewFechamentoRef.current?.loadState({
           closingLines: closingData[0] as never[],
           expenses: closingData[1] as never[],
-          saving: closingData[2] ?? undefined,
+          saving: saving ?? undefined,
         })
       }
     }, 50)
