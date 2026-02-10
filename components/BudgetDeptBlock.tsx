@@ -64,28 +64,28 @@ export default function BudgetDeptBlock({
         <span className="font-mono text-[13px] font-medium normal-case" style={{ color: resolve.yellow }}>{formatCurrency(totalDisplay)}</span>
       </div>
       <div className="p-2 sm:p-3 border-t overflow-x-auto" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
-        <table className="budget-table-cards w-full border-collapse text-[11px] lg:table-fixed min-w-[720px]">
+        <table className="budget-table-cards budget-table-main w-full border-collapse text-[11px] table-fixed min-w-0">
           <colgroup>
             {isLabor ? (
               <>
-                <col style={{ width: '18%' }} />
-                <col style={{ width: '22%' }} />
-                <col style={{ width: '10%' }} />
-                <col style={{ width: '10%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '24%' }} />
+                <col style={{ width: '8%' }} />
                 <col style={{ width: '9%' }} />
-                <col style={{ width: '52px' }} />
+                <col style={{ width: '8%' }} />
+                <col style={{ width: '32px' }} />
                 <col style={{ width: '11%' }} />
-                <col style={{ width: '48px' }} />
+                <col style={{ width: '32px' }} />
               </>
             ) : (
               <>
-                <col style={{ width: '24%' }} />
-                <col style={{ width: '24%' }} />
-                <col style={{ width: '10%' }} />
+                <col style={{ width: '30%' }} />
+                <col style={{ width: '30%' }} />
+                <col style={{ width: '8%' }} />
+                <col style={{ width: '11%' }} />
+                <col style={{ width: '32px' }} />
                 <col style={{ width: '12%' }} />
-                <col style={{ width: '52px' }} />
-                <col style={{ width: '12%' }} />
-                <col style={{ width: '48px' }} />
+                <col style={{ width: '32px' }} />
               </>
             )}
           </colgroup>
@@ -96,7 +96,7 @@ export default function BudgetDeptBlock({
                   {['Função', 'Nome', 'Tipo', 'Cachê', 'Desl.', 'Qtd', 'Total'].map((h) => (
                     <th key={h} className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>{h}</th>
                   ))}
-                  <th className="w-10" />
+                  <th className="budget-th-remove" aria-hidden />
                 </>
               ) : (
                 <>
@@ -106,7 +106,7 @@ export default function BudgetDeptBlock({
                   <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Valor</th>
                   <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Qtd</th>
                   <th className="text-right text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Total</th>
-                  <th className="w-10" />
+                  <th className="budget-th-remove" aria-hidden />
                 </>
               )}
             </tr>
@@ -157,13 +157,13 @@ export default function BudgetDeptBlock({
               <span aria-hidden>💼</span> Verbas
             </div>
             <div className="p-2 border-t" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
-              <table className="budget-table-cards w-full border-collapse text-[11px] min-w-[400px]">
+              <table className="budget-table-cards w-full border-collapse text-[11px] min-w-0 xl:min-w-[400px]">
                 <colgroup>
                   <col style={{ width: '50%' }} />
                   <col style={{ width: '20%' }} />
-                  <col style={{ width: '52px' }} />
+                  <col style={{ width: '32px' }} />
                   <col style={{ width: '18%' }} />
-                  <col style={{ width: '48px' }} />
+                  <col style={{ width: '32px' }} />
                 </colgroup>
                 <thead>
                   <tr className="border-b" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.04)' }}>
@@ -171,7 +171,7 @@ export default function BudgetDeptBlock({
                     <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Valor</th>
                     <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Qtd</th>
                     <th className="text-right text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Total</th>
-                    <th className="w-[44px]" />
+                    <th className="budget-th-remove" aria-hidden />
                   </tr>
                 </thead>
                 <tbody>
@@ -194,7 +194,7 @@ export default function BudgetDeptBlock({
                       <td className="p-1.5 align-middle budget-cell-qty">
                         <input type="number" className={`${inputClassName} text-center`} style={inputStyle} value={v.quantity || ''} onChange={(e) => onUpdateVerbaRow(v.id, { quantity: parseFloat(e.target.value) || 0 })} min={0} step="any" />
                       </td>
-                      <td className="p-1.5 align-middle font-mono text-[11px] text-right font-medium min-w-[4.5rem]" style={{ color: resolve.text }}>{formatCurrency(computeVerbaRowTotal(v))}</td>
+                      <td className="p-1.5 align-middle font-mono text-[11px] text-right font-medium budget-cell-total" style={{ color: resolve.text }}>{formatCurrency(computeVerbaRowTotal(v))}</td>
                       <td className="budget-row-remove">
                         <button type="button" onClick={() => onRemoveVerbaRow(v.id)} className="btn-remove-row" aria-label="Remover linha">×</button>
                       </td>

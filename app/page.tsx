@@ -428,8 +428,8 @@ export default function Home() {
         onLogout={logout}
       />
       <main
-        className="pt-[88px] sm:pt-[88px] pb-20 sm:pb-24 w-full overflow-x-auto min-h-0"
-        style={{ backgroundColor: '#0d0d0f', color: '#e8e8ec', paddingLeft: 'var(--page-gutter)', paddingRight: 'var(--page-gutter)' }}
+        className="pt-[88px] sm:pt-[88px] pb-20 sm:pb-24 w-full min-h-0 min-w-0"
+        style={{ backgroundColor: '#0d0d0f', color: '#e8e8ec', paddingLeft: 'var(--page-gutter-content)', paddingRight: 'var(--page-gutter-content)' }}
       >
         <div style={{ display: currentView === 'filme' ? 'block' : 'none' }}>
           <ViewFilme />

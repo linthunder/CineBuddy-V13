@@ -20,7 +20,7 @@ const TABS: { key: PhaseKey; label: string }[] = [
 
 export default function BudgetTabs({ activePhase, onPhaseChange, isLocked, onToggleLock }: BudgetTabsProps) {
   return (
-    <div className="flex flex-wrap gap-2 sm:gap-1 items-center">
+    <div className="flex flex-wrap gap-1.5 sm:gap-2 items-center min-w-0">
       {TABS.map(({ key, label }) => {
         const isActive = activePhase === key
         return (
@@ -28,7 +28,7 @@ export default function BudgetTabs({ activePhase, onPhaseChange, isLocked, onTog
             key={key}
             type="button"
             onClick={() => onPhaseChange(key)}
-            className="btn-resolve-hover h-9 sm:h-8 flex-1 sm:flex-none min-w-0 px-3 sm:px-4 rounded text-xs font-medium uppercase tracking-wide transition-colors border"
+            className="btn-resolve-hover h-8 flex-1 sm:flex-none min-w-0 px-2 sm:px-3 md:px-4 rounded text-[10px] sm:text-xs font-medium uppercase tracking-wide transition-colors border"
             style={{
               backgroundColor: isActive ? resolve.yellowDark : resolve.panel,
               borderColor: isActive ? resolve.yellow : resolve.border,
@@ -43,7 +43,7 @@ export default function BudgetTabs({ activePhase, onPhaseChange, isLocked, onTog
         <button
           type="button"
           onClick={onToggleLock}
-          className="ml-auto h-9 sm:h-8 px-3 sm:px-4 rounded text-xs font-medium uppercase tracking-wide transition-colors border flex items-center gap-1.5"
+          className="ml-auto h-8 px-2 sm:px-3 md:px-4 rounded text-[10px] sm:text-xs font-medium uppercase tracking-wide transition-colors border flex items-center gap-1"
           style={{
             backgroundColor: isLocked ? '#e67e22' : cinema.success,
             borderColor: isLocked ? '#e67e22' : cinema.success,
@@ -51,7 +51,8 @@ export default function BudgetTabs({ activePhase, onPhaseChange, isLocked, onTog
           }}
         >
           <span aria-hidden>{isLocked ? '🔓' : '🔒'}</span>
-          {isLocked ? 'Abrir orçamento' : 'Finalizar orçamento'}
+          <span className="md:hidden">{isLocked ? 'Abrir' : 'Finalizar'}</span>
+          <span className="hidden md:inline">{isLocked ? 'Abrir orçamento' : 'Finalizar orçamento'}</span>
         </button>
       )}
     </div>

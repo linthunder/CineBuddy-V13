@@ -306,26 +306,26 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
   /* Finance strip */
   const financeStrip = (
     <div
-      className="rounded overflow-hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-0 border-b"
+      className="rounded overflow-hidden grid grid-cols-1 lg:grid-cols-5 gap-0 border-b min-w-0"
       style={{ backgroundColor: resolve.panel, borderColor: resolve.purple, borderRadius: 3 }}
     >
-      <div className="p-3 border-b sm:border-b-0 sm:border-r flex flex-col items-center justify-center" style={{ borderColor: resolve.border }}>
+      <div className="p-3 border-b lg:border-b-0 lg:border-r flex flex-col items-center justify-center min-w-0" style={{ borderColor: resolve.border }}>
         <label className="text-[11px] uppercase tracking-wider font-medium mb-0.5" style={{ color: resolve.muted }}>Valor Job</label>
         <div className="text-base sm:text-lg font-semibold font-mono" style={{ color: resolve.text }}>{formatCurrency(initialJobValue)}</div>
       </div>
-      <div className="p-3 border-b sm:border-b-0 sm:border-r flex flex-col items-center justify-center" style={{ borderColor: resolve.border }}>
+      <div className="p-3 border-b lg:border-b-0 lg:border-r flex flex-col items-center justify-center min-w-0" style={{ borderColor: resolve.border }}>
         <label className="text-[11px] uppercase tracking-wider font-medium mb-0.5" style={{ color: resolve.muted }}>Custo Final</label>
         <div className="text-sm sm:text-base font-semibold font-mono" style={{ color: resolve.text }}>{formatCurrency(totalCustoFinal + totalExpenses)}</div>
       </div>
-      <div className="p-3 border-b sm:border-b-0 sm:border-r flex flex-col items-center justify-center" style={{ borderColor: resolve.border }}>
+      <div className="p-3 border-b lg:border-b-0 lg:border-r flex flex-col items-center justify-center min-w-0" style={{ borderColor: resolve.border }}>
         <label className="text-[11px] uppercase tracking-wider font-medium mb-0.5" style={{ color: resolve.muted }}>Total Pago</label>
         <div className="text-sm sm:text-base font-semibold font-mono" style={{ color: cinema.success }}>{formatCurrency(totalPago)}</div>
       </div>
-      <div className="p-3 border-b sm:border-b-0 sm:border-r flex flex-col items-center justify-center" style={{ borderColor: resolve.border }}>
+      <div className="p-3 border-b lg:border-b-0 lg:border-r flex flex-col items-center justify-center min-w-0" style={{ borderColor: resolve.border }}>
         <label className="text-[11px] uppercase tracking-wider font-medium mb-0.5" style={{ color: resolve.muted }}>Pendente</label>
         <div className="text-sm sm:text-base font-semibold font-mono" style={{ color: cinema.danger }}>{formatCurrency(totalPendente)}</div>
       </div>
-      <div className="p-3 flex flex-col items-center justify-center">
+      <div className="p-3 flex flex-col items-center justify-center min-w-0">
         <label className="text-[11px] uppercase tracking-wider font-medium mb-0.5" style={{ color: resolve.muted }}>Lucro Final</label>
         <div className="text-sm sm:text-base font-semibold font-mono" style={{ color: lucroFinal >= 0 ? cinema.success : cinema.danger }}>{formatCurrency(lucroFinal)}</div>
       </div>
@@ -333,14 +333,14 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
   )
 
   const closingTabs = (
-    <div className="flex flex-wrap gap-2 sm:gap-3 items-center w-full">
+    <div className="flex flex-wrap gap-1.5 sm:gap-2 md:gap-3 items-center w-full min-w-0">
       {/* Saving: alinhado à esquerda */}
-      <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
+      <div className="flex flex-wrap gap-1.5 sm:gap-2 md:gap-3 items-center min-w-0">
         <button
           type="button"
           onClick={() => setSavingModalOpen(true)}
           disabled={isLocked}
-          className="h-9 sm:h-8 px-3 sm:px-4 rounded text-xs font-medium uppercase tracking-wide transition-colors border flex items-center gap-1.5"
+          className="h-8 px-2 sm:px-3 md:px-4 rounded text-[10px] sm:text-xs font-medium uppercase tracking-wide transition-colors border flex items-center gap-1"
           style={{
             backgroundColor: resolve.panel,
             borderColor: resolve.border,
@@ -349,11 +349,11 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
         >
           Saving
         </button>
-        <span className="text-[11px] whitespace-nowrap" style={{ color: resolve.muted }}>
-          Total economia: <strong className="font-mono" style={{ color: resolve.text }}>{formatCurrency(totalEconomy)}</strong>
+        <span className="text-[11px] min-w-0 truncate max-w-[120px] sm:max-w-none" style={{ color: resolve.muted }} title={`Total economia: ${formatCurrency(totalEconomy)}`}>
+          <span className="hidden sm:inline">Total economia: </span><strong className="font-mono" style={{ color: resolve.text }}>{formatCurrency(totalEconomy)}</strong>
         </span>
         <select
-          className="h-9 sm:h-8 px-2 rounded text-xs font-medium border focus:outline-none"
+          className="h-8 px-2 rounded text-[10px] sm:text-xs font-medium border focus:outline-none min-w-0"
           style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}
           value={saving.pct}
           onChange={(e) => setSaving((prev) => ({ ...prev, pct: Number(e.target.value) }))}
@@ -363,17 +363,17 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
             <option key={p} value={p}>{p}%</option>
           ))}
         </select>
-        <span className="text-[11px] whitespace-nowrap" style={{ color: resolve.muted }}>
+        <span className="text-[11px]" style={{ color: resolve.muted }}>
           A pagar: <strong className="font-mono" style={{ color: cinema.success }}>{formatCurrency(valueToPay)}</strong>
         </span>
         <select
-          className="h-9 sm:h-8 px-2 rounded text-xs font-medium border focus:outline-none min-w-[140px]"
+          className="h-8 px-2 rounded text-[10px] sm:text-xs font-medium border focus:outline-none min-w-[90px] md:min-w-[140px]"
           style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}
           value={saving.responsibleId ?? ''}
           onChange={(e) => setSaving((prev) => ({ ...prev, responsibleId: e.target.value || null }))}
           disabled={isLocked}
         >
-          <option value="">Responsável pelo saving</option>
+          <option value="">Responsável</option>
           {laborLinesForSaving.map((l) => (
             <option key={l.id} value={l.id}>{l.name || l.role || '—'} ({l.department})</option>
           ))}
@@ -383,7 +383,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
         <button
           type="button"
           onClick={onToggleLock}
-          className="ml-auto h-9 sm:h-8 px-3 sm:px-4 rounded text-xs font-medium uppercase tracking-wide transition-colors border flex items-center gap-1.5"
+          className="ml-auto h-8 px-2 sm:px-3 md:px-4 rounded text-[10px] sm:text-xs font-medium uppercase tracking-wide transition-colors border flex items-center gap-1"
           style={{
             backgroundColor: isLocked ? '#e67e22' : cinema.success,
             borderColor: isLocked ? '#e67e22' : cinema.success,
@@ -391,7 +391,8 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
           }}
         >
           <span aria-hidden>{isLocked ? '🔓' : '🔒'}</span>
-          {isLocked ? 'Reabrir fechamento' : 'Concluir fechamento'}
+          <span className="md:hidden">{isLocked ? 'Reabrir' : 'Concluir'}</span>
+          <span className="hidden md:inline">{isLocked ? 'Reabrir fechamento' : 'Concluir fechamento'}</span>
         </button>
       )}
       {/* Modal de seleção dos itens do Saving */}
@@ -560,7 +561,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
         <div className="px-3 py-2 flex justify-between items-center border-b" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
           <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: resolve.muted }}>Prestação de contas</span>
         </div>
-        <div className="p-2 sm:p-3 overflow-x-auto" style={{ backgroundColor: resolve.panel }}>
+        <div className="p-2 sm:p-3 overflow-x-auto min-w-0" style={{ backgroundColor: resolve.panel }}>
           <table className="w-full border-collapse text-[11px] min-w-[500px]">
             <thead>
               <tr className="border-b" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.04)' }}>

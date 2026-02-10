@@ -125,8 +125,8 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
       style={{ backgroundColor: resolve.panel, borderColor: resolve.border, paddingLeft: 'var(--page-gutter)', paddingRight: 'var(--page-gutter)' }}
     >
       {/* Esquerda: logo */}
-      <div className="flex items-center justify-between sm:justify-start gap-2">
-        <div className="flex items-center gap-2.5">
+      <div className="flex items-center justify-between sm:justify-start gap-2 min-w-0">
+        <div className="flex items-center gap-2.5 flex-shrink-0">
           <div className="w-9 h-9 rounded flex items-center justify-center font-bold text-[10px] flex-shrink-0 overflow-hidden" style={{ backgroundColor: resolve.accent, color: resolve.bg }}>
             {logoUrl ? (
               <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
@@ -140,7 +140,7 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
           </span>
         </div>
         {/* Botões mobile */}
-        <div className="flex gap-1.5 sm:hidden">
+        <div className="flex flex-wrap gap-1.5 sm:hidden justify-end">
           <button type="button" onClick={openNew} className={btnBaseClsMobile} style={btnBaseStyle}>Novo</button>
           <button type="button" onClick={openAbrir} className={btnBaseClsMobile} style={btnBaseStyle}>Abrir</button>
           <button type="button" onClick={openCopy} className={btnBaseClsMobile} style={btnBaseStyle}>Salvar cópia</button>

@@ -17,8 +17,10 @@
   --cinema-success: #2d8a5e;
   --cinema-danger: #c94a4a;
 
-  /* Layout mestre: margem horizontal máxima (estender sistema) */
+  /* Layout mestre: margem horizontal (Header e BottomNav) */
   --page-gutter: 40px;
+  /* Conteúdo principal: mais espaço lateral (tabelas) */
+  --page-gutter-content: 48px;
   /* Espaçamento entre seções (replicar em todas as páginas) */
   --page-section-gap: 1rem;      /* 16px mobile */
   --page-section-gap-sm: 1.25rem;
@@ -33,6 +35,7 @@ html {
 @media (max-width: 480px) {
   :root {
     --page-gutter: 24px;
+    --page-gutter-content: 28px;
   }
 }
 
@@ -53,108 +56,184 @@ input[type='number'] {
   -moz-appearance: textfield;
 }
 
-/* Budget table: cards no mobile (< lg), tabela no desktop */
-@media (max-width: 1023px) {
-  .budget-table-cards thead {
-    display: none;
-  }
-  .budget-table-cards tbody tr {
-    display: block;
-    border: 1px solid var(--resolve-border);
-    border-radius: 6px;
-    margin-bottom: 0.75rem;
-    padding: 0.75rem;
-    background-color: var(--resolve-panel);
-  }
-  .budget-table-cards tbody td {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.35rem 0;
-    border: none;
-  }
-  .budget-table-cards tbody td::before {
-    content: attr(data-label);
-    font-size: 0.7rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--resolve-muted);
-    flex-shrink: 0;
-  }
-  .budget-table-cards tbody td:last-child {
-    justify-content: flex-end;
-    padding-top: 0.5rem;
-    border-top: 1px solid var(--resolve-border);
-  }
-  .budget-table-cards tbody td:last-child::before {
-    display: none;
-  }
-  .budget-table-cards tbody td input,
-  .budget-table-cards tbody td select {
-    flex: 1;
-    min-width: 0;
-  }
+/* Budget table: sempre layout de tabela horizontal; overflow no container do bloco */
+.budget-table-cards {
+  min-width: 0;
+}
+.budget-table-cards tbody tr {
+  display: table-row;
+}
+.budget-table-cards tbody td {
+  display: table-cell;
+}
+.budget-table-cards thead th.budget-th-remove {
+  width: 32px;
+  min-width: 32px;
+  max-width: 32px;
+  padding: 0;
+  box-sizing: border-box;
+}
+.budget-table-cards tbody td input[type="number"],
+.budget-table-cards tbody td input[placeholder="R$ 0,00"] {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+.budget-table-cards tbody td.budget-cell-qty {
+  overflow: hidden;
+  width: 32px;
+  min-width: 32px;
+  max-width: 32px;
+  padding-left: 2px;
+  padding-right: 2px;
+  box-sizing: border-box;
+}
+.budget-table-cards tbody td.budget-cell-total {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.budget-table-cards .budget-row-remove {
+  width: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+  padding: 2px !important;
+  text-align: center;
+  vertical-align: middle;
+  border-left: 1px solid var(--resolve-border);
+  overflow: visible;
+  box-sizing: border-box;
+}
+.budget-table-cards .btn-remove-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 1.25rem;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--resolve-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 0.2s, background-color 0.2s, border-color 0.2s;
+}
+.budget-table-cards .btn-remove-row:hover {
+  color: var(--cinema-danger) !important;
+  border-color: var(--cinema-danger);
+  background: rgba(201, 74, 74, 0.1);
 }
 
-@media (min-width: 1024px) {
-  .budget-table-cards tbody tr {
-    display: table-row;
+/* Mobile: linhas duplas apenas na tabela principal; preencher toda a largura horizontal */
+@media (max-width: 767px) {
+  .budget-table-cards.budget-table-main {
+    display: block;
+    width: 100% !important;
+    min-width: 0;
   }
-  .budget-table-cards tbody td {
-    display: table-cell;
-  }
-  .budget-table-cards tbody td::before {
+  .budget-table-cards.budget-table-main thead {
     display: none;
   }
-  /* Colunas QTD e Total: espaço mínimo; input não pode invadir a célula ao lado */
-  .budget-table-cards tbody td input[type="number"],
-  .budget-table-cards tbody td input[placeholder="R$ 0,00"] {
-    min-width: 0;
-    max-width: 100%;
+  .budget-table-cards.budget-table-main tbody {
+    display: block;
     width: 100%;
-    box-sizing: border-box;
   }
-  /* Célula Qtd: evitar que o input sobreponha o botão remover */
-  .budget-table-cards tbody td.budget-cell-qty {
-    overflow: hidden;
-    max-width: 52px;
-    min-width: 40px;
-    width: 52px;
-  }
-  /* Célula do botão remover: largura fixa para nunca ser comprimida */
-  .budget-table-cards .budget-row-remove {
-    width: 48px !important;
-    min-width: 48px !important;
-    max-width: 48px !important;
-    padding: 4px !important;
-    text-align: center;
-    vertical-align: middle;
-    border-left: 1px solid var(--resolve-border);
-    overflow: visible;
-  }
-  .budget-table-cards .btn-remove-row {
-    display: inline-flex;
+  .budget-table-cards.budget-table-main tbody tr.budget-row-labor,
+  .budget-table-cards.budget-table-main tbody tr.budget-row-cost {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    gap: 0.08rem 0.15rem;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid var(--resolve-border);
     align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    font-size: 1.25rem;
-    line-height: 1;
-    font-weight: 700;
-    color: var(--resolve-muted);
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: color 0.2s, background-color 0.2s, border-color 0.2s;
   }
-  .budget-table-cards .btn-remove-row:hover {
-    color: var(--cinema-danger) !important;
-    border-color: var(--cinema-danger);
-    background: rgba(201, 74, 74, 0.1);
+  .budget-table-cards.budget-table-main tbody tr.budget-row-labor {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, max-content) 28px;
+    grid-template-rows: auto auto;
+  }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-labor td {
+    min-width: 0;
+  }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-labor td:nth-child(1) {
+    grid-column: 1 / span 3;
+    grid-row: 1;
+  }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-labor td:nth-child(2) {
+    grid-column: 4 / span 3;
+    grid-row: 1;
+  }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-labor td:nth-child(3),
+  .budget-table-cards.budget-table-main tbody tr.budget-row-labor td:nth-child(4),
+  .budget-table-cards.budget-table-main tbody tr.budget-row-labor td:nth-child(5) {
+    grid-row: 2;
+  }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-labor td:nth-child(3) { grid-column: 1; }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-labor td:nth-child(4) { grid-column: 2; }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-labor td:nth-child(5) { grid-column: 3; }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-labor td:nth-child(6) {
+    grid-column: 4;
+    grid-row: 2;
+    min-width: 28px;
+    max-width: 28px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-labor td:nth-child(7) { grid-column: 5; grid-row: 2; text-align: left; }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-labor td:nth-child(8) {
+    grid-column: 6;
+    grid-row: 2;
+    min-width: 28px !important;
+    max-width: 28px !important;
+    width: 28px !important;
+    padding: 2px !important;
+  }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-cost {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, max-content) 28px;
+    grid-template-rows: auto auto;
+  }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-cost td {
+    min-width: 0;
+  }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-cost td:nth-child(1) {
+    grid-column: 1 / span 2;
+    grid-row: 1;
+  }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-cost td:nth-child(2) {
+    grid-column: 3 / span 2;
+    grid-row: 1;
+  }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-cost td:nth-child(3),
+  .budget-table-cards.budget-table-main tbody tr.budget-row-cost td:nth-child(4) {
+    grid-row: 2;
+  }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-cost td:nth-child(3) { grid-column: 1; }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-cost td:nth-child(4) { grid-column: 2; }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-cost td:nth-child(5) {
+    grid-column: 3;
+    grid-row: 2;
+    min-width: 28px;
+    max-width: 28px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-cost td:nth-child(6) { grid-column: 4; grid-row: 2; text-align: left; }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-cost td:nth-child(7) {
+    grid-column: 5;
+    grid-row: 2;
+    min-width: 28px !important;
+    max-width: 28px !important;
+    width: 28px !important;
+    padding: 2px !important;
+  }
+  .budget-table-cards.budget-table-main .btn-remove-row {
+    width: 24px !important;
+    height: 24px !important;
+    font-size: 1.1rem;
   }
 }
 
@@ -183,6 +262,16 @@ input[type='number'] {
 .nav-btn-resolve.active {
   color: var(--resolve-yellow) !important;
   border-color: var(--resolve-yellow) !important;
+}
+
+/* Equipe: botões de informação (azul, hover amarelo) */
+.team-info-btn {
+  border-color: var(--resolve-accent);
+  color: var(--resolve-accent);
+}
+.team-info-btn:hover {
+  border-color: var(--resolve-yellow);
+  color: var(--resolve-yellow);
 }
 
 /* ========== LAYOUT MESTRE (páginas: Orçamento, Filme, Config, etc.) ========== */
@@ -254,6 +343,11 @@ input[type='number'] {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--page-section-gap);
+  min-width: 0;
+}
+
+.page-layout__content--grid > * {
+  min-width: 0;
 }
 
 @media (min-width: 640px) {
@@ -262,7 +356,7 @@ input[type='number'] {
   }
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 1280px) {
   .page-layout__content--grid {
     grid-template-columns: repeat(2, 1fr);
     gap: var(--page-section-gap-lg);

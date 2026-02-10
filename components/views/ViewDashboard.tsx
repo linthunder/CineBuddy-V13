@@ -709,7 +709,7 @@ function ComparisonAnalysis({ leftData, rightData, leftLabel, rightLabel }: {
 
       {/* ── Tabela de diferenças detalhada ── */}
       <SectionCard title="Diferenças Detalhadas por Departamento">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto min-w-0">
           <table className="w-full border-collapse text-xs min-w-[500px]">
             <thead>
               <tr className="border-b" style={{ borderColor: resolve.border }}>

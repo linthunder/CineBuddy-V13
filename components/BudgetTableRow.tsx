@@ -132,7 +132,7 @@ export default function BudgetTableRow({ row, department, onUpdate, onRemove }: 
     }
 
     return (
-      <tr className="border-b transition-colors" style={{ borderColor: resolve.border }}>
+      <tr className="border-b transition-colors budget-row-labor" style={{ borderColor: resolve.border }}>
         <td data-label="Função" className="p-1.5 align-middle">
           <AutocompleteInput
             value={r.roleFunction}
@@ -187,7 +187,7 @@ export default function BudgetTableRow({ row, department, onUpdate, onRemove }: 
         <td data-label="Qtd" className="p-1.5 align-middle budget-cell-qty">
           <input type="number" className={`${inputClassName} text-center`} style={inputStyle} value={r.quantity || ''} onChange={(e) => onUpdate({ quantity: parseFloat(e.target.value) || 0 })} min={0} step="any" />
         </td>
-        <td data-label="Total" className="p-1.5 align-middle font-mono text-[11px] text-right font-medium min-w-[4.5rem]" style={{ color: resolve.text }}>{formatCurrency(total)}</td>
+        <td data-label="Total" className="p-1.5 align-middle font-mono text-[11px] text-right font-medium budget-cell-total" style={{ color: resolve.text }}>{formatCurrency(total)}</td>
         <td className="budget-row-remove"><button type="button" onClick={onRemove} className="btn-remove-row" aria-label="Remover linha">×</button></td>
       </tr>
     )
@@ -195,7 +195,7 @@ export default function BudgetTableRow({ row, department, onUpdate, onRemove }: 
 
   const r = row as BudgetRowCost
   return (
-    <tr className="border-b transition-colors" style={{ borderColor: resolve.border }}>
+    <tr className="border-b transition-colors budget-row-cost" style={{ borderColor: resolve.border }}>
       <td data-label={itemLabel} className="p-1.5 align-middle">
         <input className={inputClassName} style={inputStyle} value={r.itemName} onChange={(e) => onUpdate({ itemName: e.target.value })} placeholder={itemLabel} />
       </td>
@@ -223,7 +223,7 @@ export default function BudgetTableRow({ row, department, onUpdate, onRemove }: 
       <td data-label="Qtd" className="p-1.5 align-middle budget-cell-qty">
         <input type="number" className={`${inputClassName} text-center`} style={inputStyle} value={r.quantity || ''} onChange={(e) => onUpdate({ quantity: parseFloat(e.target.value) || 0 })} min={0} step="any" />
       </td>
-      <td data-label="Total" className="p-1.5 align-middle font-mono text-[11px] text-right font-medium min-w-[4.5rem]" style={{ color: resolve.text }}>{formatCurrency(total)}</td>
+      <td data-label="Total" className="p-1.5 align-middle font-mono text-[11px] text-right font-medium budget-cell-total" style={{ color: resolve.text }}>{formatCurrency(total)}</td>
       <td className="budget-row-remove"><button type="button" onClick={onRemove} className="btn-remove-row" aria-label="Remover linha">×</button></td>
     </tr>
   )

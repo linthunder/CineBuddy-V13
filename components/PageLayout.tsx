@@ -31,7 +31,7 @@ export default function PageLayout({
   contentLayout = 'single',
 }: PageLayoutProps) {
   return (
-    <div className="page-layout">
+    <div className="page-layout min-w-0">
       {title && (
         <h1
           className="page-layout__title"
@@ -42,19 +42,19 @@ export default function PageLayout({
       )}
 
       {strip && (
-        <div className="page-layout__strip">
+        <div className="page-layout__strip min-w-0">
           {strip}
         </div>
       )}
 
       {tabs && (
-        <div className="page-layout__tabs">
+        <div className="page-layout__tabs min-w-0">
           {tabs}
         </div>
       )}
 
       {toolbar && (
-        <div className="page-layout__toolbar">
+        <div className="page-layout__toolbar min-w-0">
           {toolbar}
         </div>
       )}

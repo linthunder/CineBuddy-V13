@@ -5,6 +5,7 @@ import PageLayout from '@/components/PageLayout'
 import { resolve, cinema } from '@/lib/theme'
 import { formatCurrency } from '@/lib/utils'
 import type { BudgetLinesByPhase, VerbaLinesByPhase, BudgetRow } from '@/lib/types'
+import { listCollaborators, type Collaborator } from '@/lib/services/collaborators'
 
 interface TeamMember {
   name: string
@@ -26,7 +27,6 @@ export interface ViewTeamProps {
 }
 
 function extractTeamByDept(budgetLines: BudgetLinesByPhase): DeptTeam[] {
-  // Agrupa profissionais por departamento → nome+função → soma totalCost
   const deptMap = new Map<string, Map<string, TeamMember>>()
 
   for (const phase of ['pre', 'prod', 'pos'] as const) {
@@ -54,7 +54,6 @@ function extractTeamByDept(budgetLines: BudgetLinesByPhase): DeptTeam[] {
     }
   }
 
-  // Converter Map para array, ordenar por departamento
   const result: DeptTeam[] = []
   for (const [dept, membersMap] of deptMap) {
     const members = Array.from(membersMap.values()).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
@@ -63,13 +62,48 @@ function extractTeamByDept(budgetLines: BudgetLinesByPhase): DeptTeam[] {
       result.push({ department: dept, members, deptTotal })
     }
   }
-
   return result
+}
+
+/** Encontra colaborador pelo nome (case-insensitive). */
+function findCollaboratorByName(collaborators: Collaborator[], memberName: string): Collaborator | undefined {
+  const normalized = memberName.trim().toLowerCase()
+  return collaborators.find((c) => c.nome?.trim().toLowerCase() === normalized)
+}
+
+const iconBtnCls = 'team-info-btn w-7 h-7 flex items-center justify-center rounded border transition-colors text-xs font-medium'
+
+function CopyableLine({ label, value }: { label: string; value: string }) {
+  const text = value || '—'
+  const copy = () => {
+    navigator.clipboard.writeText(text).then(() => {
+      if (typeof window !== 'undefined') window.alert('Copiado!')
+    }).catch(() => {})
+  }
+  return (
+    <div className="flex items-start justify-between gap-2 py-1">
+      <div className="min-w-0 flex-1">
+        <span className="text-[11px] uppercase block" style={{ color: resolve.muted }}>{label}</span>
+        <span className="text-sm break-words" style={{ color: resolve.text }}>{text}</span>
+      </div>
+      <button
+        type="button"
+        onClick={copy}
+        title="Copiar"
+        className="team-info-btn flex-shrink-0 h-7 px-2 rounded border text-[10px] font-medium uppercase"
+      >
+        Copiar
+      </button>
+    </div>
+  )
 }
 
 export default function ViewTeam({ getBudgetData }: ViewTeamProps) {
   const [teamData, setTeamData] = useState<DeptTeam[]>([])
   const [lastUpdate, setLastUpdate] = useState<string>('')
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([])
+  const [modalContact, setModalContact] = useState<Collaborator | 'no-data' | null>(null)
+  const [modalBank, setModalBank] = useState<Collaborator | 'no-data' | null>(null)
 
   const refresh = useCallback(() => {
     const data = getBudgetData()
@@ -82,10 +116,13 @@ export default function ViewTeam({ getBudgetData }: ViewTeamProps) {
     setLastUpdate(new Date().toLocaleTimeString('pt-BR'))
   }, [getBudgetData])
 
-  // Atualiza ao montar
   useEffect(() => {
     refresh()
   }, [refresh])
+
+  useEffect(() => {
+    listCollaborators().then(setCollaborators).catch(() => setCollaborators([]))
+  }, [])
 
   const grandTotal = useMemo(() => teamData.reduce((sum, d) => sum + d.deptTotal, 0), [teamData])
   const totalMembers = useMemo(() => teamData.reduce((sum, d) => sum + d.members.length, 0), [teamData])
@@ -148,7 +185,6 @@ export default function ViewTeam({ getBudgetData }: ViewTeamProps) {
           className="rounded border overflow-hidden mb-3"
           style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}
         >
-          {/* Header do departamento */}
           <div
             className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between"
             style={{ borderColor: resolve.border, color: resolve.muted, backgroundColor: 'rgba(255,255,255,0.03)' }}
@@ -157,44 +193,143 @@ export default function ViewTeam({ getBudgetData }: ViewTeamProps) {
             <span className="font-mono text-[13px] font-medium" style={{ color: resolve.yellow }}>{formatCurrency(dept.deptTotal)}</span>
           </div>
 
-          {/* Tabela */}
-          <div className="p-2 sm:p-3 overflow-x-auto">
-            <table className="w-full text-[11px] border-collapse" style={{ color: resolve.text }}>
+          <div className="p-2 sm:p-3 overflow-x-auto min-w-0">
+            <table className="team-equipe-table w-full text-[11px] border-collapse table-fixed" style={{ color: resolve.text }}>
+              <colgroup>
+                <col style={{ width: '28%' }} />
+                <col style={{ width: '22%' }} />
+                <col style={{ width: '22%' }} />
+                <col style={{ width: '28%' }} />
+              </colgroup>
               <thead>
                 <tr>
                   <th className="text-left text-[11px] uppercase pb-2 pr-3" style={{ color: resolve.muted }}>Nome</th>
                   <th className="text-left text-[11px] uppercase pb-2 pr-3" style={{ color: resolve.muted }}>Função</th>
-                  <th className="text-right text-[11px] uppercase pb-2" style={{ color: resolve.muted }}>Cachê Total</th>
+                  <th className="text-center text-[11px] uppercase pb-2 pr-2" style={{ color: resolve.muted }}>Informações</th>
+                  <th className="text-right text-[11px] uppercase pb-2 pl-3" style={{ color: resolve.muted }}>Cachê Total</th>
                 </tr>
               </thead>
               <tbody>
-                {dept.members.map((member, idx) => (
-                  <tr key={`${member.name}-${member.role}-${idx}`} style={{ borderColor: resolve.border }}>
-                    <td
-                      className="py-1.5 pr-3 border-b"
-                      style={{ borderColor: resolve.border, fontWeight: 500 }}
-                    >
-                      {member.name}
-                    </td>
-                    <td
-                      className="py-1.5 pr-3 border-b"
-                      style={{ borderColor: resolve.border, color: resolve.muted }}
-                    >
-                      {member.role || '—'}
-                    </td>
-                    <td
-                      className="py-1.5 border-b text-right font-mono text-[11px]"
-                      style={{ borderColor: resolve.border }}
-                    >
-                      {formatCurrency(member.totalCost)}
-                    </td>
-                  </tr>
-                ))}
+                {dept.members.map((member, idx) => {
+                  const collab = findCollaboratorByName(collaborators, member.name)
+                  return (
+                    <tr key={`${member.name}-${member.role}-${idx}`} style={{ borderColor: resolve.border }}>
+                      <td className="py-1.5 pr-3 border-b truncate" style={{ borderColor: resolve.border, fontWeight: 500 }} title={member.name}>
+                        {member.name}
+                      </td>
+                      <td className="py-1.5 pr-3 border-b truncate" style={{ borderColor: resolve.border, color: resolve.muted }} title={member.role || '—'}>
+                        {member.role || '—'}
+                      </td>
+                      <td className="py-1.5 px-1 border-b align-middle" style={{ borderColor: resolve.border }}>
+                        <div className="flex items-center justify-center gap-0.5 flex-wrap">
+                          <button
+                            type="button"
+                            title="Telefone, e-mail e endereço"
+                            className={iconBtnCls}
+                            onClick={() => setModalContact(collab ?? 'no-data')}
+                          >
+                            <span className="font-serif font-bold">i</span>
+                          </button>
+                          <button
+                            type="button"
+                            title="Dados bancários e PIX"
+                            className={iconBtnCls}
+                            onClick={() => setModalBank(collab ?? 'no-data')}
+                          >
+                            $
+                          </button>
+                          <button
+                            type="button"
+                            title="Contrato (Drive) — em breve"
+                            className={`${iconBtnCls} opacity-70`}
+                            onClick={() => window.alert('Abertura do contrato (Google Drive) será implementada em breve.')}
+                          >
+                            ✎
+                          </button>
+                          <button
+                            type="button"
+                            title="Nota fiscal (Drive) — em breve"
+                            className={`${iconBtnCls} opacity-70`}
+                            onClick={() => window.alert('Abertura da nota fiscal (Google Drive) será implementada em breve.')}
+                          >
+                            📄
+                          </button>
+                        </div>
+                      </td>
+                      <td className="py-1.5 pl-3 border-b text-right font-mono text-[11px]" style={{ borderColor: resolve.border }}>
+                        {formatCurrency(member.totalCost)}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         </div>
       ))}
+
+      {/* Modal: Contato (telefone, e-mail, endereço) */}
+      {modalContact !== null && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setModalContact(null)}
+        >
+          <div
+            className="rounded border p-4 w-full max-w-sm shadow-lg"
+            style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3 flex items-center gap-2" style={{ color: resolve.text }}>
+              <span>ℹ</span> Contato
+            </h3>
+            {modalContact !== 'no-data' ? (
+              <div className="space-y-0 text-sm">
+                <CopyableLine label="Telefone" value={modalContact.telefone ?? ''} />
+                <CopyableLine label="E-mail" value={modalContact.email ?? ''} />
+                <CopyableLine label="Endereço" value={modalContact.endereco ?? ''} />
+              </div>
+            ) : (
+              <p className="text-sm" style={{ color: resolve.muted }}>Nenhum colaborador cadastrado com este nome.</p>
+            )}
+            <div className="mt-4 flex justify-end">
+              <button type="button" onClick={() => setModalContact(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ borderColor: resolve.border, color: resolve.text }}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Dados bancários e PIX */}
+      {modalBank !== null && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setModalBank(null)}
+        >
+          <div
+            className="rounded border p-4 w-full max-w-sm shadow-lg"
+            style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3 flex items-center gap-2" style={{ color: resolve.text }}>
+              <span>$</span> Dados bancários
+            </h3>
+            {modalBank !== 'no-data' ? (
+              <div className="space-y-0 text-sm">
+                <CopyableLine label="Banco" value={modalBank.banco ?? ''} />
+                <CopyableLine label="Agência" value={modalBank.agencia ?? ''} />
+                <CopyableLine label="Conta" value={modalBank.conta ?? ''} />
+                <CopyableLine label="PIX" value={modalBank.pix ?? ''} />
+              </div>
+            ) : (
+              <p className="text-sm" style={{ color: resolve.muted }}>Nenhum colaborador cadastrado com este nome.</p>
+            )}
+            <div className="mt-4 flex justify-end">
+              <button type="button" onClick={() => setModalBank(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ borderColor: resolve.border, color: resolve.text }}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </PageLayout>
   )
 }

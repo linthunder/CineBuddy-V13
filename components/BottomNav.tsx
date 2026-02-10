@@ -32,7 +32,7 @@ export default function BottomNav({ currentView, onViewChange, disabledViews = [
     <nav
       role="navigation"
       aria-label="Navegação principal"
-      className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around py-2 border-t overflow-x-auto"
+      className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around py-2 border-t"
       style={{
         backgroundColor: resolve.panel,
         borderColor: resolve.purple,
@@ -58,7 +58,7 @@ export default function BottomNav({ currentView, onViewChange, disabledViews = [
             aria-label={item.label}
             data-view-id={item.id}
             className={`
-              nav-btn-resolve flex flex-col items-center justify-center gap-0.5 min-w-[56px] sm:min-w-[64px] py-1 px-1
+              nav-btn-resolve flex flex-col items-center justify-center gap-0.5 min-w-[44px] md:min-w-[56px] lg:min-w-[64px] py-1 px-1
               border-b-2 transition-colors text-[10px] sm:text-[11px] font-medium uppercase tracking-wider
               ${isActive ? 'active' : ''}
               ${isDisabled ? 'opacity-30 cursor-not-allowed grayscale' : 'cursor-pointer'}
@@ -70,7 +70,7 @@ export default function BottomNav({ currentView, onViewChange, disabledViews = [
             }}
           >
             <span className="text-base sm:text-lg leading-none pointer-events-none" aria-hidden>{item.icon}</span>
-            <span className="pointer-events-none">{item.label}</span>
+            <span className="pointer-events-none hidden md:inline" title={item.label}>{item.label}</span>
           </button>
         )
       })}

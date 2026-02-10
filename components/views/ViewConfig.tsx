@@ -625,7 +625,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
           <div className="p-3">
             <input type="text" className={`${inputCls} mb-3`} style={inputStyle} value={collabSearch} onChange={(e) => setCollabSearch(e.target.value)} placeholder="Buscar por nome..." />
           </div>
-          <div className="px-3 pb-3 overflow-x-auto">
+          <div className="px-3 pb-3 overflow-x-auto min-w-0">
             {collabLoading ? (
               <div className="text-center py-6 text-sm" style={{ color: resolve.muted }}>Carregando...</div>
             ) : filteredCollabs.length === 0 ? (
@@ -718,7 +718,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
           <div className="p-3">
             <input type="text" className={`${inputCls} mb-3`} style={inputStyle} value={rolesSearch} onChange={(e) => setRolesSearch(e.target.value)} placeholder="Buscar por função..." />
           </div>
-          <div className="px-3 pb-3 overflow-x-auto">
+          <div className="px-3 pb-3 overflow-x-auto min-w-0">
             {rolesLoading ? (
               <div className="text-center py-6 text-sm" style={{ color: resolve.muted }}>Carregando...</div>
             ) : filteredRoles.length === 0 ? (
@@ -786,7 +786,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
           <div className="p-3">
             <input type="text" className={`${inputCls} mb-3`} style={inputStyle} value={projectSearch} onChange={(e) => setProjectSearch(e.target.value)} placeholder="Buscar por nome, agência ou cliente..." />
           </div>
-          <div className="px-3 pb-3 overflow-x-auto">
+          <div className="px-3 pb-3 overflow-x-auto min-w-0">
             {projectsLoading ? (
               <div className="text-center py-6 text-sm" style={{ color: resolve.muted }}>Carregando...</div>
             ) : filteredProjects.length === 0 ? (

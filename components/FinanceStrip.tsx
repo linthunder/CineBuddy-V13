@@ -44,10 +44,10 @@ export default function FinanceStrip({
 
   return (
     <div
-      className="rounded overflow-hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1.2fr_0.8fr] gap-0 border-b"
+      className="rounded overflow-hidden grid grid-cols-1 lg:grid-cols-[1.3fr_1fr_1fr_1.2fr_0.8fr] gap-0 border-b min-w-0"
       style={{ backgroundColor: resolve.panel, borderColor: resolve.purple, borderRadius: 3 }}
     >
-      <div className="p-3 border-b sm:border-b-0 sm:border-r flex flex-col items-center justify-center" style={{ borderColor: resolve.border }}>
+      <div className="p-3 border-b lg:border-b-0 lg:border-r flex flex-col items-center justify-center min-w-0" style={{ borderColor: resolve.border }}>
         <label className="text-[11px] uppercase tracking-wider font-medium mb-0.5 flex flex-wrap items-center justify-center gap-1.5" style={{ color: resolve.muted }}>
           Valor total
           {onApplyMarkup != null && (
@@ -78,15 +78,15 @@ export default function FinanceStrip({
           placeholder="R$ 0,00"
         />
       </div>
-      <div className="p-3 border-b sm:border-b-0 sm:border-r flex flex-col items-center justify-center" style={{ borderColor: resolve.border }}>
+      <div className="p-3 border-b lg:border-b-0 lg:border-r flex flex-col items-center justify-center min-w-0" style={{ borderColor: resolve.border }}>
         <label className="text-[11px] uppercase tracking-wider font-medium mb-0.5" style={{ color: resolve.muted }}>Custo</label>
         <div className="text-sm sm:text-base font-semibold font-mono" style={{ color: resolve.text }}>{formatCurrency(totalCost)}</div>
       </div>
-      <div className="p-3 border-b sm:border-b-0 sm:border-r flex flex-col items-center justify-center" style={{ borderColor: resolve.border }}>
+      <div className="p-3 border-b lg:border-b-0 lg:border-r flex flex-col items-center justify-center min-w-0" style={{ borderColor: resolve.border }}>
         <label className="text-[11px] uppercase tracking-wider font-medium mb-0.5" style={{ color: resolve.muted }}>Lucro líquido</label>
         <div className="text-sm sm:text-base font-semibold font-mono" style={{ color: profitNet >= 0 ? cinema.success : cinema.danger }}>{formatCurrency(profitNet)}</div>
       </div>
-      <div className="p-3 border-b sm:border-b-0 sm:border-r flex flex-col items-center justify-center" style={{ borderColor: resolve.border }}>
+      <div className="p-3 border-b lg:border-b-0 lg:border-r flex flex-col items-center justify-center min-w-0" style={{ borderColor: resolve.border }}>
         <label className="text-[11px] uppercase tracking-wider font-medium mb-0.5 flex items-center justify-center gap-1.5" style={{ color: resolve.muted }}>
           Impostos
           <input
@@ -104,7 +104,7 @@ export default function FinanceStrip({
         </label>
         <div className="text-sm sm:text-base font-semibold font-mono" style={{ color: resolve.text }}>{formatCurrency(taxValue)}</div>
       </div>
-      <div className="p-3 flex flex-col items-center justify-center">
+      <div className="p-3 flex flex-col items-center justify-center min-w-0">
         <label className="text-[11px] uppercase tracking-wider font-medium mb-0.5" style={{ color: resolve.muted }}>Margem</label>
         <div className="text-sm sm:text-base font-semibold" style={{ color: margin >= 20 ? cinema.success : margin >= 10 ? resolve.accent : cinema.danger }}>{margin.toFixed(1)}%</div>
       </div>

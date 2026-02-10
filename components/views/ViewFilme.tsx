@@ -19,12 +19,12 @@ export default function ViewFilme() {
         style={{ borderColor: resolve.border }}
       />
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 min-w-0">
         {actions.map((a) => (
           <button
             key={a.id}
             type="button"
-            className="nav-btn-resolve flex flex-col items-center justify-center gap-2 py-5 px-3 rounded border transition-colors cursor-pointer"
+            className="nav-btn-resolve flex flex-col items-center justify-center gap-1 sm:gap-2 py-3 sm:py-5 px-2 sm:px-3 rounded border transition-colors cursor-pointer min-w-0"
             style={{
               backgroundColor: resolve.panel,
               borderColor: resolve.border,
@@ -32,8 +32,8 @@ export default function ViewFilme() {
             }}
             onClick={() => { if (typeof window !== 'undefined') window.alert(`Em breve: ${a.label.toLowerCase()}`) }}
           >
-            <span className="text-2xl">{a.icon}</span>
-            <span className="text-[11px] font-medium uppercase tracking-wider">{a.label}</span>
+            <span className="text-xl sm:text-2xl leading-none">{a.icon}</span>
+            <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-wider">{a.label}</span>
           </button>
         ))}
       </div>

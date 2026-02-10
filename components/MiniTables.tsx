@@ -49,16 +49,16 @@ export default function MiniTables({ data, onChange }: MiniTablesProps) {
   const inputStyle = { backgroundColor: resolve.bg, borderColor: resolve.border, color: resolve.text }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
+    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-3 min-w-0">
       {(['contingencia', 'crt', 'bvagencia'] as const).map((key) => (
-        <div key={key} className="overflow-hidden border rounded" style={cellStyle}>
-          <div className="px-3 py-2.5 flex justify-between items-center gap-3">
-            <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: resolve.muted }}>
+        <div key={key} className="overflow-hidden border rounded min-w-0" style={cellStyle}>
+          <div className="px-3 py-2.5 flex justify-between items-center gap-3 min-w-0">
+            <span className="text-[11px] font-medium uppercase tracking-wider min-w-0 truncate shrink" style={{ color: resolve.muted }}>
               {key === 'bvagencia' ? 'BV Agência' : key === 'crt' ? 'CRT' : 'Contingência'}
             </span>
             <input
               type="text"
-              className="flex-1 py-1.5 px-2 border rounded text-right text-sm font-mono focus:outline-none"
+              className="flex-1 min-w-[5rem] py-1.5 px-2 border rounded text-right text-sm font-mono focus:outline-none"
               style={inputStyle}
               value={displayValue(key)}
               onFocus={() => handleFocus(key)}
