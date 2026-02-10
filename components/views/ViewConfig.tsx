@@ -118,6 +118,8 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
     }
   }
 
+  const MAX_ADMINS = 3
+
   const saveUser = async () => {
     if (!currentProfile) return
     setUserError('')
@@ -143,6 +145,13 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
         setProfiles(list)
         setUserModal(null)
       } else if (userModal && userModal.id) {
+        if (isAdmin && uRole === 'admin' && userModal.role !== 'admin') {
+          const adminCount = profiles.filter((p) => p.role === 'admin').length
+          if (adminCount >= MAX_ADMINS) {
+            setUserError('Máximo de 3 administradores permitidos.')
+            return
+          }
+        }
         const res = await updateProfile(userModal.id, { name: uName.trim(), surname: uSurname.trim(), email: uEmail.trim(), ...(isAdmin && { role: uRole }) })
         if (!res.ok) {
           setUserError(res.error || 'Falha ao salvar.')

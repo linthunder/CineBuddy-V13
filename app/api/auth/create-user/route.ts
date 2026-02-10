@@ -37,6 +37,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Perfil inválido (admin ou produtor).' }, { status: 400 })
     }
 
+    if (role === 'admin') {
+      const { count, error: countError } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'admin')
+      if (!countError && (count ?? 0) >= 3) {
+        return NextResponse.json({ error: 'Máximo de 3 administradores permitidos.' }, { status: 400 })
+      }
+    }
+
     const { data: userData, error: authError } = await supabase.auth.admin.createUser({
       email: email.trim(),
       password: password.trim(),
