@@ -11,7 +11,7 @@ import { DEPARTMENTS, VERBA_DEPTS, LABOR_DEPTS, PEOPLE_DEPTS } from '@/lib/const
 import { resolve } from '@/lib/theme'
 import { listCacheTables } from '@/lib/services/cache-tables'
 import type { PhaseKey } from '@/lib/constants'
-import type { BudgetRow, BudgetRowLabor, BudgetLinesByPhase, MiniTablesData, VerbaRow, VerbaLinesByPhase, PhaseDefaultsByPhase, ProjectData } from '@/lib/types'
+import type { BudgetRow, BudgetRowLabor, BudgetRowCost, BudgetLinesByPhase, MiniTablesData, VerbaRow, VerbaLinesByPhase, PhaseDefaultsByPhase, ProjectData } from '@/lib/types'
 import { createEmptyRow, computeRowTotal, createEmptyVerbaRow, computeVerbaRowTotal } from '@/lib/budgetUtils'
 
 export function getInitialLinesByPhase(): BudgetLinesByPhase {
