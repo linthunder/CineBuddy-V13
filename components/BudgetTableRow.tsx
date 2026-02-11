@@ -13,6 +13,8 @@ import { searchCollaborators } from '@/lib/services/collaborators'
 interface BudgetTableRowProps {
   row: BudgetRow
   department: string
+  /** Índice da linha (0 = primeira). Usado para identificar 1ª linha de CATERING. */
+  rowIndex?: number
   /** ID da tabela de cachê selecionada (para autocomplete de funções) */
   cacheTableId?: string | null
   onUpdate: (updates: Partial<BudgetRow>) => void
@@ -52,7 +54,7 @@ async function searchCollabAdapter(term: string): Promise<AutocompleteOption[]> 
   }))
 }
 
-export default function BudgetTableRow({ row, department, cacheTableId, onUpdate, onRemove }: BudgetTableRowProps) {
+export default function BudgetTableRow({ row, department, rowIndex = 0, cacheTableId, onUpdate, onRemove }: BudgetTableRowProps) {
   const total = computeRowTotal(row)
   const custom = CUSTOM_HEADERS[department]
   const itemLabel = custom?.item ?? 'Item'
@@ -211,6 +213,13 @@ export default function BudgetTableRow({ row, department, cacheTableId, onUpdate
   }
 
   const r = row as BudgetRowCost
+  const isFirstCateringRow = department === 'CATERING' && rowIndex === 0
+  const handleUnitCostChange = useCallback((raw: string) => {
+    setEditingValue(raw)
+    const num = parseCurrencyInput(raw)
+    onUpdate(isFirstCateringRow ? { unitCost: num, cateringAuto: false } : { unitCost: num })
+  }, [onUpdate, isFirstCateringRow])
+
   return (
     <tr className="border-b transition-colors budget-row-cost" style={{ borderColor: resolve.border }}>
       <td data-label={itemLabel} className="p-1.5 align-middle">
@@ -233,7 +242,7 @@ export default function BudgetTableRow({ row, department, cacheTableId, onUpdate
           value={currencyDisplayValue('unitCost', r.unitCost)}
           placeholder="R$ 0,00"
           onFocus={() => handleCurrencyFocus('unitCost', r.unitCost)}
-          onChange={(e) => handleCurrencyChange('unitCost', e.target.value)}
+          onChange={(e) => handleUnitCostChange(e.target.value)}
           onBlur={handleCurrencyBlur}
         />
       </td>

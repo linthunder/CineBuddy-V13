@@ -135,11 +135,12 @@ export default function BudgetDeptBlock({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {rows.map((row, index) => (
               <BudgetTableRow
                 key={row.id}
                 row={row}
                 department={department}
+                rowIndex={index}
                 cacheTableId={cacheTableId}
                 onUpdate={(updates) => onUpdateRow(row.id, updates)}
                 onRemove={() => onRemoveRow(row.id)}

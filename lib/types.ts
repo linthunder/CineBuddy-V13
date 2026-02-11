@@ -32,6 +32,8 @@ export interface BudgetRowCost {
   extraCost: 0
   quantity: number
   totalCost: number
+  /** Apenas 1ª linha CATERING: false = valor manual (usuário editou); undefined/true = cálculo auto */
+  cateringAuto?: boolean
 }
 
 /** Linha de pessoas (AGÊNCIA, CLIENTE): apenas NOME e FUNÇÃO; 1 pessoa por linha; contabilizada para catering */

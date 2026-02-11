@@ -79,7 +79,7 @@ export default function PhaseDefaultsBar({
     [update]
   )
 
-  const btnCls = 'h-7 px-2 text-[10px] font-medium uppercase rounded'
+  const btnCls = 'btn-resolve-hover h-7 px-2 text-[10px] font-medium uppercase rounded transition-colors border'
   const disabled = isLocked
 
   return (
@@ -117,7 +117,7 @@ export default function PhaseDefaultsBar({
             <button
               type="button"
               className={`${btnCls} shrink-0 whitespace-nowrap`}
-              style={{ backgroundColor: 'transparent', border: `1px solid ${resolve.border}`, color: resolve.muted }}
+              style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}
               onClick={onApplyDias}
               title="Aplicar a todos os profissionais com tipo Diária"
             >
@@ -148,7 +148,7 @@ export default function PhaseDefaultsBar({
             <button
               type="button"
               className={`${btnCls} shrink-0 whitespace-nowrap`}
-              style={{ backgroundColor: 'transparent', border: `1px solid ${resolve.border}`, color: resolve.muted }}
+              style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}
               onClick={onApplySemanas}
               title="Aplicar a todos os profissionais com tipo Semana"
             >
@@ -179,7 +179,7 @@ export default function PhaseDefaultsBar({
             <button
               type="button"
               className={`${btnCls} shrink-0 whitespace-nowrap`}
-              style={{ backgroundColor: 'transparent', border: `1px solid ${resolve.border}`, color: resolve.muted }}
+              style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}
               onClick={onApplyDeslocamento}
               title="Aplicar a todos os profissionais"
             >
@@ -211,7 +211,7 @@ export default function PhaseDefaultsBar({
             <button
               type="button"
               className={`${btnCls} shrink-0 whitespace-nowrap`}
-              style={{ backgroundColor: 'transparent', border: `1px solid ${resolve.border}`, color: resolve.muted }}
+              style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}
               onClick={onApplyAlimentacao}
               title="Aplicar às linhas de CATERING (valor × quantidade de profissionais)"
             >

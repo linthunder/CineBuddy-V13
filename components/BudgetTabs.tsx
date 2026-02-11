@@ -74,7 +74,7 @@ export default function BudgetTabs({
                     color: dropdownOpen ? resolve.bg : resolve.muted,
                   }}
                 >
-                  <span>TABELA DE CACHÊS</span>
+                  <span>TABELA</span>
                   <span className="text-[8px]">▼</span>
                 </button>
                 {dropdownOpen && (
@@ -113,8 +113,7 @@ export default function BudgetTabs({
                 }}
                 title="Tabela de cachês em uso (somente leitura)"
               >
-                <span>TABELA DE CACHÊS</span>
-                <span className="text-[9px] normal-case">· {selectedTable?.name ?? '—'}</span>
+                <span className="normal-case">{selectedTable?.name ?? '—'}</span>
               </div>
             )}
           </div>

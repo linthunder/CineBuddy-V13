@@ -153,20 +153,21 @@ const ViewOrcFinal = forwardRef<ViewOrcFinalHandle, ViewOrcFinalProps>(function 
   const deptsForPhase = DEPARTMENTS[activePhase]
   const linesForPhase = budgetLines[activePhase]
 
-  /** Mantém a 1ª linha de CATERING sincronizada (alimentação × profissionais × dias) */
-  const updateFirstCateringRow = useCallback((phase: PhaseKey, lines: BudgetLinesByPhase, alimentacao: number, teamCount: number, dias: number) => {
+  /** Mantém a 1ª linha de CATERING sincronizada (alimentação × profissionais × dias). Quando cateringAuto=false (usuário editou manualmente), não sobrescreve. forceUpdate=true (ex: APLICAR) sobrescreve e reativa o auto. */
+  const updateFirstCateringRow = useCallback((phase: PhaseKey, lines: BudgetLinesByPhase, alimentacao: number, teamCount: number, dias: number, forceUpdate?: boolean) => {
     if (!(DEPARTMENTS[phase] as readonly string[]).includes('CATERING')) return lines
     const next = { ...lines, [phase]: { ...lines[phase] } }
     let catering = next[phase].CATERING ?? []
     if (catering.length === 0) {
       const firstRow = createEmptyRow('CATERING', { cateringDefaultUnitCost: 0 })
-      firstRow.itemName = 'Alimentação equipe'
+      firstRow.itemName = 'Alimentação'
       catering = [firstRow]
       next[phase].CATERING = catering
     }
+    const firstRow = catering[0] as BudgetRow & { cateringAuto?: boolean }
+    if (!forceUpdate && firstRow.cateringAuto === false) return next
     const qty = dias > 0 ? dias : 1
-    const firstRow = catering[0] as BudgetRow & { unitCost?: number; quantity?: number }
-    const first = { ...firstRow, unitCost: alimentacao * teamCount, quantity: qty, totalCost: alimentacao * teamCount * qty }
+    const first = { ...firstRow, unitCost: alimentacao * teamCount, quantity: qty, totalCost: alimentacao * teamCount * qty, cateringAuto: true }
     next[phase].CATERING = [first as BudgetRow, ...catering.slice(1)]
     return next
   }, [])
@@ -204,7 +205,8 @@ const ViewOrcFinal = forwardRef<ViewOrcFinalHandle, ViewOrcFinalProps>(function 
       if (catering.length === 0 && alimentacao <= 0) continue
       const expectedUnitCost = alimentacao * teamCount
       const expectedQty = dias > 0 ? dias : 1
-      const c0 = catering[0] as { unitCost?: number; quantity?: number } | undefined
+      const c0 = catering[0] as { unitCost?: number; quantity?: number; cateringAuto?: boolean } | undefined
+      if (c0?.cateringAuto === false) continue
       const currentUnitCost = c0?.unitCost ?? 0
       const currentQty = c0?.quantity ?? 1
       if (Math.abs(currentUnitCost - expectedUnitCost) >= 0.005 || currentQty !== expectedQty) {
@@ -375,7 +377,7 @@ const ViewOrcFinal = forwardRef<ViewOrcFinalHandle, ViewOrcFinalProps>(function 
     const alimentacaoPerPerson = phaseDefaults[activePhase].alimentacaoPerPerson ?? 0
     const dias = phaseDefaults[activePhase]?.dias ?? 0
     const teamCount = teamCountForPhase(activePhase)
-    setBudgetLines((prev) => updateFirstCateringRow(activePhase, prev, alimentacaoPerPerson, teamCount, dias))
+    setBudgetLines((prev) => updateFirstCateringRow(activePhase, prev, alimentacaoPerPerson, teamCount, dias, true))
   }, [activePhase, phaseDefaults, teamCountForPhase, updateFirstCateringRow])
 
   const addVerbaRow = useCallback((department: string) => {
@@ -486,7 +488,7 @@ const ViewOrcFinal = forwardRef<ViewOrcFinalHandle, ViewOrcFinalProps>(function 
       contentLayout="grid"
     >
       <div className={`col-span-full flex gap-3 min-w-0 ${isLocked ? 'locked-sheet' : ''}`}>
-        <div className="flex-1 min-w-0 grid grid-cols-1 xl:grid-cols-2 gap-4" style={{ alignContent: 'start' }}>
+        <div className="flex-1 min-w-0 grid grid-cols-1 min-[1664px]:grid-cols-2 gap-4" style={{ alignContent: 'start' }}>
         {deptsForPhase.map((dept) => (
           <BudgetDeptBlock
             key={dept}

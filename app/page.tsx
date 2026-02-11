@@ -417,7 +417,8 @@ export default function Home() {
 
   const disabledViews = useMemo<ViewId[]>(() => {
     const disabled: ViewId[] = []
-    if (!projectData.nome) disabled.push('dashboard')
+    // ORÇAMENTO, DASHBOARD e EQUIPE bloqueados até criar/abrir um projeto
+    if (!projectData.nome) disabled.push('orcamento', 'dashboard', 'team')
     // Cascata de liberação: Orçamento Final só após finalizar Inicial; Fechamento só após finalizar Final
     if (projectStatus.initial !== 'locked') disabled.push('orc-final')
     if (projectStatus.final !== 'locked') disabled.push('fechamento')
@@ -425,6 +426,13 @@ export default function Home() {
     if (projectStatus.closing === 'locked') disabled.push('orcamento', 'orc-final')
     return disabled
   }, [projectStatus, projectData.nome])
+
+  /* Redireciona para FILME se estiver em view bloqueada por falta de projeto */
+  useEffect(() => {
+    if (!projectData.nome && ['orcamento', 'dashboard', 'team'].includes(currentView)) {
+      setCurrentView('filme')
+    }
+  }, [projectData.nome, currentView])
 
   if (loading) {
     return (
