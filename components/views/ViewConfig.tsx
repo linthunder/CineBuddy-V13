@@ -866,20 +866,20 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
        * FUNÇÕES E CACHÊS
        * ═══════════════════════════════════════════════════════ */}
       {activeTab === 'roles' && (
-        <div className="rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
-          <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between gap-2" style={{ borderColor: resolve.border, color: resolve.muted }}>
-            <span>FUNÇÕES E CACHÊS ({roles.length})</span>
-            <div className="flex gap-1.5 flex-wrap">
-              <select className={inputCls} style={{ ...inputStyle, maxWidth: 220 }} value={selectedCacheTableId || ''} onChange={(e) => setSelectedCacheTableId(e.target.value || null)}>
+        <div className="rounded border overflow-hidden min-w-0" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
+          <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider grid grid-cols-[1fr_auto] items-center gap-2 min-w-0 w-full" style={{ borderColor: resolve.border, color: resolve.muted }}>
+            <span className="min-w-0 truncate pr-2">FUNÇÕES E CACHÊS ({roles.length})</span>
+            <div className="flex gap-1.5 flex-nowrap items-center justify-end min-w-0">
+              <select className={`${inputCls} shrink-0 w-auto max-w-[220px]`} style={inputStyle} value={selectedCacheTableId || ''} onChange={(e) => setSelectedCacheTableId(e.target.value || null)}>
                 <option value="">Selecione a tabela</option>
                 {cacheTables.map((t) => (
                   <option key={t.id} value={t.id}>{t.name}{t.is_default ? ' (padrão)' : ''}</option>
                 ))}
               </select>
-              <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={exportRolesCsv}>Exportar</button>
-              <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => rolesFileRef.current?.click()}>Importar</button>
+              <button type="button" className={`${btnSmall} shrink-0 whitespace-nowrap`} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={exportRolesCsv}>Exportar</button>
+              <button type="button" className={`${btnSmall} shrink-0 whitespace-nowrap`} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => rolesFileRef.current?.click()}>Importar</button>
               <input ref={rolesFileRef} type="file" accept=".csv" className="hidden" onChange={(e) => { if (e.target.files?.[0]) importRolesCsv(e.target.files[0]); e.target.value = '' }} />
-              <button type="button" className={btnSmall} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openRoleModal('new')}>+ Nova</button>
+              <button type="button" className={`${btnSmall} shrink-0 whitespace-nowrap`} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openRoleModal('new')}>+ Nova</button>
             </div>
           </div>
           <div className="p-3">

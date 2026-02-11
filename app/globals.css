@@ -354,6 +354,7 @@ input[type='number'] {
 .page-layout__content {
   margin-top: 0;
   width: 100%;
+  min-width: 0;
   max-width: none;
 }
 
