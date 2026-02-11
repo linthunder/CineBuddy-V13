@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 
 export interface RoleRate {
   id: string
+  table_id: string | null
   funcao: string
   cache_dia: number
   cache_semana: number
@@ -14,16 +15,23 @@ export type RoleRateInsert = Omit<RoleRate, 'id' | 'created_at' | 'updated_at'>
 /**
  * Busca funções por nome (autocomplete).
  * Retorna até `limit` resultados que contenham `term` na função (case-insensitive).
+ * @param tableId - UUID da tabela de cachê (opcional; se não informado, busca em todas)
  */
-export async function searchRoles(term: string, limit = 10): Promise<RoleRate[]> {
+export async function searchRoles(term: string, limit = 10, tableId?: string | null): Promise<RoleRate[]> {
   if (!term || term.length < 2) return []
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('roles_rates')
     .select('*')
     .ilike('funcao', `%${term}%`)
     .order('funcao')
     .limit(limit)
+
+  if (tableId) {
+    query = query.eq('table_id', tableId)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     console.error('Erro ao buscar funções:', error)
@@ -32,12 +40,13 @@ export async function searchRoles(term: string, limit = 10): Promise<RoleRate[]>
   return data ?? []
 }
 
-/** Lista todas as funções e cachês, ordenados por nome. */
-export async function listRoles(): Promise<RoleRate[]> {
-  const { data, error } = await supabase
-    .from('roles_rates')
-    .select('*')
-    .order('funcao')
+/** Lista todas as funções e cachês, ordenados por nome.
+ * @param tableId - UUID da tabela de cachê (opcional; se não informado, lista todas)
+ */
+export async function listRoles(tableId?: string | null): Promise<RoleRate[]> {
+  let query = supabase.from('roles_rates').select('*').order('funcao')
+  if (tableId) query = query.eq('table_id', tableId)
+  const { data, error } = await query
 
   if (error) {
     console.error('Erro ao listar funções:', error)
@@ -46,7 +55,7 @@ export async function listRoles(): Promise<RoleRate[]> {
   return data ?? []
 }
 
-/** Cria uma nova função/cachê. */
+/** Cria uma nova função/cachê (table_id opcional). */
 export async function createRole(role: RoleRateInsert): Promise<RoleRate | null> {
   const { data, error } = await supabase
     .from('roles_rates')
@@ -93,13 +102,15 @@ export async function deleteRole(id: string): Promise<boolean> {
 
 /**
  * Importa funções/cachês a partir de um array de objetos (ex: CSV parseado).
+ * @param tableId - UUID da tabela de cachê (obrigatório para associar as funções)
  */
-export async function importRoles(rows: RoleRateInsert[]): Promise<number> {
+export async function importRoles(rows: RoleRateInsert[], tableId: string): Promise<number> {
   if (!rows.length) return 0
 
+  const rowsWithTable = rows.map((r) => ({ ...r, table_id: tableId }))
   const { data, error } = await supabase
     .from('roles_rates')
-    .insert(rows)
+    .insert(rowsWithTable)
     .select()
 
   if (error) {

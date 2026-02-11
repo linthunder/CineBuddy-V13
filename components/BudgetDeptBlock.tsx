@@ -13,6 +13,7 @@ interface BudgetDeptBlockProps {
   rows: BudgetRow[]
   verbaRows: VerbaRow[]
   showVerbaButton: boolean
+  cacheTableId?: string | null
   onAddRow: () => void
   onUpdateRow: (rowId: string, updates: Partial<BudgetRow>) => void
   onRemoveRow: (rowId: string) => void
@@ -34,6 +35,7 @@ export default function BudgetDeptBlock({
   rows,
   verbaRows,
   showVerbaButton,
+  cacheTableId,
   onAddRow,
   onUpdateRow,
   onRemoveRow,
@@ -117,6 +119,7 @@ export default function BudgetDeptBlock({
                 key={row.id}
                 row={row}
                 department={department}
+                cacheTableId={cacheTableId}
                 onUpdate={(updates) => onUpdateRow(row.id, updates)}
                 onRemove={() => onRemoveRow(row.id)}
               />

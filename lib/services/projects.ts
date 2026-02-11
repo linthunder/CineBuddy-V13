@@ -8,6 +8,7 @@ export interface ProjectRecord {
   cliente: string
   duracao: string
   duracao_unit: string
+  cache_table_id: string | null
   budget_lines_initial: Record<string, unknown>
   verba_lines_initial: Record<string, unknown>
   budget_lines_final: Record<string, unknown>

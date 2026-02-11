@@ -176,6 +176,7 @@ export default function Home() {
         cliente: projectData.cliente,
         duracao: projectData.duracao,
         duracao_unit: projectData.duracaoUnit,
+        cache_table_id: orcState?.cacheTableId ?? null,
         // Status
         status: projectStatus as unknown as Record<string, string>,
         // Orçamento Inicial
@@ -235,6 +236,7 @@ export default function Home() {
       cliente: copyData.cliente,
       duracao: copyData.duracao,
       duracao_unit: copyData.duracaoUnit,
+      cache_table_id: orcState?.cacheTableId ?? null,
       status: projectStatus as unknown as Record<string, string>,
       budget_lines_initial: (orcState?.budgetLines ?? {}) as unknown as Record<string, unknown>,
       verba_lines_initial: (orcState?.verbaLines ?? {}) as unknown as Record<string, unknown>,
@@ -304,6 +306,7 @@ export default function Home() {
       jobValue: Number(project.job_value) || 0,
       taxRate: Number(project.tax_rate) || 12.5,
       notes: project.notes_initial as unknown as Record<'pre' | 'prod' | 'pos', string>,
+      cacheTableId: (project as { cache_table_id?: string | null }).cache_table_id ?? null,
     }
 
     // Se o orçamento inicial foi finalizado, criar snapshot

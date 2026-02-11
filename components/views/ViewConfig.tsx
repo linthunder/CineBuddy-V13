@@ -11,6 +11,10 @@ import {
   listRoles, createRole, updateRole, deleteRole, importRoles,
   type RoleRate, type RoleRateInsert,
 } from '@/lib/services/roles-rates'
+import {
+  listCacheTables, createCacheTable, updateCacheTable, deleteCacheTable, setDefaultCacheTable,
+  type CacheTable, type CacheTableInsert,
+} from '@/lib/services/cache-tables'
 import { formatCurrency } from '@/lib/utils'
 import { getCompany, saveCompany, uploadCompanyLogo } from '@/lib/services/company'
 import {
@@ -20,12 +24,13 @@ import {
 import { listProfiles, updateProfile, type Profile, type ProfileRole } from '@/lib/services/profiles'
 import { supabase } from '@/lib/supabase'
 
-type ConfigTab = 'company' | 'users' | 'collaborators' | 'roles' | 'projects' | 'logs'
+type ConfigTab = 'company' | 'users' | 'collaborators' | 'cache_tables' | 'roles' | 'projects' | 'logs'
 
 const TABS: { id: ConfigTab; label: string }[] = [
   { id: 'company', label: 'MINHA PRODUTORA' },
   { id: 'users', label: 'USUÁRIOS' },
   { id: 'collaborators', label: 'COLABORADORES' },
+  { id: 'cache_tables', label: 'TABELAS DE CACHÊ' },
   { id: 'roles', label: 'FUNÇÕES E CACHÊS' },
   { id: 'projects', label: 'PROJETOS' },
   { id: 'logs', label: 'LOGS' },
@@ -327,10 +332,78 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
     : collabs
 
   /* ═══════════════════════════════════════════════════════
-   * FUNÇÕES E CACHÊS
+   * TABELAS DE CACHÊ
+   * ═══════════════════════════════════════════════════════ */
+  const [cacheTables, setCacheTables] = useState<CacheTable[]>([])
+  const [cacheTablesLoading, setCacheTablesLoading] = useState(false)
+  const [cacheTableModal, setCacheTableModal] = useState<CacheTable | 'new' | null>(null)
+  const importTargetTableIdRef = useRef<string | null>(null)
+  const [ctName, setCtName] = useState('')
+  const [ctDescription, setCtDescription] = useState('')
+  const [ctSource, setCtSource] = useState('')
+  const cacheTableFileRef = useRef<HTMLInputElement>(null)
+
+  const loadCacheTables = useCallback(async () => {
+    setCacheTablesLoading(true)
+    const data = await listCacheTables()
+    setCacheTables(data)
+    setCacheTablesLoading(false)
+  }, [])
+
+  useEffect(() => {
+    if (activeTab === 'cache_tables') loadCacheTables()
+  }, [activeTab, loadCacheTables])
+
+  const openCacheTableModal = (t: CacheTable | 'new') => {
+    if (t === 'new') {
+      setCtName(''); setCtDescription(''); setCtSource('')
+    } else {
+      setCtName(t.name); setCtDescription(t.description || ''); setCtSource(t.source || '')
+    }
+    setCacheTableModal(t)
+  }
+
+  const saveCacheTable = async () => {
+    if (!ctName.trim()) return
+    if (cacheTableModal === 'new') {
+      const created = await createCacheTable({ name: ctName.trim(), description: ctDescription.trim(), source: ctSource.trim(), is_default: cacheTables.length === 0 })
+      if (created) {
+        setCacheTableModal(null)
+        loadCacheTables()
+        if (typeof window !== 'undefined') window.alert('Tabela criada! Use "Importar CSV" na tabela para adicionar funções.')
+      }
+    } else if (cacheTableModal) {
+      await updateCacheTable(cacheTableModal.id, { name: ctName.trim(), description: ctDescription.trim(), source: ctSource.trim() })
+      setCacheTableModal(null)
+      loadCacheTables()
+    }
+  }
+
+  const importCacheTableCsv = async (file: File, tableId: string) => {
+    const text = await file.text()
+    const lines = text.split('\n').filter((l) => l.trim())
+    if (lines.length < 2) return
+    const rows: RoleRateInsert[] = lines.slice(1).map((line) => {
+      const cols = line.split(',').map(parseCsvValue)
+      return { funcao: cols[0] || '', cache_dia: parseBrCurrency(cols[1] || '0'), cache_semana: parseBrCurrency(cols[2] || '0') }
+    }).filter((r) => r.funcao)
+    const count = await importRoles(rows, tableId)
+    if (typeof window !== 'undefined') window.alert(`${count} função(ões) importada(s)!`)
+    loadCacheTables()
+  }
+
+  const removeCacheTable = async (id: string, name: string) => {
+    if (typeof window !== 'undefined' && !window.confirm(`Excluir a tabela "${name}" e todas as suas funções? Esta ação não pode ser desfeita.`)) return
+    await deleteCacheTable(id)
+    loadCacheTables()
+  }
+
+  /* ═══════════════════════════════════════════════════════
+   * FUNÇÕES E CACHÊS (por tabela selecionada)
    * ═══════════════════════════════════════════════════════ */
   const [roles, setRoles] = useState<RoleRate[]>([])
   const [rolesLoading, setRolesLoading] = useState(false)
+  const [selectedCacheTableId, setSelectedCacheTableId] = useState<string | null>(null)
   const [roleModal, setRoleModal] = useState<RoleRate | 'new' | null>(null)
   const [rolesSearch, setRolesSearch] = useState('')
   const rolesFileRef = useRef<HTMLInputElement>(null)
@@ -341,14 +414,25 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
 
   const loadRoles = useCallback(async () => {
     setRolesLoading(true)
-    const data = await listRoles()
+    const data = await listRoles(selectedCacheTableId)
     setRoles(data)
     setRolesLoading(false)
-  }, [])
+  }, [selectedCacheTableId])
 
   useEffect(() => {
-    if (activeTab === 'roles') loadRoles()
-  }, [activeTab, loadRoles])
+    if (activeTab === 'roles' || activeTab === 'cache_tables') loadCacheTables()
+  }, [activeTab, loadCacheTables])
+
+  useEffect(() => {
+    if (activeTab === 'roles' && cacheTables.length > 0 && !selectedCacheTableId) {
+      const defaultTable = cacheTables.find((t) => t.is_default) ?? cacheTables[0]
+      setSelectedCacheTableId(defaultTable.id)
+    }
+  }, [activeTab, cacheTables, selectedCacheTableId])
+
+  useEffect(() => {
+    if (activeTab === 'roles' && selectedCacheTableId) loadRoles()
+  }, [activeTab, selectedCacheTableId, loadRoles])
 
   const openRoleModal = (role: RoleRate | 'new') => {
     if (role === 'new') {
@@ -361,11 +445,15 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
 
   const saveRole = async () => {
     if (!rFuncao.trim()) return
-    const data: RoleRateInsert = { funcao: rFuncao.trim(), cache_dia: parseFloat(rDia) || 0, cache_semana: parseFloat(rSemana) || 0 }
+    const base = { funcao: rFuncao.trim(), cache_dia: parseFloat(rDia) || 0, cache_semana: parseFloat(rSemana) || 0 }
     if (roleModal === 'new') {
-      await createRole(data)
+      if (!selectedCacheTableId) {
+        if (typeof window !== 'undefined') window.alert('Selecione uma tabela de cachê primeiro.')
+        return
+      }
+      await createRole({ ...base, table_id: selectedCacheTableId })
     } else if (roleModal) {
-      await updateRole(roleModal.id, data)
+      await updateRole(roleModal.id, base)
     }
     setRoleModal(null)
     loadRoles()
@@ -384,6 +472,10 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
   }
 
   const importRolesCsv = async (file: File) => {
+    if (!selectedCacheTableId) {
+      if (typeof window !== 'undefined') window.alert('Selecione uma tabela de cachê primeiro.')
+      return
+    }
     const text = await file.text()
     const lines = text.split('\n').filter((l) => l.trim())
     if (lines.length < 2) return
@@ -391,7 +483,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
       const cols = line.split(',').map(parseCsvValue)
       return { funcao: cols[0] || '', cache_dia: parseBrCurrency(cols[1] || '0'), cache_semana: parseBrCurrency(cols[2] || '0') }
     }).filter((r) => r.funcao)
-    const count = await importRoles(rows)
+    const count = await importRoles(rows, selectedCacheTableId)
     if (typeof window !== 'undefined') window.alert(`${count} função(ões) importada(s)!`)
     loadRoles()
   }
@@ -702,13 +794,78 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
       )}
 
       {/* ═══════════════════════════════════════════════════════
+       * TABELAS DE CACHÊ
+       * ═══════════════════════════════════════════════════════ */}
+      {activeTab === 'cache_tables' && (
+        <div className="rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
+          <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between gap-2" style={{ borderColor: resolve.border, color: resolve.muted }}>
+            <span>TABELAS DE CACHÊ ({cacheTables.length})</span>
+            <button type="button" className={btnSmall} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openCacheTableModal('new')}>+ Nova tabela</button>
+          </div>
+          <div className="p-3">
+            {cacheTablesLoading ? (
+              <div className="text-center py-6 text-sm" style={{ color: resolve.muted }}>Carregando...</div>
+            ) : cacheTables.length === 0 ? (
+              <div className="text-center py-6 text-sm" style={{ color: resolve.muted }}>Nenhuma tabela. Clique em &quot;+ Nova tabela&quot; e importe um CSV de funções e cachês.</div>
+            ) : (
+              <div className="space-y-2">
+                {cacheTables.map((t) => (
+                  <div key={t.id} className="flex items-center justify-between gap-2 p-2 rounded border" style={{ borderColor: resolve.border }}>
+                    <div className="min-w-0 flex-1">
+                      <span className="font-medium" style={{ color: resolve.text }}>{t.name}</span>
+                      {t.is_default && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: resolve.accent, color: resolve.bg }}>PADRÃO</span>}
+                      {t.description && <p className="text-[11px] truncate mt-0.5" style={{ color: resolve.muted }}>{t.description}</p>}
+                    </div>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => { importTargetTableIdRef.current = t.id; cacheTableFileRef.current?.click(); }}>Importar CSV</button>
+                      <input ref={cacheTableFileRef} type="file" accept=".csv" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; const tid = importTargetTableIdRef.current; if (file && tid) { importCacheTableCsv(file, tid); importTargetTableIdRef.current = null; } e.target.value = '' }} />
+                      <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.accent, border: `1px solid ${resolve.border}` }} onClick={() => openCacheTableModal(t)}>Editar</button>
+                      {!t.is_default && <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => setDefaultCacheTable(t.id).then(() => loadCacheTables())}>Definir padrão</button>}
+                      <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: cinema.danger, border: `1px solid ${resolve.border}` }} onClick={() => removeCacheTable(t.id, t.name)}>Excluir</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Nova/Editar Tabela de Cachê ── */}
+      {cacheTableModal !== null && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && setCacheTableModal(null)}>
+          <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
+              <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: resolve.text }}>{cacheTableModal === 'new' ? '➕ NOVA TABELA' : '✏️ EDITAR TABELA'}</h3>
+              <button type="button" onClick={() => setCacheTableModal(null)} className="text-lg leading-none px-1" style={{ color: resolve.muted }}>×</button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div><label className={labelCls} style={{ color: resolve.muted }}>Nome *</label><input type="text" className={inputCls} style={inputStyle} value={ctName} onChange={(e) => setCtName(e.target.value)} placeholder="Ex: SINDICINE 2024" autoFocus /></div>
+              <div><label className={labelCls} style={{ color: resolve.muted }}>Descrição</label><input type="text" className={inputCls} style={inputStyle} value={ctDescription} onChange={(e) => setCtDescription(e.target.value)} placeholder="Ex: Tabela audiovisual SINDICINE 23-24" /></div>
+              <div><label className={labelCls} style={{ color: resolve.muted }}>Fonte</label><input type="text" className={inputCls} style={inputStyle} value={ctSource} onChange={(e) => setCtSource(e.target.value)} placeholder="Ex: SINDICINE 2024" /></div>
+              <div className="flex gap-2 justify-end pt-2">
+                <button type="button" onClick={() => setCacheTableModal(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}>Cancelar</button>
+                <button type="button" onClick={saveCacheTable} className="h-8 px-3 text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.accent, color: resolve.bg }}>Salvar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════
        * FUNÇÕES E CACHÊS
        * ═══════════════════════════════════════════════════════ */}
       {activeTab === 'roles' && (
         <div className="rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
           <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between gap-2" style={{ borderColor: resolve.border, color: resolve.muted }}>
             <span>FUNÇÕES E CACHÊS ({roles.length})</span>
-            <div className="flex gap-1.5">
+            <div className="flex gap-1.5 flex-wrap">
+              <select className={inputCls} style={{ ...inputStyle, maxWidth: 220 }} value={selectedCacheTableId || ''} onChange={(e) => setSelectedCacheTableId(e.target.value || null)}>
+                <option value="">Selecione a tabela</option>
+                {cacheTables.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}{t.is_default ? ' (padrão)' : ''}</option>
+                ))}
+              </select>
               <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={exportRolesCsv}>Exportar</button>
               <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => rolesFileRef.current?.click()}>Importar</button>
               <input ref={rolesFileRef} type="file" accept=".csv" className="hidden" onChange={(e) => { if (e.target.files?.[0]) importRolesCsv(e.target.files[0]); e.target.value = '' }} />

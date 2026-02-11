@@ -13,6 +13,8 @@ import { searchCollaborators } from '@/lib/services/collaborators'
 interface BudgetTableRowProps {
   row: BudgetRow
   department: string
+  /** ID da tabela de cachê selecionada (para autocomplete de funções) */
+  cacheTableId?: string | null
   onUpdate: (updates: Partial<BudgetRow>) => void
   onRemove: () => void
 }
@@ -33,8 +35,8 @@ function toEditValue(n: number): string {
 }
 
 /** Adapter: busca funções no Supabase → opções do autocomplete */
-async function searchRolesAdapter(term: string): Promise<AutocompleteOption[]> {
-  const results = await searchRoles(term)
+async function searchRolesAdapter(term: string, tableId?: string | null): Promise<AutocompleteOption[]> {
+  const results = await searchRoles(term, 10, tableId)
   return results.map((r) => ({
     label: r.funcao,
     data: { cache_dia: r.cache_dia, cache_semana: r.cache_semana },
@@ -50,7 +52,7 @@ async function searchCollabAdapter(term: string): Promise<AutocompleteOption[]> 
   }))
 }
 
-export default function BudgetTableRow({ row, department, onUpdate, onRemove }: BudgetTableRowProps) {
+export default function BudgetTableRow({ row, department, cacheTableId, onUpdate, onRemove }: BudgetTableRowProps) {
   const total = computeRowTotal(row)
   const custom = CUSTOM_HEADERS[department]
   const itemLabel = custom?.item ?? 'Item'
@@ -81,7 +83,7 @@ export default function BudgetTableRow({ row, department, onUpdate, onRemove }: 
   }
 
   /* ── Memoizar funções de busca para não recriar refs ── */
-  const searchRolesFn = useMemo(() => searchRolesAdapter, [])
+  const searchRolesFn = useMemo(() => (term: string) => searchRolesAdapter(term, cacheTableId), [cacheTableId])
   const searchCollabFn = useMemo(() => searchCollabAdapter, [])
 
   if (row.type === 'labor') {
@@ -115,7 +117,7 @@ export default function BudgetTableRow({ row, department, onUpdate, onRemove }: 
 
       // Se tem função preenchida, buscar cachê correspondente no banco
       if (r.roleFunction?.trim()) {
-        const results = await searchRoles(r.roleFunction.trim(), 5)
+        const results = await searchRoles(r.roleFunction.trim(), 5, cacheTableId)
         const match = results.find(
           (role) => role.funcao.toLowerCase() === r.roleFunction.trim().toLowerCase()
         )

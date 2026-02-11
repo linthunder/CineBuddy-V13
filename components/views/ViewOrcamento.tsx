@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState, forwardRef, useImperativeHandle } from 'react'
+import { useCallback, useMemo, useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 import PageLayout from '@/components/PageLayout'
 import FinanceStrip from '@/components/FinanceStrip'
 import MiniTables from '@/components/MiniTables'
@@ -8,6 +8,7 @@ import BudgetTabs from '@/components/BudgetTabs'
 import BudgetDeptBlock from '@/components/BudgetDeptBlock'
 import { DEPARTMENTS, VERBA_DEPTS } from '@/lib/constants'
 import { resolve } from '@/lib/theme'
+import { listCacheTables } from '@/lib/services/cache-tables'
 import type { PhaseKey } from '@/lib/constants'
 import type { BudgetRow, BudgetLinesByPhase, MiniTablesData, VerbaRow, VerbaLinesByPhase } from '@/lib/types'
 import { createEmptyRow, computeRowTotal, createEmptyVerbaRow, computeVerbaRowTotal } from '@/lib/budgetUtils'
@@ -52,6 +53,7 @@ export interface ViewOrcamentoHandle {
     jobValue: number
     taxRate: number
     notes: Record<PhaseKey, string>
+    cacheTableId: string | null
   }
   loadState: (state: {
     budgetLines: BudgetLinesByPhase
@@ -60,11 +62,14 @@ export interface ViewOrcamentoHandle {
     jobValue: number
     taxRate: number
     notes: Record<PhaseKey, string>
+    cacheTableId?: string | null
   }) => void
 }
 
 const ViewOrcamento = forwardRef<ViewOrcamentoHandle, ViewOrcamentoProps>(function ViewOrcamento({ isLocked = false, onToggleLock }, ref) {
   const [activePhase, setActivePhase] = useState<PhaseKey>('prod')
+  const [cacheTableId, setCacheTableId] = useState<string | null>(null)
+  const [cacheTables, setCacheTables] = useState<{ id: string; name: string; is_default: boolean }[]>([])
   const [budgetLines, setBudgetLines] = useState<BudgetLinesByPhase>(getInitialLinesByPhase)
   const [verbaLines, setVerbaLines] = useState<VerbaLinesByPhase>(getInitialVerbaLines)
   const [miniTables, setMiniTables] = useState<MiniTablesData>({
@@ -76,8 +81,21 @@ const ViewOrcamento = forwardRef<ViewOrcamentoHandle, ViewOrcamentoProps>(functi
   const [taxRate, setTaxRate] = useState(12.5)
   const [notes, setNotes] = useState<Record<PhaseKey, string>>({ pre: '', prod: '', pos: '' })
 
+  useEffect(() => {
+    listCacheTables().then((tables) => {
+      setCacheTables(tables)
+      if (tables.length > 0) {
+        setCacheTableId((prev) => {
+          if (prev && tables.some((t) => t.id === prev)) return prev
+          const defaultTable = tables.find((t) => t.is_default) ?? tables[0]
+          return defaultTable.id
+        })
+      }
+    })
+  }, [])
+
   useImperativeHandle(ref, () => ({
-    getState: () => ({ budgetLines, verbaLines, miniTables, jobValue, taxRate, notes }),
+    getState: () => ({ budgetLines, verbaLines, miniTables, jobValue, taxRate, notes, cacheTableId }),
     loadState: (state) => {
       setBudgetLines(state.budgetLines)
       setVerbaLines(state.verbaLines)
@@ -85,6 +103,7 @@ const ViewOrcamento = forwardRef<ViewOrcamentoHandle, ViewOrcamentoProps>(functi
       setJobValue(state.jobValue)
       setTaxRate(state.taxRate)
       setNotes(state.notes)
+      if (state.cacheTableId !== undefined) setCacheTableId(state.cacheTableId ?? null)
     },
   }))
 
@@ -210,24 +229,50 @@ const ViewOrcamento = forwardRef<ViewOrcamentoHandle, ViewOrcamentoProps>(functi
       toolbar={<MiniTables data={miniTables} onChange={isLocked ? () => {} : setMiniTables} />}
       contentLayout="grid"
     >
-      <div className={isLocked ? 'col-span-full locked-sheet' : 'col-span-full'} style={{ display: 'contents' }}>
-        {deptsForPhase.map((dept) => (
-          <BudgetDeptBlock
-            key={dept}
-            department={dept}
-            rows={linesForPhase[dept] ?? []}
-            verbaRows={(verbaLines[activePhase] ?? {})[dept] ?? []}
-            showVerbaButton={!isLocked && VERBA_DEPTS.includes(dept as (typeof VERBA_DEPTS)[number])}
-            onAddRow={() => !isLocked && addRow(dept)}
-            onUpdateRow={(rowId, updates) => !isLocked && updateRow(dept, rowId, updates)}
-            onRemoveRow={(rowId) => !isLocked && removeRow(dept, rowId)}
-            onAddVerbaRow={() => !isLocked && addVerbaRow(dept)}
-            onUpdateVerbaRow={(rowId, updates) => !isLocked && updateVerbaRow(dept, rowId, updates)}
-            onRemoveVerbaRow={(rowId) => !isLocked && removeVerbaRow(dept, rowId)}
-          />
-        ))}
+      <div className={`col-span-full flex gap-3 min-w-0 ${isLocked ? 'locked-sheet' : ''}`}>
+        {/* Menu vertical: seleção da tabela de cachê */}
+        {cacheTables.length > 0 && (
+          <aside className="flex-shrink-0 w-40 py-2 rounded border" style={{ backgroundColor: resolve.panel, borderColor: resolve.border, height: 'fit-content' }}>
+            <div className="px-2 py-1.5 text-[10px] uppercase tracking-wider font-semibold" style={{ color: resolve.muted }}>Tabela de cachê</div>
+            <nav className="flex flex-col gap-0.5">
+              {cacheTables.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className="text-left px-2 py-1.5 text-[11px] rounded transition-colors"
+                  style={{
+                    backgroundColor: cacheTableId === t.id ? resolve.accent : 'transparent',
+                    color: cacheTableId === t.id ? resolve.bg : resolve.text,
+                  }}
+                  onClick={() => !isLocked && setCacheTableId(t.id)}
+                >
+                  {t.name}
+                  {t.is_default && <span className="ml-1 text-[9px]" style={{ opacity: 0.8 }}>(padrão)</span>}
+                </button>
+              ))}
+            </nav>
+          </aside>
+        )}
+        <div className="flex-1 min-w-0 grid grid-cols-1 xl:grid-cols-2 gap-4" style={{ alignContent: 'start' }}>
+          {deptsForPhase.map((dept) => (
+            <BudgetDeptBlock
+              key={dept}
+              department={dept}
+              rows={linesForPhase[dept] ?? []}
+              verbaRows={(verbaLines[activePhase] ?? {})[dept] ?? []}
+              showVerbaButton={!isLocked && VERBA_DEPTS.includes(dept as (typeof VERBA_DEPTS)[number])}
+              cacheTableId={cacheTableId}
+              onAddRow={() => !isLocked && addRow(dept)}
+              onUpdateRow={(rowId, updates) => !isLocked && updateRow(dept, rowId, updates)}
+              onRemoveRow={(rowId) => !isLocked && removeRow(dept, rowId)}
+              onAddVerbaRow={() => !isLocked && addVerbaRow(dept)}
+              onUpdateVerbaRow={(rowId, updates) => !isLocked && updateVerbaRow(dept, rowId, updates)}
+              onRemoveVerbaRow={(rowId) => !isLocked && removeVerbaRow(dept, rowId)}
+            />
+          ))}
+        </div>
       </div>
-      <div className="col-span-full rounded border p-3" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
+      <div className="col-span-full rounded border p-3 mt-0" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
         <label className="block text-[11px] uppercase tracking-wider font-medium mb-2" style={{ color: resolve.muted }}>Observações</label>
         <textarea
           className="w-full min-h-[80px] px-2 py-1.5 text-sm rounded border resize-y"
