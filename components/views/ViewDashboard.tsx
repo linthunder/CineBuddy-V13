@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import PageLayout from '@/components/PageLayout'
-import { DEPARTMENTS, LABOR_DEPTS } from '@/lib/constants'
+import { DEPARTMENTS, LABOR_DEPTS, PEOPLE_DEPTS } from '@/lib/constants'
 import { resolve, cinema } from '@/lib/theme'
 import { formatCurrency } from '@/lib/utils'
 import { computeRowTotal, computeVerbaRowTotal } from '@/lib/budgetUtils'
@@ -140,6 +140,12 @@ function processBudgetStage(data: DashboardBudgetStage): ProcessedData {
         if (isLabor) {
           deptMap[dept].labor += cost
           if (row.itemName || row.roleFunction) deptMap[dept].headcount++
+        } else if (dept === 'CASTING') {
+          deptMap[dept].material += cost
+          deptMap[dept].headcount += Math.max(0, ('quantity' in row ? row.quantity : 0) || 0) || 1
+        } else if (PEOPLE_DEPTS.includes(dept as never) && row.type === 'people') {
+          deptMap[dept].material += cost
+          deptMap[dept].headcount++
         } else {
           deptMap[dept].material += cost
         }

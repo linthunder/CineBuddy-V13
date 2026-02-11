@@ -114,10 +114,11 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
   }
 
   const hasProject = !!projectData.nome
+  const jobIdDisplay = `JOB #${projectData.jobId || 'BZ0000'}`
   const displayName = hasProject ? projectData.nome.toUpperCase() : 'NOME DO PROJETO'
-  const displayInfo = hasProject
-    ? `JOB #${projectData.jobId || 'BZ0000'} • ${projectData.agencia || '—'} • ${projectData.cliente || '—'}`
-    : 'JOB #BZ0000 • AGÊNCIA • CLIENTE'
+  const displaySubline = hasProject
+    ? `${projectData.agencia || '—'} • ${projectData.cliente || '—'}`
+    : 'AGÊNCIA • CLIENTE'
 
   return (
     <header
@@ -149,10 +150,17 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
         </div>
       </div>
 
-      {/* Centro: dados do projeto */}
-      <div className="hidden sm:block text-center text-xs border-l border-r px-4 md:px-5 py-0.5" style={{ borderColor: resolve.border, opacity: hasProject ? 1 : 0.5 }}>
-        <strong className="block font-medium" style={{ color: resolve.accent }}>{displayName}</strong>
-        <span style={{ color: resolve.muted }}>{displayInfo}</span>
+      {/* Centro: ID do job + box (nome do projeto / agência • cliente) */}
+      <div className="hidden sm:flex items-stretch min-w-0" style={{ opacity: hasProject ? 1 : 0.5 }}>
+        <div className="flex items-center border-l pl-3 pr-3 md:pl-4 md:pr-4" style={{ borderColor: resolve.border }}>
+          <span className="font-mono text-sm font-semibold whitespace-nowrap" style={{ color: resolve.text }}>{jobIdDisplay}</span>
+        </div>
+        <div className="flex items-center border-l border-r text-center text-xs px-4 md:px-5 py-1.5 min-w-0" style={{ borderColor: resolve.border }}>
+          <div className="w-full min-w-0">
+            <strong className="block font-medium truncate" style={{ color: resolve.accent }}>{displayName}</strong>
+            <span className="block truncate mt-0.5" style={{ color: resolve.muted }}>{displaySubline}</span>
+          </div>
+        </div>
       </div>
 
       {/* Direita: botões desktop */}
