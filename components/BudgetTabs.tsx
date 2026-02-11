@@ -51,51 +51,70 @@ export default function BudgetTabs({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const showCacheTableSelector = cacheTables.length > 0 && onCacheTableChange && !isLocked
+  const showCacheTable = cacheTables.length > 0
+  const canChangeCacheTable = showCacheTable && onCacheTableChange && !isLocked
+  const selectedTable = cacheTables.find((t) => t.id === cacheTableId)
 
   /* Mobile: linha 1 = TABELA + FINALIZAR; linha 2 = PRÉ/PROD/PÓS. Desktop: uma única linha. */
   return (
     <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 min-w-0">
       {/* Linha de cima no mobile: TABELA DE CACHÊS + FINALIZAR (completos, sem espremer) */}
       <div className="flex flex-wrap gap-2 items-center justify-between sm:order-2 sm:flex-1 sm:justify-end min-w-0">
-        {showCacheTableSelector && (
+        {showCacheTable && (
           <div className="relative flex-shrink-0" ref={dropdownRef}>
-            <button
-              type="button"
-              onClick={() => setDropdownOpen((o) => !o)}
-              className="btn-resolve-hover h-8 px-3 rounded text-[10px] sm:text-xs font-medium uppercase tracking-wide transition-colors border flex items-center gap-1 whitespace-nowrap"
-              style={{
-                backgroundColor: dropdownOpen ? resolve.accent : resolve.panel,
-                borderColor: dropdownOpen ? resolve.accent : resolve.border,
-                color: dropdownOpen ? resolve.bg : resolve.muted,
-              }}
-            >
-              <span>TABELA DE CACHÊS</span>
-              <span className="text-[8px]">▼</span>
-            </button>
-            {dropdownOpen && (
-              <div
-                className="absolute left-0 top-full mt-1 py-1 rounded border shadow-lg z-50 flex flex-col min-w-[180px] max-h-[280px] overflow-y-auto"
-                style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}
-              >
-                {cacheTables.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => {
-                      onCacheTableChange(t.id)
-                      setDropdownOpen(false)
-                    }}
-                    className="text-left px-3 py-2 text-[11px] uppercase tracking-wide transition-colors"
-                    style={{
-                      backgroundColor: cacheTableId === t.id ? resolve.accent : 'transparent',
-                      color: cacheTableId === t.id ? resolve.bg : resolve.text,
-                    }}
+            {canChangeCacheTable ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setDropdownOpen((o) => !o)}
+                  className="btn-resolve-hover h-8 px-3 rounded text-[10px] sm:text-xs font-medium uppercase tracking-wide transition-colors border flex items-center gap-1 whitespace-nowrap"
+                  style={{
+                    backgroundColor: dropdownOpen ? resolve.accent : resolve.panel,
+                    borderColor: dropdownOpen ? resolve.accent : resolve.border,
+                    color: dropdownOpen ? resolve.bg : resolve.muted,
+                  }}
+                >
+                  <span>TABELA DE CACHÊS</span>
+                  <span className="text-[8px]">▼</span>
+                </button>
+                {dropdownOpen && (
+                  <div
+                    className="absolute left-0 top-full mt-1 py-1 rounded border shadow-lg z-50 flex flex-col min-w-[180px] max-h-[280px] overflow-y-auto"
+                    style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}
                   >
-                    {t.name}
-                    {t.is_default && <span className="ml-1 text-[9px] opacity-80">(padrão)</span>}
-                  </button>
-                ))}
+                    {cacheTables.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          onCacheTableChange?.(t.id)
+                          setDropdownOpen(false)
+                        }}
+                        className="text-left px-3 py-2 text-[11px] uppercase tracking-wide transition-colors"
+                        style={{
+                          backgroundColor: cacheTableId === t.id ? resolve.accent : 'transparent',
+                          color: cacheTableId === t.id ? resolve.bg : resolve.text,
+                        }}
+                      >
+                        {t.name}
+                        {t.is_default && <span className="ml-1 text-[9px] opacity-80">(padrão)</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div
+                className="h-8 px-3 rounded text-[10px] sm:text-xs font-medium uppercase tracking-wide border flex items-center gap-1 whitespace-nowrap"
+                style={{
+                  backgroundColor: resolve.panel,
+                  borderColor: resolve.border,
+                  color: resolve.muted,
+                }}
+                title="Tabela de cachês em uso (somente leitura)"
+              >
+                <span>TABELA DE CACHÊS</span>
+                <span className="text-[9px] normal-case">· {selectedTable?.name ?? '—'}</span>
               </div>
             )}
           </div>

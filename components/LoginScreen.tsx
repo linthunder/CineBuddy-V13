@@ -29,7 +29,7 @@ function EyeIcon({ show }: { show: boolean }) {
 }
 
 export default function LoginScreen() {
-  const { login, initSignup, loading } = useAuth()
+  const { login, initSignup, loading, forceFinishLoading } = useAuth()
   const [view, setView] = useState<'login' | 'cadastro'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -95,8 +95,16 @@ export default function LoginScreen() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#0d0d0f' }}>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4" style={{ backgroundColor: '#0d0d0f' }}>
         <div className="text-sm" style={{ color: resolve.muted }}>Carregando...</div>
+        <button
+          type="button"
+          onClick={forceFinishLoading}
+          className="text-xs px-3 py-1.5 rounded border"
+          style={{ borderColor: '#5c7c99', color: '#5c7c99' }}
+        >
+          Travou? Clique para continuar
+        </button>
       </div>
     )
   }

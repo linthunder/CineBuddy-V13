@@ -34,7 +34,16 @@ export interface BudgetRowCost {
   totalCost: number
 }
 
-export type BudgetRow = BudgetRowLabor | BudgetRowCost
+/** Linha de pessoas (AGÊNCIA, CLIENTE): apenas NOME e FUNÇÃO; 1 pessoa por linha; contabilizada para catering */
+export interface BudgetRowPeople {
+  id: string
+  type: 'people'
+  department: string
+  itemName: string
+  roleFunction: string
+}
+
+export type BudgetRow = BudgetRowLabor | BudgetRowCost | BudgetRowPeople
 
 /** Dados das mini tabelas (contingência, CRT, BV agência) */
 export interface MiniTablesData {
@@ -42,6 +51,16 @@ export interface MiniTablesData {
   crt: number
   bvagencia: number
 }
+
+/** Padrões por fase (diárias, semanas, deslocamento, alimentação por pessoa) */
+export interface PhaseDefaults {
+  dias: number
+  semanas: number
+  deslocamento: number
+  alimentacaoPerPerson: number
+}
+
+export type PhaseDefaultsByPhase = Record<'pre' | 'prod' | 'pos', PhaseDefaults>
 
 /** Estado do orçamento por fase: departamento -> linhas */
 export type BudgetLinesByDept = Record<string, BudgetRow[]>

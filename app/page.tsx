@@ -6,23 +6,31 @@ import LoginScreen from '@/components/LoginScreen'
 import Header from '@/components/Header'
 import BottomNav, { type ViewId } from '@/components/BottomNav'
 import ViewFilme from '@/components/views/ViewFilme'
-import ViewOrcamento, { type ViewOrcamentoHandle } from '@/components/views/ViewOrcamento'
+import ViewOrcamento, { type ViewOrcamentoHandle, getInitialLinesByPhase } from '@/components/views/ViewOrcamento'
 import ViewOrcFinal, { type ViewOrcFinalHandle } from '@/components/views/ViewOrcFinal'
 import ViewFechamento, { type ViewFechamentoHandle } from '@/components/views/ViewFechamento'
 import ViewDashboard, { type DashboardAllData } from '@/components/views/ViewDashboard'
 import ViewTeam from '@/components/views/ViewTeam'
 import ViewConfig from '@/components/views/ViewConfig'
-import type { ProjectStatus, ProjectData, BudgetLinesByPhase, VerbaLinesByPhase, MiniTablesData } from '@/lib/types'
+import type { ProjectStatus, ProjectData, BudgetLinesByPhase, VerbaLinesByPhase, MiniTablesData, PhaseDefaultsByPhase } from '@/lib/types'
 import { createProject, updateProject, getProject, type ProjectRecord } from '@/lib/services/projects'
 import { getCompany } from '@/lib/services/company'
+
+const INITIAL_PHASE_DEFAULTS: PhaseDefaultsByPhase = {
+  pre: { dias: 0, semanas: 0, deslocamento: 0, alimentacaoPerPerson: 0 },
+  prod: { dias: 0, semanas: 0, deslocamento: 0, alimentacaoPerPerson: 0 },
+  pos: { dias: 0, semanas: 0, deslocamento: 0, alimentacaoPerPerson: 0 },
+}
 
 export type BudgetSnapshot = {
   budgetLines: BudgetLinesByPhase
   verbaLines: VerbaLinesByPhase
   miniTables: MiniTablesData
+  phaseDefaults?: PhaseDefaultsByPhase
   jobValue: number
   taxRate: number
   notes: Record<'pre' | 'prod' | 'pos', string>
+  cacheTableId?: string | null
 }
 
 async function getNextJobId(): Promise<string> {
@@ -90,9 +98,10 @@ export default function Home() {
     setFinalSnapshot(null)
     // Reset views via refs
     viewOrcRef.current?.loadState({
-      budgetLines: { pre: {}, prod: {}, pos: {} },
+      budgetLines: getInitialLinesByPhase(),
       verbaLines: { pre: {}, prod: {}, pos: {} },
       miniTables: { contingencia: 0, crt: 0, bvagencia: 0 },
+      phaseDefaults: INITIAL_PHASE_DEFAULTS,
       jobValue: 0,
       taxRate: 12.5,
       notes: { pre: '', prod: '', pos: '' },
@@ -176,13 +185,14 @@ export default function Home() {
         cliente: projectData.cliente,
         duracao: projectData.duracao,
         duracao_unit: projectData.duracaoUnit,
-        cache_table_id: orcState?.cacheTableId ?? null,
+        cache_table_id: orcFinalState?.cacheTableId ?? orcState?.cacheTableId ?? null,
         // Status
         status: projectStatus as unknown as Record<string, string>,
         // Orçamento Inicial
         budget_lines_initial: (orcState?.budgetLines ?? {}) as unknown as Record<string, unknown>,
         verba_lines_initial: (orcState?.verbaLines ?? {}) as unknown as Record<string, unknown>,
         mini_tables: (orcState?.miniTables ?? { contingencia: 0, crt: 0, bvagencia: 0 }) as unknown as Record<string, number>,
+        phase_defaults_initial: (orcState?.phaseDefaults ?? INITIAL_PHASE_DEFAULTS) as unknown as Record<string, unknown>,
         job_value: orcState?.jobValue ?? 0,
         tax_rate: orcState?.taxRate ?? 12.5,
         notes_initial: (orcState?.notes ?? { pre: '', prod: '', pos: '' }) as unknown as Record<string, string>,
@@ -190,6 +200,7 @@ export default function Home() {
         budget_lines_final: (orcFinalState?.budgetLines ?? {}) as unknown as Record<string, unknown>,
         verba_lines_final: (orcFinalState?.verbaLines ?? {}) as unknown as Record<string, unknown>,
         mini_tables_final: (orcFinalState?.miniTables ?? { contingencia: 0, crt: 0, bvagencia: 0 }) as unknown as Record<string, number>,
+        phase_defaults_final: (orcFinalState?.phaseDefaults ?? INITIAL_PHASE_DEFAULTS) as unknown as Record<string, unknown>,
         job_value_final: orcState?.jobValue ?? 0,
         tax_rate_final: orcState?.taxRate ?? 12.5,
         notes_final: (orcFinalState?.notes ?? { pre: '', prod: '', pos: '' }) as unknown as Record<string, string>,
@@ -236,17 +247,19 @@ export default function Home() {
       cliente: copyData.cliente,
       duracao: copyData.duracao,
       duracao_unit: copyData.duracaoUnit,
-      cache_table_id: orcState?.cacheTableId ?? null,
+      cache_table_id: orcFinalState?.cacheTableId ?? orcState?.cacheTableId ?? null,
       status: projectStatus as unknown as Record<string, string>,
       budget_lines_initial: (orcState?.budgetLines ?? {}) as unknown as Record<string, unknown>,
       verba_lines_initial: (orcState?.verbaLines ?? {}) as unknown as Record<string, unknown>,
       mini_tables: (orcState?.miniTables ?? { contingencia: 0, crt: 0, bvagencia: 0 }) as unknown as Record<string, number>,
+      phase_defaults_initial: (orcState?.phaseDefaults ?? INITIAL_PHASE_DEFAULTS) as unknown as Record<string, unknown>,
       job_value: orcState?.jobValue ?? 0,
       tax_rate: orcState?.taxRate ?? 12.5,
       notes_initial: (orcState?.notes ?? { pre: '', prod: '', pos: '' }) as unknown as Record<string, string>,
       budget_lines_final: (orcFinalState?.budgetLines ?? {}) as unknown as Record<string, unknown>,
       verba_lines_final: (orcFinalState?.verbaLines ?? {}) as unknown as Record<string, unknown>,
       mini_tables_final: (orcFinalState?.miniTables ?? { contingencia: 0, crt: 0, bvagencia: 0 }) as unknown as Record<string, number>,
+      phase_defaults_final: (orcFinalState?.phaseDefaults ?? INITIAL_PHASE_DEFAULTS) as unknown as Record<string, unknown>,
       job_value_final: orcState?.jobValue ?? 0,
       tax_rate_final: orcState?.taxRate ?? 12.5,
       notes_final: (orcFinalState?.notes ?? { pre: '', prod: '', pos: '' }) as unknown as Record<string, string>,
@@ -303,6 +316,7 @@ export default function Home() {
       budgetLines: project.budget_lines_initial as unknown as BudgetLinesByPhase,
       verbaLines: project.verba_lines_initial as unknown as VerbaLinesByPhase,
       miniTables: project.mini_tables as unknown as MiniTablesData,
+      phaseDefaults: ((project as { phase_defaults_initial?: PhaseDefaultsByPhase }).phase_defaults_initial ?? INITIAL_PHASE_DEFAULTS) as PhaseDefaultsByPhase,
       jobValue: Number(project.job_value) || 0,
       taxRate: Number(project.tax_rate) || 12.5,
       notes: project.notes_initial as unknown as Record<'pre' | 'prod' | 'pos', string>,
@@ -320,7 +334,9 @@ export default function Home() {
       budgetLines: project.budget_lines_final as unknown as BudgetLinesByPhase,
       verbaLines: project.verba_lines_final as unknown as VerbaLinesByPhase,
       miniTables: project.mini_tables_final as unknown as MiniTablesData,
+      phaseDefaults: ((project as { phase_defaults_final?: PhaseDefaultsByPhase }).phase_defaults_final ?? INITIAL_PHASE_DEFAULTS) as PhaseDefaultsByPhase,
       notes: project.notes_final as unknown as Record<'pre' | 'prod' | 'pos', string>,
+      cacheTableId: (project as { cache_table_id?: string | null }).cache_table_id ?? null,
     }
 
     if (status.final === 'locked') {
@@ -333,25 +349,22 @@ export default function Home() {
       setFinalSnapshot(null)
     }
 
-    // Restaurar estado dos views via refs (com timeout para garantir que os snapshots foram setados)
-    setTimeout(() => {
-      viewOrcRef.current?.loadState(orcData)
-      viewOrcFinalRef.current?.loadState(orcFinalData)
+    // Restaurar estado dos views via refs (loadState antes do useEffect para que loadedFromDB evite clone do snapshot)
+    viewOrcRef.current?.loadState(orcData)
+    viewOrcFinalRef.current?.loadState(orcFinalData)
 
-      // Restaurar fechamento (closing_lines: [closingLines, expenses, saving?])
-      const closingData = project.closing_lines as unknown[]
-      if (Array.isArray(closingData) && closingData.length >= 2) {
-        const rawSaving = closingData[2]
-        const saving = rawSaving != null && typeof rawSaving === 'object' && 'items' in rawSaving
-          ? (rawSaving as { items: string[]; pct: number; responsibleId: string | null })
-          : undefined
-        viewFechamentoRef.current?.loadState({
-          closingLines: closingData[0] as never[],
-          expenses: closingData[1] as never[],
-          saving: saving ?? undefined,
-        })
-      }
-    }, 50)
+    const closingData = project.closing_lines as unknown[]
+    if (Array.isArray(closingData) && closingData.length >= 2) {
+      const rawSaving = closingData[2]
+      const saving = rawSaving != null && typeof rawSaving === 'object' && 'items' in rawSaving
+        ? (rawSaving as { items: string[]; pct: number; responsibleId: string | null })
+        : undefined
+      viewFechamentoRef.current?.loadState({
+        closingLines: closingData[0] as never[],
+        expenses: closingData[1] as never[],
+        saving: saving ?? undefined,
+      })
+    }
 
     setCurrentView('filme')
   }, [])
@@ -454,6 +467,7 @@ export default function Home() {
         <div style={{ display: currentView === 'orcamento' ? 'block' : 'none' }}>
           <ViewOrcamento
             ref={viewOrcRef}
+            projectData={projectData}
             isLocked={projectStatus.initial === 'locked'}
             onToggleLock={handleToggleLockInitial}
           />
@@ -462,6 +476,7 @@ export default function Home() {
           <ViewOrcFinal
             ref={viewOrcFinalRef}
             initialSnapshot={initialSnapshot}
+            projectData={projectData}
             isLocked={projectStatus.final === 'locked'}
             onToggleLock={handleToggleLockFinal}
           />

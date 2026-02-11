@@ -1,14 +1,23 @@
-import type { BudgetRow, BudgetRowLabor, BudgetRowCost, VerbaRow } from './types'
-import { LABOR_DEPTS } from './constants'
+import type { BudgetRow, BudgetRowLabor, BudgetRowCost, BudgetRowPeople, VerbaRow, PhaseDefaults } from './types'
+import { LABOR_DEPTS, PEOPLE_DEPTS } from './constants'
 
 export function computeRowTotal(row: BudgetRow): number {
   if (row.type === 'labor') return (row.unitCost + row.extraCost) * row.quantity
+  if (row.type === 'people') return 0
   return row.unitCost * row.quantity
 }
 
-export function createEmptyRow(department: string): BudgetRow {
+export interface CreateEmptyRowOptions {
+  phaseDefaults?: PhaseDefaults
+  /** Para CATERING: unitCost = alimentacaoPerPerson × teamCount */
+  cateringDefaultUnitCost?: number
+}
+
+export function createEmptyRow(department: string, options?: CreateEmptyRowOptions): BudgetRow {
   const id = crypto.randomUUID?.() ?? `row-${Date.now()}-${Math.random().toString(36).slice(2)}`
   const isLabor = LABOR_DEPTS.includes(department as never)
+  const isPeople = PEOPLE_DEPTS.includes(department as never)
+  const def = options?.phaseDefaults
   if (isLabor) {
     return {
       id,
@@ -18,11 +27,22 @@ export function createEmptyRow(department: string): BudgetRow {
       itemName: '',
       unitType: 'dia',
       unitCost: 0,
-      extraCost: 0,
-      quantity: 1,
+      extraCost: def ? def.deslocamento : 0,
+      quantity: def ? (def.dias > 0 ? def.dias : 1) : 1,
       totalCost: 0,
     } satisfies BudgetRowLabor
   }
+  if (isPeople) {
+    return {
+      id,
+      type: 'people',
+      department,
+      itemName: '',
+      roleFunction: '',
+    } satisfies BudgetRowPeople
+  }
+  const isCatering = department === 'CATERING'
+  const unitCost = isCatering && options?.cateringDefaultUnitCost != null ? options.cateringDefaultUnitCost : 0
   return {
     id,
     type: 'cost',
@@ -30,7 +50,7 @@ export function createEmptyRow(department: string): BudgetRow {
     roleFunction: '',
     itemName: '',
     unitType: 'cache',
-    unitCost: 0,
+    unitCost,
     extraCost: 0,
     quantity: 1,
     totalCost: 0,

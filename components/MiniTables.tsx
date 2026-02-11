@@ -49,16 +49,16 @@ export default function MiniTables({ data, onChange }: MiniTablesProps) {
   const inputStyle = { backgroundColor: resolve.bg, borderColor: resolve.border, color: resolve.text }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-3 min-w-0">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 min-w-0">
       {(['contingencia', 'crt', 'bvagencia'] as const).map((key) => (
         <div key={key} className="overflow-hidden border rounded min-w-0" style={cellStyle}>
-          <div className="px-3 py-2.5 flex justify-between items-center gap-3 min-w-0">
-            <span className="text-[11px] font-medium uppercase tracking-wider min-w-0 truncate shrink" style={{ color: resolve.muted }}>
+          <div className="px-2 sm:px-3 py-2.5 flex justify-between items-center gap-2 sm:gap-3 min-w-0">
+            <span className="text-[11px] font-medium uppercase tracking-wider min-w-0 truncate shrink-0" style={{ color: resolve.muted }}>
               {key === 'bvagencia' ? 'BV Agência' : key === 'crt' ? 'CRT' : 'Contingência'}
             </span>
             <input
               type="text"
-              className="minitables-input flex-1 min-w-[5rem] py-1.5 px-2 border rounded text-right text-sm font-mono focus:outline-none"
+              className="minitables-input flex-1 min-w-0 w-20 sm:min-w-[5rem] py-1.5 px-2 border rounded text-right text-sm font-mono focus:outline-none"
               style={inputStyle}
               autoComplete="off"
               value={displayValue(key)}

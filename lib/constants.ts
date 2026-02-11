@@ -18,9 +18,12 @@ export const PRE_PROD_LIST = [
 
 export const POS_PROD_LIST = ['FINALIZAÇÃO', 'ANIMAÇÃO', 'VFX', 'ÁUDIO'] as const
 
+/** Produção: mesmos depts de pré/prod + AGÊNCIA e CLIENTE ao final (apenas em prod) */
+export const PROD_LIST = [...PRE_PROD_LIST, 'AGÊNCIA', 'CLIENTE'] as const
+
 export const DEPARTMENTS = {
   pre: [...PRE_PROD_LIST],
-  prod: [...PRE_PROD_LIST],
+  prod: [...PROD_LIST],
   pos: [...POS_PROD_LIST],
 } as const
 
@@ -46,6 +49,9 @@ export const VERBA_DEPTS = [
   'CASTING',
 ] as const
 
+/** Tabelas de pessoas (NOME + FUNÇÃO), contabilizadas para catering; sem valores monetários. Apenas em prod. */
+export const PEOPLE_DEPTS = ['AGÊNCIA', 'CLIENTE'] as const
+
 export type PhaseKey = 'pre' | 'prod' | 'pos'
 export type LaborDept = (typeof LABOR_DEPTS)[number]
 
@@ -57,4 +63,6 @@ export const CUSTOM_HEADERS: Record<string, { item: string; supplier: string }> 
   CATERING: { item: 'Item', supplier: 'Descrição' },
   TRANSPORTE: { item: 'Item', supplier: 'Descrição' },
   'DESPESAS GERAIS': { item: 'Item', supplier: 'Descrição' },
+  AGÊNCIA: { item: 'Nome', supplier: 'Função' },
+  CLIENTE: { item: 'Nome', supplier: 'Função' },
 }

@@ -163,6 +163,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
         const rows: BudgetRow[] = finalSnapshot.budgetLines[phase]?.[dept] ?? []
         const isLabor = LABOR_DEPTS.includes(dept as never)
         rows.forEach((row) => {
+          if (row.type === 'people') return
           const total = computeRowTotal(row)
           if (total <= 0 && !row.itemName && !row.roleFunction) return
           const laborRow = row as BudgetRowLabor

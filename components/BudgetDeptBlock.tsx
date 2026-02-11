@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import { formatCurrency, parseCurrencyInput } from '@/lib/utils'
 import type { BudgetRow, VerbaRow } from '@/lib/types'
-import { CUSTOM_HEADERS, LABOR_DEPTS } from '@/lib/constants'
+import { CUSTOM_HEADERS, LABOR_DEPTS, PEOPLE_DEPTS } from '@/lib/constants'
 import { computeRowTotal, computeVerbaRowTotal } from '@/lib/budgetUtils'
 import { resolve } from '@/lib/theme'
 import BudgetTableRow from './BudgetTableRow'
@@ -14,6 +14,8 @@ interface BudgetDeptBlockProps {
   verbaRows: VerbaRow[]
   showVerbaButton: boolean
   cacheTableId?: string | null
+  /** Para AGÊNCIA/CLIENTE: exibe este label no header em vez do total (ex: nome da agência) */
+  headerLabel?: string
   onAddRow: () => void
   onUpdateRow: (rowId: string, updates: Partial<BudgetRow>) => void
   onRemoveRow: (rowId: string) => void
@@ -42,15 +44,17 @@ export default function BudgetDeptBlock({
   onAddVerbaRow,
   onUpdateVerbaRow,
   onRemoveVerbaRow,
+  headerLabel,
 }: BudgetDeptBlockProps) {
   const isLabor = LABOR_DEPTS.includes(department as never)
+  const isPeople = PEOPLE_DEPTS.includes(department as never)
   const custom = CUSTOM_HEADERS[department]
   const itemLabel = custom?.item ?? 'Item'
   const supplierLabel = custom?.supplier ?? 'Fornecedor'
   const deptTotal = rows.reduce((sum, r) => sum + computeRowTotal(r), 0)
   const verbaTotal = verbaRows.reduce((sum, v) => sum + computeVerbaRowTotal(v), 0)
   const totalDisplay = deptTotal + verbaTotal
-  const hasVerbaSection = verbaRows.length > 0
+  const hasVerbaSection = verbaRows.length > 0 && !isPeople
 
   const [editingVerbaId, setEditingVerbaId] = useState<string | null>(null)
   const [editingVerbaValue, setEditingVerbaValue] = useState('')
@@ -63,12 +67,23 @@ export default function BudgetDeptBlock({
     <div className="overflow-hidden border rounded" style={{ borderColor: resolve.border, borderRadius: 3 }}>
       <div className="px-2 sm:px-3 py-2.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 border-b" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
         <span className="text-[13px] font-semibold uppercase tracking-wider" style={{ color: resolve.accent }}>{department}</span>
-        <span className="font-mono text-[13px] font-medium normal-case" style={{ color: resolve.yellow }}>{formatCurrency(totalDisplay)}</span>
+        <span
+          className={headerLabel != null ? 'text-[13px] font-semibold uppercase tracking-wider' : 'font-mono text-[13px] font-medium normal-case'}
+          style={{ color: headerLabel != null ? resolve.accent : resolve.yellow }}
+        >
+          {headerLabel != null ? headerLabel || '—' : formatCurrency(totalDisplay)}
+        </span>
       </div>
       <div className="p-2 sm:p-3 border-t overflow-x-auto" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
         <table className="budget-table-cards budget-table-main w-full border-collapse text-[11px] table-fixed min-w-0">
           <colgroup>
-            {isLabor ? (
+            {isPeople ? (
+              <>
+                <col style={{ width: '50%' }} />
+                <col style={{ width: '50%' }} />
+                <col style={{ width: '32px' }} />
+              </>
+            ) : isLabor ? (
               <>
                 <col style={{ width: '20%' }} />
                 <col style={{ width: '24%' }} />
@@ -93,7 +108,13 @@ export default function BudgetDeptBlock({
           </colgroup>
           <thead>
             <tr className="border-b" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.04)' }}>
-              {isLabor ? (
+              {isPeople ? (
+                <>
+                  <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>{itemLabel}</th>
+                  <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>{supplierLabel}</th>
+                  <th className="budget-th-remove" aria-hidden />
+                </>
+              ) : isLabor ? (
                 <>
                   {['Função', 'Nome', 'Tipo', 'Cachê', 'Desl.', 'Qtd', 'Total'].map((h) => (
                     <th key={h} className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>{h}</th>
@@ -135,11 +156,11 @@ export default function BudgetDeptBlock({
             e.stopPropagation()
             onAddRow()
           }}
-          aria-label={`Adicionar ${isLabor ? 'profissional' : 'item'}`}
+          aria-label={`Adicionar ${isPeople ? 'pessoa' : isLabor ? 'profissional' : 'item'}`}
         >
-          + Adicionar {isLabor ? 'profissional' : 'item'}
+          + Adicionar {isPeople ? 'pessoa' : isLabor ? 'profissional' : 'item'}
         </button>
-        {showVerbaButton && !hasVerbaSection && (
+        {showVerbaButton && !hasVerbaSection && !isPeople && (
           <button
             type="button"
             className="btn-resolve-hover w-full mt-2 py-2.5 border rounded-b text-[11px] font-medium uppercase tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-2"

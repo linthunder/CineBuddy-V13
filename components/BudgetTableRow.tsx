@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { formatCurrency, parseCurrencyInput } from '@/lib/utils'
-import type { BudgetRow, BudgetRowLabor, BudgetRowCost } from '@/lib/types'
+import type { BudgetRow, BudgetRowLabor, BudgetRowCost, BudgetRowPeople } from '@/lib/types'
 import { CUSTOM_HEADERS } from '@/lib/constants'
 import { computeRowTotal } from '@/lib/budgetUtils'
 import { resolve } from '@/lib/theme'
@@ -85,6 +85,21 @@ export default function BudgetTableRow({ row, department, cacheTableId, onUpdate
   /* ── Memoizar funções de busca para não recriar refs ── */
   const searchRolesFn = useMemo(() => (term: string) => searchRolesAdapter(term, cacheTableId), [cacheTableId])
   const searchCollabFn = useMemo(() => searchCollabAdapter, [])
+
+  if (row.type === 'people') {
+    const r = row as BudgetRowPeople
+    return (
+      <tr className="border-b transition-colors budget-row-people" style={{ borderColor: resolve.border }}>
+        <td data-label={itemLabel} className="p-1.5 align-middle">
+          <input className={inputClassName} style={inputStyle} value={r.itemName} onChange={(e) => onUpdate({ itemName: e.target.value })} placeholder={itemLabel} />
+        </td>
+        <td data-label={supplierLabel} className="p-1.5 align-middle">
+          <input className={inputClassName} style={inputStyle} value={r.roleFunction} onChange={(e) => onUpdate({ roleFunction: e.target.value })} placeholder={supplierLabel} />
+        </td>
+        <td className="budget-row-remove"><button type="button" onClick={onRemove} className="btn-remove-row" aria-label="Remover linha">×</button></td>
+      </tr>
+    )
+  }
 
   if (row.type === 'labor') {
     const r = row as BudgetRowLabor
