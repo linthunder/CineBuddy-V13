@@ -12,7 +12,7 @@ import {
   type RoleRate, type RoleRateInsert,
 } from '@/lib/services/roles-rates'
 import {
-  listCacheTables, createCacheTable, updateCacheTable, deleteCacheTable, setDefaultCacheTable,
+  listCacheTables, createCacheTable, updateCacheTable, deleteCacheTable, setDefaultCacheTable, duplicateCacheTable,
   type CacheTable, type CacheTableInsert,
 } from '@/lib/services/cache-tables'
 import { formatCurrency } from '@/lib/utils'
@@ -396,6 +396,14 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
     if (typeof window !== 'undefined' && !window.confirm(`Excluir a tabela "${name}" e todas as suas funções? Esta ação não pode ser desfeita.`)) return
     await deleteCacheTable(id)
     loadCacheTables()
+  }
+
+  const handleDuplicateCacheTable = async (t: CacheTable) => {
+    const created = await duplicateCacheTable(t.id)
+    if (created) {
+      loadCacheTables()
+      if (typeof window !== 'undefined') window.alert(`Tabela "${t.name}" duplicada como "${created.name}".`)
+    }
   }
 
   /* ═══════════════════════════════════════════════════════
@@ -802,6 +810,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
             <span>TABELAS DE CACHÊ ({cacheTables.length})</span>
             <button type="button" className={btnSmall} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openCacheTableModal('new')}>+ Nova tabela</button>
           </div>
+          <p className="px-3 py-1.5 text-[10px]" style={{ color: resolve.muted, borderBottom: `1px solid ${resolve.border}` }}>As tabelas criadas, duplicadas e editadas são salvas automaticamente no banco de dados.</p>
           <div className="p-3">
             {cacheTablesLoading ? (
               <div className="text-center py-6 text-sm" style={{ color: resolve.muted }}>Carregando...</div>
@@ -816,11 +825,12 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                       {t.is_default && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: resolve.accent, color: resolve.bg }}>PADRÃO</span>}
                       {t.description && <p className="text-[11px] truncate mt-0.5" style={{ color: resolve.muted }}>{t.description}</p>}
                     </div>
-                    <div className="flex gap-1 flex-shrink-0">
+                    <div className="flex gap-1 flex-shrink-0 flex-wrap">
+                      <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => handleDuplicateCacheTable(t)}>Duplicar</button>
+                      {!t.is_default && <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => setDefaultCacheTable(t.id).then(() => loadCacheTables())}>Tornar padrão</button>}
                       <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => { importTargetTableIdRef.current = t.id; cacheTableFileRef.current?.click(); }}>Importar CSV</button>
                       <input ref={cacheTableFileRef} type="file" accept=".csv" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; const tid = importTargetTableIdRef.current; if (file && tid) { importCacheTableCsv(file, tid); importTargetTableIdRef.current = null; } e.target.value = '' }} />
                       <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.accent, border: `1px solid ${resolve.border}` }} onClick={() => openCacheTableModal(t)}>Editar</button>
-                      {!t.is_default && <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => setDefaultCacheTable(t.id).then(() => loadCacheTables())}>Definir padrão</button>}
                       <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: cinema.danger, border: `1px solid ${resolve.border}` }} onClick={() => removeCacheTable(t.id, t.name)}>Excluir</button>
                     </div>
                   </div>

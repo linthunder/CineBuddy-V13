@@ -224,35 +224,15 @@ const ViewOrcamento = forwardRef<ViewOrcamentoHandle, ViewOrcamentoProps>(functi
           onPhaseChange={setActivePhase}
           isLocked={isLocked}
           onToggleLock={handleToggleLock}
+          cacheTables={cacheTables}
+          cacheTableId={cacheTableId}
+          onCacheTableChange={setCacheTableId}
         />
       }
       toolbar={<MiniTables data={miniTables} onChange={isLocked ? () => {} : setMiniTables} />}
       contentLayout="grid"
     >
       <div className={`col-span-full flex gap-3 min-w-0 ${isLocked ? 'locked-sheet' : ''}`}>
-        {/* Menu vertical: seleção da tabela de cachê */}
-        {cacheTables.length > 0 && (
-          <aside className="flex-shrink-0 w-40 py-2 rounded border" style={{ backgroundColor: resolve.panel, borderColor: resolve.border, height: 'fit-content' }}>
-            <div className="px-2 py-1.5 text-[10px] uppercase tracking-wider font-semibold" style={{ color: resolve.muted }}>Tabela de cachê</div>
-            <nav className="flex flex-col gap-0.5">
-              {cacheTables.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className="text-left px-2 py-1.5 text-[11px] rounded transition-colors"
-                  style={{
-                    backgroundColor: cacheTableId === t.id ? resolve.accent : 'transparent',
-                    color: cacheTableId === t.id ? resolve.bg : resolve.text,
-                  }}
-                  onClick={() => !isLocked && setCacheTableId(t.id)}
-                >
-                  {t.name}
-                  {t.is_default && <span className="ml-1 text-[9px]" style={{ opacity: 0.8 }}>(padrão)</span>}
-                </button>
-              ))}
-            </nav>
-          </aside>
-        )}
         <div className="flex-1 min-w-0 grid grid-cols-1 xl:grid-cols-2 gap-4" style={{ alignContent: 'start' }}>
           {deptsForPhase.map((dept) => (
             <BudgetDeptBlock

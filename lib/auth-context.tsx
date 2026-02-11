@@ -20,6 +20,8 @@ interface AuthContextValue {
   profile: Profile | null
   loading: boolean
   hasUsers: boolean | null
+  /** Para ambientes onde getSession trava (ex: navegador embutido do Cursor) */
+  forceFinishLoading: () => void
   login: (email: string, password: string) => Promise<{ error?: string }>
   logout: () => Promise<void>
   initSignup: (name: string, surname: string, email: string, password: string) => Promise<{ error?: string }>
@@ -40,19 +42,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s)
-      if (s) getMyProfile().then(setProfile)
+    let cancelled = false
+    const timeout = setTimeout(() => {
+      if (cancelled) return
       setLoading(false)
-    })
+    }, 4000)
+
+    supabase.auth.getSession()
+      .then(({ data: { session: s } }) => {
+        if (cancelled) return
+        clearTimeout(timeout)
+        setSession(s)
+        if (s) getMyProfile().then((p) => !cancelled && setProfile(p))
+        setLoading(false)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        clearTimeout(timeout)
+        console.error('Auth getSession:', err)
+        setLoading(false)
+      })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+      if (cancelled) return
       setSession(s)
       if (s) getMyProfile().then(setProfile)
       else setProfile(null)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      cancelled = true
+      clearTimeout(timeout)
+      subscription.unsubscribe()
+    }
   }, [])
 
   useEffect(() => {
@@ -106,12 +128,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return result
   }, [login, setHasUsersTrue])
 
+  const forceFinishLoading = useCallback(() => setLoading(false), [])
+
   const value: AuthContextValue = {
     session,
     user: session?.user ?? null,
     profile,
     loading,
     hasUsers,
+    forceFinishLoading,
     login,
     logout,
     initSignup,

@@ -90,3 +90,23 @@ export async function setDefaultCacheTable(id: string): Promise<boolean> {
   const updated = await updateCacheTable(id, { is_default: true })
   return !!updated
 }
+
+/** Duplica uma tabela de cachê (metadados + todas as funções/cachês) */
+export async function duplicateCacheTable(id: string): Promise<CacheTable | null> {
+  const { data: source } = await supabase.from('cache_tables').select('*').eq('id', id).single()
+  if (!source) return null
+
+  const { data: roles } = await supabase.from('roles_rates').select('funcao, cache_dia, cache_semana').eq('table_id', id)
+  const newTable: CacheTableInsert = {
+    name: `${source.name} (cópia)`,
+    description: source.description || '',
+    source: source.source || '',
+    is_default: false,
+  }
+  const created = await createCacheTable(newTable)
+  if (!created || !roles?.length) return created
+
+  const rows = roles.map((r) => ({ funcao: r.funcao, cache_dia: r.cache_dia, cache_semana: r.cache_semana, table_id: created.id }))
+  await supabase.from('roles_rates').insert(rows)
+  return created
+}

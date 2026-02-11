@@ -45,7 +45,7 @@ const EMPTY_PROJECT: ProjectData = {
 }
 
 export default function Home() {
-  const { user, loading, logout, profile } = useAuth()
+  const { user, loading, logout, profile, forceFinishLoading } = useAuth()
   const [currentView, setCurrentView] = useState<ViewId>('filme')
   const [projectStatus, setProjectStatus] = useState<ProjectStatus>({
     initial: 'open',
@@ -415,8 +415,16 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#0d0d0f', color: '#8e8e93' }}>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4" style={{ backgroundColor: '#0d0d0f', color: '#8e8e93' }}>
         <span className="text-sm">Carregando...</span>
+        <button
+          type="button"
+          onClick={forceFinishLoading}
+          className="text-xs px-3 py-1.5 rounded border"
+          style={{ borderColor: '#5c7c99', color: '#5c7c99' }}
+        >
+          Travou? Clique para continuar
+        </button>
       </div>
     )
   }
