@@ -10,7 +10,8 @@ export interface RoleRate {
   updated_at: string
 }
 
-export type RoleRateInsert = Omit<RoleRate, 'id' | 'created_at' | 'updated_at'>
+/** table_id é opcional no insert; importRoles adiciona ao inserir. */
+export type RoleRateInsert = Omit<RoleRate, 'id' | 'created_at' | 'updated_at'> & { table_id?: string | null }
 
 /**
  * Busca funções por nome (autocomplete).
