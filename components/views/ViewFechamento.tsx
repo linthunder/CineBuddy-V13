@@ -1,14 +1,23 @@
 'use client'
 
-import { useMemo, useState, useEffect, useCallback, forwardRef, useImperativeHandle, useRef } from 'react'
+import { useMemo, useState, useEffect, useCallback, forwardRef, useImperativeHandle, useRef, Fragment } from 'react'
 import PageLayout from '@/components/PageLayout'
-import { DEPARTMENTS, LABOR_DEPTS, VERBA_DEPTS } from '@/lib/constants'
+import { DEPARTMENTS, LABOR_DEPTS } from '@/lib/constants'
+import type { PhaseKey } from '@/lib/constants'
 import { resolve, cinema } from '@/lib/theme'
 import { formatCurrency, parseCurrencyInput } from '@/lib/utils'
-import type { BudgetLinesByPhase, VerbaLinesByPhase, MiniTablesData, BudgetRow, BudgetRowLabor } from '@/lib/types'
+import type { BudgetLinesByPhase, VerbaLinesByPhase, MiniTablesData, BudgetRow, BudgetRowLabor, PhaseDefaultsByPhase } from '@/lib/types'
 import { computeRowTotal, computeVerbaRowTotal, sumDeptTotal } from '@/lib/budgetUtils'
+import { listCollaborators, type Collaborator } from '@/lib/services/collaborators'
 
 /* ── Tipos internos ── */
+/** Uma diária de gravação: horas da diária, adicional % e horas extras nesse dia */
+export interface DiariaEntry {
+  dailyHours: number
+  additionalPct: number
+  overtimeHours: number
+}
+
 interface ClosingLine {
   id: string
   department: string
@@ -22,9 +31,12 @@ interface ClosingLine {
   finalUnitCost: number
   finalExtraCost: number
   finalQuantity: number
-  dailyHours: number
-  additionalPct: number
-  overtimeHours: number
+  /** Diárias de gravação (uma entrada por dia); substitui os campos únicos para labor */
+  diarias: DiariaEntry[]
+  /** @deprecated use diarias; mantido para migração no loadState */
+  dailyHours?: number
+  additionalPct?: number
+  overtimeHours?: number
   invoiceNumber: string
   payStatus: 'pendente' | 'pago'
 }
@@ -39,17 +51,54 @@ interface ExpenseLine {
 }
 
 /* ── Helpers ── */
-const UNIT_TYPE_LABELS: Record<string, string> = {
-  dia: 'Dia', sem: 'Semana', flat: 'Fechado',
-  cache: 'Cachê', verba: 'Verba', extra: 'Extra',
+const PHASE_LABELS: Record<string, string> = {
+  pre: 'Pré-produção',
+  prod: 'Produção',
+  pos: 'Pós-produção',
+}
+
+const PHASE_TABS: { key: PhaseKey; label: string }[] = [
+  { key: 'pre', label: 'Pré-produção' },
+  { key: 'prod', label: 'Produção' },
+  { key: 'pos', label: 'Pós-produção' },
+]
+
+/** Normaliza linha para sempre ter diarias (para compatibilidade com dados antigos). */
+function normalizeDiarias(line: ClosingLine): DiariaEntry[] {
+  if (line.diarias && line.diarias.length > 0) return line.diarias
+  return [{
+    dailyHours: line.dailyHours ?? 8,
+    additionalPct: line.additionalPct ?? 0,
+    overtimeHours: line.overtimeHours ?? 0,
+  }]
+}
+
+/** Valor da diária de referência (para exibição e cálculo de HE: semana = semanal/5) */
+function getCachePerDay(line: ClosingLine): number {
+  if (line.type === 'sem') return line.finalUnitCost / 5
+  if (line.type === 'dia') return line.finalUnitCost
+  const diarias = normalizeDiarias(line)
+  const n = Math.max(1, diarias.length)
+  return line.finalValue / n
 }
 
 function calcOvertime(line: ClosingLine): number {
-  if (!line.isLabor || line.dailyHours <= 0) return 0
-  const hourlyRate = line.finalUnitCost / line.dailyHours
-  const additionalRate = hourlyRate * (line.additionalPct / 100)
-  const rateWithAdditional = hourlyRate + additionalRate
-  return rateWithAdditional * line.overtimeHours
+  if (!line.isLabor) return 0
+  const diarias = normalizeDiarias(line)
+  const unitPerDay = line.type === 'sem' ? line.finalUnitCost / 5 : line.finalUnitCost
+  let total = 0
+  for (const d of diarias) {
+    if (d.dailyHours <= 0) continue
+    const hourlyRate = unitPerDay / d.dailyHours
+    const rateWithAdditional = hourlyRate * (1 + d.additionalPct / 100)
+    total += rateWithAdditional * d.overtimeHours
+  }
+  return total
+}
+
+function findCollaboratorByName(collaborators: Collaborator[], name: string): Collaborator | undefined {
+  const normalized = (name || '').trim().toLowerCase()
+  return collaborators.find((c) => c.nome?.trim().toLowerCase() === normalized)
 }
 
 function calcTotalNF(line: ClosingLine): number {
@@ -63,6 +112,30 @@ const inputStyle: React.CSSProperties = {
   borderRadius: 2,
 }
 const inputClassName = 'w-full py-1 px-2 text-[11px] focus:outline-none'
+/** Selects da linha de diária: compactos e bem distribuídos */
+const inputDiariaClassName = 'w-full max-w-[6.5rem] py-0.5 px-1.5 text-[10px] focus:outline-none'
+const sepVertical = (key?: string) => (
+  <span key={key} className="flex-shrink-0 self-stretch w-px min-h-[1em]" style={{ backgroundColor: resolve.border }} aria-hidden />
+)
+const iconBtnCls = 'team-info-btn w-7 h-7 flex items-center justify-center rounded border transition-colors text-xs font-medium'
+
+function CopyableLine({ label, value }: { label: string; value: string }) {
+  const text = value || '—'
+  const copy = () => {
+    navigator.clipboard.writeText(text).then(() => {
+      if (typeof window !== 'undefined') window.alert('Copiado!')
+    }).catch(() => {})
+  }
+  return (
+    <div className="flex items-start justify-between gap-2 py-1">
+      <div className="min-w-0 flex-1">
+        <span className="text-[11px] uppercase block" style={{ color: resolve.muted }}>{label}</span>
+        <span className="text-sm break-words" style={{ color: resolve.text }}>{text}</span>
+      </div>
+      <button type="button" onClick={copy} title="Copiar" className="team-info-btn flex-shrink-0 h-7 px-2 rounded border text-[10px] font-medium uppercase" style={{ borderColor: resolve.border, color: resolve.text }}>Copiar</button>
+    </div>
+  )
+}
 
 const DAILY_HOURS_OPTIONS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 const ADDITIONAL_OPTIONS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
@@ -126,6 +199,8 @@ interface ViewFechamentoProps {
   isLocked?: boolean
   /** Callback do botão CONCLUIR FECHAMENTO / REABRIR FECHAMENTO */
   onToggleLock?: () => void
+  /** Padrões por fase (dias da fase) para HE de profissional por semana */
+  getPhaseDefaults?: () => PhaseDefaultsByPhase | undefined
 }
 
 export interface ViewFechamentoHandle {
@@ -136,18 +211,38 @@ export interface ViewFechamentoHandle {
 /* ── Componente ── */
 const defaultSaving: SavingConfig = { items: [], pct: 10, responsibleId: null }
 
-const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(function ViewFechamento({ finalSnapshot, initialSnapshot, initialJobValue, isLocked = false, onToggleLock }, ref) {
+const defaultDiaria = (): DiariaEntry => ({ dailyHours: 8, additionalPct: 0, overtimeHours: 0 })
+
+const JORNADA_LABEL: Record<string, string> = { dia: 'Diária', sem: 'Semana', flat: 'Fechado' }
+
+const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(function ViewFechamento({ finalSnapshot, initialSnapshot, initialJobValue, isLocked = false, onToggleLock, getPhaseDefaults }, ref) {
   const [closingLines, setClosingLines] = useState<ClosingLine[]>([])
   const [expenses, setExpenses] = useState<ExpenseLine[]>([])
   const [saving, setSaving] = useState<SavingConfig>(defaultSaving)
   const [savingModalOpen, setSavingModalOpen] = useState(false)
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([])
+  const [modalContact, setModalContact] = useState<Collaborator | 'no-data' | null>(null)
+  const [modalBank, setModalBank] = useState<Collaborator | 'no-data' | null>(null)
+  const [activePhase, setActivePhase] = useState<PhaseKey>('prod')
+  /** Para tipo 'sem': linha expandida para cálculo de HE (mostra diárias) */
+  const [showOvertimeForLineId, setShowOvertimeForLineId] = useState<Record<string, boolean>>({})
   const loadedFromDB = useRef(false)
+
+  useEffect(() => {
+    listCollaborators().then(setCollaborators).catch(() => setCollaborators([]))
+  }, [])
 
   useImperativeHandle(ref, () => ({
     getState: () => ({ closingLines, expenses, saving: saving.items.length > 0 || saving.responsibleId ? saving : undefined }),
     loadState: (state) => {
       loadedFromDB.current = state.closingLines.length > 0 || state.expenses.length > 0
-      setClosingLines(state.closingLines)
+      const normalized = state.closingLines.map((l: ClosingLine) => {
+        const diarias = l.diarias?.length
+          ? l.diarias
+          : [{ dailyHours: l.dailyHours ?? 8, additionalPct: l.additionalPct ?? 0, overtimeHours: l.overtimeHours ?? 0 }]
+        return { ...l, diarias }
+      })
+      setClosingLines(normalized)
       setExpenses(state.expenses)
       setSaving(state.saving != null ? { ...defaultSaving, ...state.saving } : defaultSaving)
     },
@@ -167,6 +262,8 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
           const total = computeRowTotal(row)
           if (total <= 0 && !row.itemName && !row.roleFunction) return
           const laborRow = row as BudgetRowLabor
+          const numDias = Math.max(1, row.quantity || 1)
+          const diarias: DiariaEntry[] = Array.from({ length: numDias }, () => defaultDiaria())
           lines.push({
             id: row.id,
             department: dept,
@@ -180,9 +277,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
             finalUnitCost: row.unitCost,
             finalExtraCost: isLabor ? (laborRow.extraCost ?? 0) : 0,
             finalQuantity: row.quantity,
-            dailyHours: 8,
-            additionalPct: 0,
-            overtimeHours: 0,
+            diarias,
             invoiceNumber: '',
             payStatus: 'pendente',
           })
@@ -205,9 +300,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
             finalUnitCost: v.unitCost,
             finalExtraCost: 0,
             finalQuantity: v.quantity,
-            dailyHours: 8,
-            additionalPct: 0,
-            overtimeHours: 0,
+            diarias: [],
             invoiceNumber: '',
             payStatus: 'pendente',
           })
@@ -223,29 +316,73 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
     setClosingLines((prev) => prev.map((l) => (l.id === id ? { ...l, ...updates } : l)))
   }, [isLocked])
 
-  /* Agrupar linhas por departamento (mantendo a ordem original) */
-  const linesByDept = useMemo(() => {
-    const map: { dept: string; lines: ClosingLine[] }[] = []
-    const seen = new Set<string>()
+  const updateDiaria = useCallback((lineId: string, diariaIndex: number, updates: Partial<DiariaEntry>) => {
+    if (isLocked) return
+    setClosingLines((prev) => prev.map((l) => {
+      if (l.id !== lineId || !l.diarias?.length) return l
+      const next = [...l.diarias]
+      if (diariaIndex < 0 || diariaIndex >= next.length) return l
+      next[diariaIndex] = { ...next[diariaIndex], ...updates }
+      return { ...l, diarias: next }
+    }))
+  }, [isLocked])
+
+  const addDiaria = useCallback((lineId: string) => {
+    if (isLocked) return
+    setClosingLines((prev) => prev.map((l) => {
+      if (l.id !== lineId) return l
+      const diarias = normalizeDiarias(l)
+      return { ...l, diarias: [...diarias, defaultDiaria()] }
+    }))
+  }, [isLocked])
+
+  const removeDiaria = useCallback((lineId: string, diariaIndex: number) => {
+    if (isLocked) return
+    setClosingLines((prev) => prev.map((l) => {
+      if (l.id !== lineId) return l
+      const diarias = normalizeDiarias(l)
+      if (diarias.length <= 1) return l
+      const next = diarias.filter((_, i) => i !== diariaIndex)
+      return { ...l, diarias: next }
+    }))
+  }, [isLocked])
+
+  /** Expande o bloco de HE para profissional por semana; cria diárias conforme dias da fase */
+  const expandOvertimeForSemLine = useCallback((lineId: string) => {
+    setShowOvertimeForLineId((prev) => ({ ...prev, [lineId]: true }))
+    const phaseDefs = getPhaseDefaults?.()
+    const dias = phaseDefs?.[activePhase]?.dias ?? 1
+    const n = Math.max(1, dias)
+    setClosingLines((prev) => prev.map((l) => {
+      if (l.id !== lineId || l.type !== 'sem') return l
+      const current = normalizeDiarias(l)
+      if (current.length >= n) return l
+      const next = [...current]
+      while (next.length < n) next.push(defaultDiaria())
+      return { ...l, diarias: next }
+    }))
+  }, [activePhase, getPhaseDefaults])
+
+  /* Agrupar por fase e depois por departamento (pré → produção → pós) */
+  const linesByPhaseAndDept = useMemo(() => {
+    const byPhase: Record<string, Record<string, ClosingLine[]>> = { pre: {}, prod: {}, pos: {} }
+    const deptOrder: Record<string, string[]> = { pre: [], prod: [], pos: [] }
     closingLines.forEach((l) => {
-      const key = `${l.phase}-${l.department}`
-      if (!seen.has(key)) {
-        seen.add(key)
-        map.push({ dept: l.department, lines: [] })
+      const phase = l.phase in byPhase ? l.phase : 'prod'
+      if (!byPhase[phase][l.department]) {
+        byPhase[phase][l.department] = []
+        deptOrder[phase].push(l.department)
       }
-      map.find((g) => g.dept === l.department && g.lines === map.find((m) => `${closingLines.find((cl) => cl.department === l.department && cl.phase === l.phase)?.phase}-${l.department}` === key)?.lines)
+      byPhase[phase][l.department].push(l)
     })
-    // Simpler approach: group by dept name
-    const grouped: Record<string, ClosingLine[]> = {}
-    const order: string[] = []
-    closingLines.forEach((l) => {
-      if (!grouped[l.department]) {
-        grouped[l.department] = []
-        order.push(l.department)
+    const result: { phase: string; phaseLabel: string; depts: { dept: string; lines: ClosingLine[] }[] }[] = []
+    ;(['pre', 'prod', 'pos'] as const).forEach((phase) => {
+      const depts = deptOrder[phase].map((dept) => ({ dept, lines: byPhase[phase][dept] }))
+      if (depts.length > 0) {
+        result.push({ phase, phaseLabel: PHASE_LABELS[phase] ?? phase, depts })
       }
-      grouped[l.department].push(l)
     })
-    return order.map((dept) => ({ dept, lines: grouped[dept] }))
+    return result
   }, [closingLines])
 
   /* Totais */
@@ -440,121 +577,235 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
     </div>
   )
 
+  const activePhaseData = linesByPhaseAndDept.find((p) => p.phase === activePhase)
+
   return (
     <PageLayout title="Fechamento" strip={financeStrip} tabs={closingTabs}>
-      {/* Blocos por departamento */}
-      <div className={isLocked ? 'locked-sheet' : ''}>
-        {linesByDept.map(({ dept, lines }) => {
-          const deptTotal = lines.reduce((s, l) => s + calcTotalNF(l), 0)
+      {/* Navegação entre fases (como no Orçamento) */}
+      <div className="flex flex-wrap gap-1.5 sm:gap-2 items-center mb-4">
+        {PHASE_TABS.map(({ key, label }) => {
+          const isActive = activePhase === key
           return (
-            <div key={dept} className="overflow-hidden border rounded mb-6" style={{ borderColor: resolve.border, borderRadius: 3 }}>
-              {/* Header do departamento */}
-              <div className="px-3 py-2 flex justify-between items-center border-b" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
-                <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: resolve.muted }}>{dept}</span>
-                <span className="font-mono text-[13px] font-medium" style={{ color: resolve.text }}>{formatCurrency(deptTotal)}</span>
-              </div>
-
-              <div className="overflow-x-auto" style={{ backgroundColor: resolve.panel }}>
-                {lines.map((line) => {
-                  const overtime = calcOvertime(line)
-                  const totalNF = calcTotalNF(line)
-                  const periodLabel = UNIT_TYPE_LABELS[line.type] ?? line.type
-                  return (
-                    <div key={line.id} className="border-b" style={{ borderColor: resolve.border }}>
-                      {/* Linha principal */}
-                      <div className="grid items-center gap-2 px-3 py-2.5" style={{ backgroundColor: 'rgba(255,255,255,0.03)', gridTemplateColumns: '1fr auto auto' }}>
-                        <div className="min-w-0">
-                          <span className="text-xs font-medium" style={{ color: resolve.text }}>{line.name || '—'}</span>
-                          {line.role && line.role !== line.name && (
-                            <span className="text-[11px] ml-2" style={{ color: resolve.muted }}>{line.role}</span>
-                          )}
-                        </div>
-                        <span className="text-[11px] whitespace-nowrap" style={{ color: resolve.muted, justifySelf: 'center' }}>
-                          Período: <strong style={{ color: resolve.text }}>{periodLabel}</strong>
-                        </span>
-                        <span className="text-[11px] whitespace-nowrap" style={{ color: resolve.muted, justifySelf: 'center' }}>
-                          {line.finalQuantity > 0 && <>Qtd: <strong style={{ color: resolve.text }}>{line.finalQuantity}</strong></>}
-                        </span>
-                      </div>
-
-                      {/* Linha de fechamento (labor only) */}
-                      {line.isLabor && (
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-3 py-2 border-t" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.01)' }}>
-                          <div>
-                            <label className="block text-[10px] uppercase mb-0.5" style={{ color: resolve.muted }}>Diária de</label>
-                            <select className={inputClassName} style={inputStyle} value={line.dailyHours} onChange={(e) => updateLine(line.id, { dailyHours: Number(e.target.value) })}>
-                              {DAILY_HOURS_OPTIONS.map((h) => <option key={h} value={h}>{h}h</option>)}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-[10px] uppercase mb-0.5" style={{ color: resolve.muted }}>Adicional</label>
-                            <select className={inputClassName} style={inputStyle} value={line.additionalPct} onChange={(e) => updateLine(line.id, { additionalPct: Number(e.target.value) })}>
-                              {ADDITIONAL_OPTIONS.map((p) => <option key={p} value={p}>{p}%</option>)}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-[10px] uppercase mb-0.5" style={{ color: resolve.muted }}>Horas Extra</label>
-                            <select className={inputClassName} style={inputStyle} value={line.overtimeHours} onChange={(e) => updateLine(line.id, { overtimeHours: Number(e.target.value) })}>
-                              {OVERTIME_OPTIONS.map((h) => <option key={h} value={h}>{h}h</option>)}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-[10px] uppercase mb-0.5" style={{ color: resolve.muted }}>Nota Fiscal</label>
-                            <input className={inputClassName} style={inputStyle} value={line.invoiceNumber} onChange={(e) => updateLine(line.id, { invoiceNumber: e.target.value })} placeholder="NF" />
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Linha de resumo com detalhes de valores + total e status */}
-                      <div className="flex flex-wrap items-center gap-3 px-3 py-1.5 border-t text-[10px]" style={{ borderColor: resolve.border, color: resolve.muted }}>
-                        {line.isLabor ? (
-                          <>
-                            <span>Cachê: <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency(line.finalUnitCost * line.finalQuantity)}</strong></span>
-                            {line.finalExtraCost > 0 && (
-                              <span>Desl.: <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency(line.finalExtraCost * line.finalQuantity)}</strong></span>
-                            )}
-                            {overtime > 0 && (
-                              <span>HE: <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency(overtime)}</strong></span>
-                            )}
-                            {saving.responsibleId === line.id && valueToPay > 0 && (
-                              <span>Saving: <strong className="font-mono" style={{ color: cinema.success }}>{formatCurrency(valueToPay)}</strong></span>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            {!line.isVerba && (
-                              <div className="flex items-center gap-1">
-                                <span>NF:</span>
-                                <input className="py-0.5 px-1.5 text-xs focus:outline-none w-24" style={inputStyle} value={line.invoiceNumber} onChange={(e) => updateLine(line.id, { invoiceNumber: e.target.value })} placeholder="NF" />
-                              </div>
-                            )}
-                            {line.isVerba && <span>Verba</span>}
-                          </>
-                        )}
-                        <div className="ml-auto flex items-center gap-2 flex-shrink-0">
-                          <span className="font-mono text-[11px] font-medium whitespace-nowrap" style={{ color: resolve.yellow }}>
-                            {formatCurrency(saving.responsibleId === line.id && valueToPay > 0 ? totalNF + valueToPay : totalNF)}
-                          </span>
-                          <button
-                            type="button"
-                            className="text-[10px] font-medium uppercase px-2.5 py-0.5 rounded transition-colors whitespace-nowrap"
-                            style={{
-                              backgroundColor: line.payStatus === 'pago' ? cinema.success : cinema.danger,
-                              color: '#fff',
-                            }}
-                            onClick={() => updateLine(line.id, { payStatus: line.payStatus === 'pago' ? 'pendente' : 'pago' })}
-                          >
-                            {line.payStatus === 'pago' ? 'PAGO ✓' : 'A PAGAR'}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+            <button
+              key={key}
+              type="button"
+              onClick={() => setActivePhase(key)}
+              className="btn-resolve-hover h-8 flex-1 sm:flex-none min-w-0 px-2 sm:px-3 md:px-4 rounded text-[10px] sm:text-xs font-medium uppercase tracking-wide transition-colors border whitespace-nowrap"
+              style={{
+                backgroundColor: isActive ? resolve.yellowDark : resolve.panel,
+                borderColor: isActive ? resolve.yellow : resolve.border,
+                color: isActive ? resolve.bg : resolve.muted,
+              }}
+            >
+              {label}
+            </button>
           )
         })}
+      </div>
+
+      {/* Blocos do departamento da fase ativa */}
+      <div className={isLocked ? 'locked-sheet' : ''}>
+        {!activePhaseData?.depts.length ? (
+          <div className="py-8 text-center text-sm rounded border" style={{ color: resolve.muted, borderColor: resolve.border, backgroundColor: resolve.panel }}>
+            Nenhum item nesta fase.
+          </div>
+        ) : (
+        activePhaseData.depts.map(({ dept, lines }) => {
+              const deptTotal = lines.reduce((s, l) => s + calcTotalNF(l), 0)
+              return (
+                <div key={`${activePhase}-${dept}`} className="overflow-hidden border rounded mb-6" style={{ borderColor: resolve.border, borderRadius: 3 }}>
+                  <div className="px-3 py-2 flex justify-between items-center border-b" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
+                    <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: resolve.muted }}>{dept}</span>
+                    <span className="font-mono text-[13px] font-medium" style={{ color: resolve.text }}>{formatCurrency(deptTotal)}</span>
+                  </div>
+
+                  <div className="overflow-x-auto" style={{ backgroundColor: resolve.panel }}>
+                    {lines.map((line, lineIdx) => {
+                      const overtime = calcOvertime(line)
+                      const totalNF = calcTotalNF(line)
+                      const diarias = normalizeDiarias(line)
+                      const collab = line.name ? findCollaboratorByName(collaborators, line.name) : undefined
+                      return (
+                        <div
+                          key={line.id}
+                          className="border-b last:border-b-0"
+                          style={{
+                            borderColor: resolve.border,
+                            borderBottomWidth: lineIdx < lines.length - 1 ? 2 : undefined,
+                            marginBottom: lineIdx < lines.length - 1 ? 0 : undefined,
+                          }}
+                        >
+                          {/* Linha principal: nome, função, jornada (diária/semana), botão FECHAR (sem+expandido) e botões de informação */}
+                          <div className="flex items-center gap-2 px-3 py-2.5 flex-wrap" style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}>
+                            <div className="min-w-0 flex items-center gap-2 flex-wrap flex-1">
+                              <span className="text-xs font-medium" style={{ color: resolve.text }}>{line.name || '—'}</span>
+                              {line.role && line.role !== line.name && (
+                                <span className="text-[11px]" style={{ color: resolve.muted }}>{line.role}</span>
+                              )}
+                              {line.isLabor && line.type && (
+                                <span
+                                  className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded"
+                                  style={{ backgroundColor: resolve.border, color: resolve.muted }}
+                                  title="Jornada de pagamento"
+                                >
+                                  {JORNADA_LABEL[line.type] ?? line.type}
+                                </span>
+                              )}
+                              {line.isLabor && line.type === 'sem' && showOvertimeForLineId[line.id] && (
+                                <button
+                                  type="button"
+                                  onClick={() => setShowOvertimeForLineId((prev) => ({ ...prev, [line.id]: false }))}
+                                  className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded border transition-colors"
+                                  style={{ borderColor: resolve.border, color: resolve.muted }}
+                                >
+                                  Fechar
+                                </button>
+                              )}
+                            </div>
+                            {line.isLabor && (line.name || line.role) && (
+                              <div className="flex items-center justify-center gap-0.5 flex-wrap">
+                                <button type="button" title="Telefone, e-mail e endereço" className={iconBtnCls} style={{ borderColor: resolve.border, color: resolve.text }} onClick={() => setModalContact(collab ?? 'no-data')}><span className="font-serif font-bold">i</span></button>
+                                <button type="button" title="Dados bancários e PIX" className={iconBtnCls} style={{ borderColor: resolve.border, color: resolve.text }} onClick={() => setModalBank(collab ?? 'no-data')}>$</button>
+                                <button type="button" title="Contrato (Drive) — em breve" className={`${iconBtnCls} opacity-70`} style={{ borderColor: resolve.border, color: resolve.text }} onClick={() => window.alert('Abertura do contrato (Google Drive) será implementada em breve.')}>✎</button>
+                                <button type="button" title="Nota fiscal (Drive) — em breve" className={`${iconBtnCls} opacity-70`} style={{ borderColor: resolve.border, color: resolve.text }} onClick={() => window.alert('Abertura da nota fiscal (Google Drive) será implementada em breve.')}>📄</button>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Uma linha de diária por dia (labor). Por semana: oculto até clicar em "Calcular hora extra das diárias" */}
+                          {line.isLabor && line.type === 'sem' && !showOvertimeForLineId[line.id] && (
+                            <div className="px-3 py-2 border-t flex items-center" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.01)' }}>
+                              <button
+                                type="button"
+                                onClick={() => expandOvertimeForSemLine(line.id)}
+                                className="text-[11px] font-medium uppercase tracking-wider px-3 py-1.5 rounded border transition-colors"
+                                style={{ borderColor: resolve.border, color: resolve.muted }}
+                              >
+                                Calcular hora extra das diárias
+                              </button>
+                              <span className="ml-2 text-[10px]" style={{ color: resolve.muted }}>(ref.: {formatCurrency(getCachePerDay(line))}/dia)</span>
+                            </div>
+                          )}
+                          {line.isLabor && (line.type !== 'sem' || showOvertimeForLineId[line.id]) && (
+                            <div className="px-3 py-2 border-t space-y-0" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.01)' }}>
+                              {diarias.map((d, diariaIdx) => (
+                                <div
+                                  key={diariaIdx}
+                                  className={`grid grid-cols-2 sm:grid-cols-5 gap-x-1.5 gap-y-1 items-center py-1.5 ${diariaIdx < diarias.length - 1 ? 'border-b' : ''}`}
+                                  style={{ borderColor: diariaIdx < diarias.length - 1 ? resolve.border : undefined }}
+                                >
+                                  <div className="flex items-center gap-1.5 min-w-0 col-span-2 sm:col-span-1">
+                                    <span className="text-[10px] uppercase whitespace-nowrap font-mono font-bold truncate" style={{ color: resolve.muted }} title="Valor da diária de referência">{formatCurrency(getCachePerDay(line))}/dia</span>
+                                    {sepVertical()}
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] uppercase mb-0.5 font-bold" style={{ color: resolve.muted }}>Diária {diarias.length > 1 ? `${diariaIdx + 1} (horas)` : 'de'}</label>
+                                    <select className={inputDiariaClassName} style={inputStyle} value={d.dailyHours} onChange={(e) => updateDiaria(line.id, diariaIdx, { dailyHours: Number(e.target.value) })}>
+                                      {DAILY_HOURS_OPTIONS.map((h) => <option key={h} value={h}>{h}h</option>)}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] uppercase mb-0.5" style={{ color: resolve.muted }}>Adicional</label>
+                                    <select className={inputDiariaClassName} style={inputStyle} value={d.additionalPct} onChange={(e) => updateDiaria(line.id, diariaIdx, { additionalPct: Number(e.target.value) })}>
+                                      {ADDITIONAL_OPTIONS.map((p) => <option key={p} value={p}>{p}%</option>)}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] uppercase mb-0.5" style={{ color: resolve.muted }}>Horas Extra</label>
+                                    <select className={inputDiariaClassName} style={inputStyle} value={d.overtimeHours} onChange={(e) => updateDiaria(line.id, diariaIdx, { overtimeHours: Number(e.target.value) })}>
+                                      {OVERTIME_OPTIONS.map((h) => <option key={h} value={h}>{h}h</option>)}
+                                    </select>
+                                  </div>
+                                  <div className="flex items-center gap-1 col-span-2 sm:col-span-1">
+                                    {diarias.length > 1 && (
+                                      <button type="button" onClick={() => removeDiaria(line.id, diariaIdx)} className="h-7 w-7 flex items-center justify-center rounded border text-[10px] font-medium uppercase" style={{ borderColor: resolve.border, color: resolve.muted }} title="Excluir diária">−</button>
+                                    )}
+                                    {diariaIdx === diarias.length - 1 && (
+                                      <button type="button" onClick={() => addDiaria(line.id)} className="h-7 px-2 flex items-center justify-center rounded border text-[10px] font-medium uppercase" style={{ borderColor: resolve.border, color: resolve.text }} title="Adicionar diária">+ Diária</button>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Linha de resumo: CACHÊ TOTAL | CACHÊ DIA 1… (ou REF. CACHÊ/DIA para sem) | DESL. | HE | Saving | NF (tudo maiúsculo, separadores verticais) */}
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-1.5 border-t text-[10px] uppercase tracking-wider" style={{ borderColor: resolve.border, color: resolve.muted }}>
+                            {line.isLabor ? (
+                              <>
+                                <span className="whitespace-nowrap">Cachê total <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency(line.finalUnitCost * line.finalQuantity)}</strong></span>
+                                {line.type === 'dia' && (
+                                  <>
+                                    {sepVertical()}
+                                    {diarias.length <= 1 ? (
+                                      <span className="whitespace-nowrap">Cachê/dia <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency(getCachePerDay(line))}</strong></span>
+                                    ) : (
+                                      diarias.map((_, i) => (
+                                        <Fragment key={i}>
+                                          {i > 0 && sepVertical()}
+                                          <span className="whitespace-nowrap">Cachê dia {i + 1} <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency(getCachePerDay(line))}</strong></span>
+                                        </Fragment>
+                                      ))
+                                    )}
+                                  </>
+                                )}
+                                {line.finalExtraCost > 0 && (
+                                  <>
+                                    {sepVertical()}
+                                    <span className="whitespace-nowrap">Desl. <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency(line.finalExtraCost * line.finalQuantity)}</strong></span>
+                                  </>
+                                )}
+                                {line.type === 'sem' && (
+                                  <>
+                                    {sepVertical()}
+                                    <span className="whitespace-nowrap">Ref. cachê/dia <span className="font-mono" style={{ color: resolve.muted }}>{formatCurrency(getCachePerDay(line))}</span></span>
+                                  </>
+                                )}
+                                {overtime > 0 && (
+                                  <>
+                                    {sepVertical()}
+                                    <span className="whitespace-nowrap">HE <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency(overtime)}</strong></span>
+                                  </>
+                                )}
+                                {saving.responsibleId === line.id && valueToPay > 0 && (
+                                  <>
+                                    {sepVertical()}
+                                    <span className="whitespace-nowrap">Saving <strong className="font-mono" style={{ color: cinema.success }}>{formatCurrency(valueToPay)}</strong></span>
+                                  </>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                {line.isVerba && <span>Verba</span>}
+                              </>
+                            )}
+                            {sepVertical()}
+                            <div className="flex items-center gap-1">
+                              <span>NF</span>
+                              <input className="py-0.5 px-1.5 text-[10px] uppercase focus:outline-none w-20" style={inputStyle} value={line.invoiceNumber} onChange={(e) => updateLine(line.id, { invoiceNumber: e.target.value })} placeholder="NF" />
+                            </div>
+                            <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+                              <span className="font-mono text-[11px] font-medium whitespace-nowrap" style={{ color: resolve.yellow }}>
+                                {formatCurrency(saving.responsibleId === line.id && valueToPay > 0 ? totalNF + valueToPay : totalNF)}
+                              </span>
+                              <button
+                                type="button"
+                                className="text-[10px] font-medium uppercase px-2.5 py-0.5 rounded transition-colors whitespace-nowrap"
+                                style={{ backgroundColor: line.payStatus === 'pago' ? cinema.success : cinema.danger, color: '#fff' }}
+                                onClick={() => updateLine(line.id, { payStatus: line.payStatus === 'pago' ? 'pendente' : 'pago' })}
+                              >
+                                {line.payStatus === 'pago' ? 'PAGO ✓' : 'A PAGAR'}
+                              </button>
+                            </div>
+                          </div>
+                </div>
+              )
+            })}
+                  </div>
+                </div>
+              )
+            })
+        )}
       </div>
 
       {/* Prestação de contas */}
@@ -618,6 +869,49 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
           </button>
         </div>
       </div>
+
+      {/* Modal: Contato (telefone, e-mail, endereço) */}
+      {modalContact !== null && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setModalContact(null)}>
+          <div className="rounded border p-4 w-full max-w-sm shadow-lg" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3 flex items-center gap-2" style={{ color: resolve.text }}><span>ℹ</span> Contato</h3>
+            {modalContact !== 'no-data' ? (
+              <div className="space-y-0 text-sm">
+                <CopyableLine label="Telefone" value={modalContact.telefone ?? ''} />
+                <CopyableLine label="E-mail" value={modalContact.email ?? ''} />
+                <CopyableLine label="Endereço" value={modalContact.endereco ?? ''} />
+              </div>
+            ) : (
+              <p className="text-sm" style={{ color: resolve.muted }}>Nenhum colaborador cadastrado com este nome.</p>
+            )}
+            <div className="mt-4 flex justify-end">
+              <button type="button" onClick={() => setModalContact(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ borderColor: resolve.border, color: resolve.text }}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Dados bancários e PIX */}
+      {modalBank !== null && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setModalBank(null)}>
+          <div className="rounded border p-4 w-full max-w-sm shadow-lg" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3 flex items-center gap-2" style={{ color: resolve.text }}><span>$</span> Dados bancários</h3>
+            {modalBank !== 'no-data' ? (
+              <div className="space-y-0 text-sm">
+                <CopyableLine label="Banco" value={modalBank.banco ?? ''} />
+                <CopyableLine label="Agência" value={modalBank.agencia ?? ''} />
+                <CopyableLine label="Conta" value={modalBank.conta ?? ''} />
+                <CopyableLine label="PIX" value={modalBank.pix ?? ''} />
+              </div>
+            ) : (
+              <p className="text-sm" style={{ color: resolve.muted }}>Nenhum colaborador cadastrado com este nome.</p>
+            )}
+            <div className="mt-4 flex justify-end">
+              <button type="button" onClick={() => setModalBank(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ borderColor: resolve.border, color: resolve.text }}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </PageLayout>
   )
 })

@@ -17,6 +17,13 @@ import {
  * ══════════════════════════════════════════════════════════ */
 type StageId = 'initial' | 'final' | 'closing'
 
+/** Uma diária de gravação (compatível com ViewFechamento) */
+export interface DashboardDiariaEntry {
+  dailyHours: number
+  additionalPct: number
+  overtimeHours: number
+}
+
 /** Shape esperada de uma linha do fechamento (subset do tipo interno de ViewFechamento) */
 export interface DashboardClosingLine {
   department: string
@@ -27,9 +34,14 @@ export interface DashboardClosingLine {
   isVerba: boolean
   finalValue: number
   finalUnitCost: number
-  dailyHours: number
-  additionalPct: number
-  overtimeHours: number
+  /** dia | sem | flat: para HE, sem = unitCost/5 por dia */
+  type?: string
+  /** Novo formato: uma entrada por dia de gravação */
+  diarias?: DashboardDiariaEntry[]
+  /** @deprecated legado; usado se diarias não existir */
+  dailyHours?: number
+  additionalPct?: number
+  overtimeHours?: number
   payStatus: 'pendente' | 'pago'
 }
 
@@ -115,10 +127,22 @@ const PHASE_COLORS: Record<string, string> = {
  * PROCESSING FUNCTIONS
  * ══════════════════════════════════════════════════════════ */
 function calcClosingOvertime(line: DashboardClosingLine): number {
-  if (!line.isLabor || line.dailyHours <= 0) return 0
-  const hourlyRate = line.finalUnitCost / line.dailyHours
-  const additionalRate = hourlyRate * (line.additionalPct / 100)
-  return (hourlyRate + additionalRate) * line.overtimeHours
+  if (!line.isLabor) return 0
+  const unitPerDay = line.type === 'sem' ? line.finalUnitCost / 5 : line.finalUnitCost
+  if (line.diarias?.length) {
+    let total = 0
+    for (const d of line.diarias) {
+      if (d.dailyHours <= 0) continue
+      const hourlyRate = unitPerDay / d.dailyHours
+      total += hourlyRate * (1 + d.additionalPct / 100) * d.overtimeHours
+    }
+    return total
+  }
+  const dailyHours = line.dailyHours ?? 8
+  if (dailyHours <= 0) return 0
+  const hourlyRate = unitPerDay / dailyHours
+  const additionalRate = hourlyRate * ((line.additionalPct ?? 0) / 100)
+  return (hourlyRate + additionalRate) * (line.overtimeHours ?? 0)
 }
 
 function processBudgetStage(data: DashboardBudgetStage): ProcessedData {

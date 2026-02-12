@@ -53,8 +53,67 @@ function parseCsvValue(val: string): string {
 }
 
 function parseBrCurrency(val: string): number {
-  const clean = val.replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')
+  if (!val || typeof val !== 'string') return 0
+  // Remove espaços/BOM, R$ no início, normaliza vírgula decimal (Unicode → ASCII), formato BR: 1.234,56
+  let clean = val.replace(/[\s\u00A0\uFEFF]/g, '').replace(/^R\$\s*/i, '')
+  clean = clean.replace(/\u201A/g, ',') // vírgula Unicode em alguns CSVs
+  const lastComma = clean.lastIndexOf(',')
+  if (lastComma >= 0) {
+    // Formato BR: ponto = milhar, vírgula = decimal → remove pontos à esquerda da vírgula, troca vírgula por ponto
+    const before = clean.slice(0, lastComma).replace(/\./g, '')
+    const after = clean.slice(lastComma + 1)
+    clean = before + '.' + after
+  }
   return parseFloat(clean) || 0
+}
+
+/** Qualquer aspa (reta, curva, fullwidth, etc.) para reconhecer início/fim de campo e não cortar na vírgula. */
+const CSV_QUOTE_REGEX = /["\u201C\u201D\u201E\u201F\u2033\u2036\u00AB\u00BB\u2039\u203A\uFF02\u275D\u275E]/
+
+/** Separa colunas de uma linha CSV respeitando campos entre aspas. Valores como "R$1.153,14" não são cortados na vírgula. */
+function parseCsvLine(line: string): string[] {
+  const result: string[] = []
+  const s = line.replace(/\r$/, '')
+  let i = 0
+  while (i < s.length) {
+    if (CSV_QUOTE_REGEX.test(s[i])) {
+      i++
+      let field = ''
+      while (i < s.length) {
+        if (CSV_QUOTE_REGEX.test(s[i])) {
+          i++
+          if (i < s.length && CSV_QUOTE_REGEX.test(s[i])) {
+            field += '"'
+            i++
+          } else break
+        } else {
+          field += s[i]
+          i++
+        }
+      }
+      result.push(field.trim())
+      if (i < s.length && s[i] === ',') i++
+    } else {
+      let field = ''
+      while (i < s.length && s[i] !== ',') {
+        field += s[i]
+        i++
+      }
+      result.push(field.trim())
+      if (i < s.length) i++
+    }
+  }
+  return result
+}
+
+/** Converte uma linha CSV para { funcao, cache_dia, cache_semana }. Formato: vírgula como separador; valores em Real BR (R$ 1.234,56). */
+function parseCachesLine(line: string): { funcao: string; cache_dia: number; cache_semana: number } {
+  const cols = parseCsvLine(line)
+  return {
+    funcao: (cols[0] ?? '').trim(),
+    cache_dia: parseBrCurrency(cols[1] ?? '0'),
+    cache_semana: parseBrCurrency(cols[2] ?? '0'),
+  }
 }
 
 function downloadCsv(filename: string, content: string) {
@@ -315,7 +374,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
     const lines = text.split('\n').filter((l) => l.trim())
     if (lines.length < 2) return
     const rows: CollaboratorInsert[] = lines.slice(1).map((line) => {
-      const cols = line.split(',').map(parseCsvValue)
+      const cols = parseCsvLine(line)
       return {
         nome: cols[0] || '', cpf: cols[1] || '', rg: cols[2] || '', telefone: cols[3] || '',
         email: cols[4] || '', endereco: cols[5] || '', mei: cols[6] || '', cnpj: cols[7] || '',
@@ -380,13 +439,11 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
   }
 
   const importCacheTableCsv = async (file: File, tableId: string) => {
-    const text = await file.text()
-    const lines = text.split('\n').filter((l) => l.trim())
+    let text = await file.text()
+    text = text.replace(/^\uFEFF/, '')
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
     if (lines.length < 2) return
-    const rows: RoleRateInsert[] = lines.slice(1).map((line) => {
-      const cols = line.split(',').map(parseCsvValue)
-      return { funcao: cols[0] || '', cache_dia: parseBrCurrency(cols[1] || '0'), cache_semana: parseBrCurrency(cols[2] || '0') }
-    }).filter((r) => r.funcao)
+    const rows: RoleRateInsert[] = lines.slice(1).map((line) => parseCachesLine(line)).filter((r) => r.funcao)
     const count = await importRoles(rows, tableId)
     if (typeof window !== 'undefined') window.alert(`${count} função(ões) importada(s)!`)
     loadCacheTables()
@@ -484,13 +541,11 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
       if (typeof window !== 'undefined') window.alert('Selecione uma tabela de cachê primeiro.')
       return
     }
-    const text = await file.text()
-    const lines = text.split('\n').filter((l) => l.trim())
+    let text = await file.text()
+    text = text.replace(/^\uFEFF/, '')
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
     if (lines.length < 2) return
-    const rows: RoleRateInsert[] = lines.slice(1).map((line) => {
-      const cols = line.split(',').map(parseCsvValue)
-      return { funcao: cols[0] || '', cache_dia: parseBrCurrency(cols[1] || '0'), cache_semana: parseBrCurrency(cols[2] || '0') }
-    }).filter((r) => r.funcao)
+    const rows: RoleRateInsert[] = lines.slice(1).map((line) => parseCachesLine(line)).filter((r) => r.funcao)
     const count = await importRoles(rows, selectedCacheTableId)
     if (typeof window !== 'undefined') window.alert(`${count} função(ões) importada(s)!`)
     loadRoles()

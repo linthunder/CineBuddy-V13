@@ -497,6 +497,7 @@ export default function Home() {
             initialJobValue={initialSnapshot?.jobValue ?? 0}
             isLocked={projectStatus.closing === 'locked'}
             onToggleLock={handleToggleLockClosing}
+            getPhaseDefaults={() => viewOrcFinalRef.current?.getState()?.phaseDefaults}
           />
         </div>
         <div style={{ display: currentView === 'dashboard' ? 'block' : 'none' }}>
