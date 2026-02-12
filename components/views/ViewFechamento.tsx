@@ -114,8 +114,9 @@ const inputStyle: React.CSSProperties = {
 const inputClassName = 'w-full py-1 px-2 text-[11px] focus:outline-none'
 /** Selects da linha de diária: compactos e bem distribuídos */
 const inputDiariaClassName = 'w-full max-w-[6.5rem] py-0.5 px-1.5 text-[10px] focus:outline-none'
+/** Linha vertical que ocupa toda a altura do container (uso em células com flex items-stretch) */
 const sepVertical = (key?: string) => (
-  <span key={key} className="flex-shrink-0 self-stretch w-px min-h-[1em]" style={{ backgroundColor: resolve.border }} aria-hidden />
+  <span key={key} className="flex-shrink-0 w-px min-h-full self-stretch" style={{ backgroundColor: resolve.border }} aria-hidden />
 )
 const iconBtnCls = 'team-info-btn w-7 h-7 flex items-center justify-center rounded border transition-colors text-xs font-medium'
 
@@ -687,19 +688,19 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                             </div>
                           )}
                           {line.isLabor && (line.type !== 'sem' || showOvertimeForLineId[line.id]) && (
-                            <div className="px-3 py-2 border-t space-y-0" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.01)' }}>
+                            <div className="px-3 py-3 border-t space-y-3" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.01)' }}>
                               {diarias.map((d, diariaIdx) => (
                                 <div
                                   key={diariaIdx}
-                                  className={`grid grid-cols-2 sm:grid-cols-5 gap-x-1.5 gap-y-1 items-center py-1.5 ${diariaIdx < diarias.length - 1 ? 'border-b' : ''}`}
+                                  className={`grid grid-cols-2 sm:grid-cols-5 gap-x-1.5 gap-y-1 items-center ${diariaIdx < diarias.length - 1 ? 'border-b pb-3' : ''}`}
                                   style={{ borderColor: diariaIdx < diarias.length - 1 ? resolve.border : undefined }}
                                 >
-                                  <div className="flex items-center gap-1.5 min-w-0 col-span-2 sm:col-span-1">
-                                    <span className="text-[10px] uppercase whitespace-nowrap font-mono font-bold truncate" style={{ color: resolve.muted }} title="Valor da diária de referência">{formatCurrency(getCachePerDay(line))}/dia</span>
+                                  <div className="self-stretch h-full min-h-0 flex items-stretch gap-1.5 min-w-0 col-span-2 sm:col-span-1">
+                                    <span className="text-[10px] uppercase whitespace-nowrap truncate flex items-center font-bold" style={{ color: resolve.muted }} title="Valor da diária de referência">{formatCurrency(getCachePerDay(line))}/dia</span>
                                     {sepVertical()}
                                   </div>
                                   <div>
-                                    <label className="block text-[10px] uppercase mb-0.5 font-bold" style={{ color: resolve.muted }}>Diária {diarias.length > 1 ? `${diariaIdx + 1} (horas)` : 'de'}</label>
+                                    <label className="block text-[10px] uppercase mb-0.5" style={{ color: resolve.muted }}>Diária {diarias.length > 1 ? `${diariaIdx + 1} (horas)` : 'de'}</label>
                                     <select className={inputDiariaClassName} style={inputStyle} value={d.dailyHours} onChange={(e) => updateDiaria(line.id, diariaIdx, { dailyHours: Number(e.target.value) })}>
                                       {DAILY_HOURS_OPTIONS.map((h) => <option key={h} value={h}>{h}h</option>)}
                                     </select>
