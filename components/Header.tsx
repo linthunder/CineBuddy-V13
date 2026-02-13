@@ -137,10 +137,7 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
               'CB'
             )}
           </div>
-          <span className="font-display font-extrabold text-[22px] tracking-widest" style={{ color: resolve.muted }}>
-            <span style={{ color: resolve.yellow }}>Cine</span>
-            <span style={{ color: resolve.muted }}>Buddy</span>
-          </span>
+          <img src="/cinebuddy-logo.png" alt="CineBuddy" className="w-auto object-contain" style={{ width: 145, height: 75, maxHeight: 75 }} />
         </div>
         {/* Botões mobile */}
         <div className="flex flex-wrap gap-1.5 sm:hidden justify-end items-center">
