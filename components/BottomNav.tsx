@@ -1,23 +1,25 @@
 'use client'
 
+import type { LucideIcon } from 'lucide-react'
+import { Home, Film, CircleDollarSign, BadgeDollarSign, CreditCard, Users, BarChart3 } from 'lucide-react'
 import { resolve } from '@/lib/theme'
 
-export type ViewId = 'filme' | 'orcamento' | 'orc-final' | 'fechamento' | 'dashboard' | 'team' | 'config'
+export type ViewId = 'home' | 'filme' | 'orcamento' | 'orc-final' | 'fechamento' | 'dashboard' | 'team' | 'config'
 
 interface NavItem {
   id: ViewId
   label: string
-  icon: string
+  Icon: LucideIcon
 }
 
 const ITEMS: NavItem[] = [
-  { id: 'filme', label: 'FILME', icon: '🎬' },
-  { id: 'orcamento', label: 'ORÇAMENTO', icon: '💰' },
-  { id: 'orc-final', label: 'ORÇ. FINAL', icon: '📄' },
-  { id: 'fechamento', label: 'FECHAMENTO', icon: '💳' },
-  { id: 'dashboard', label: 'DASHBOARD', icon: '📊' },
-  { id: 'team', label: 'EQUIPE', icon: '👥' },
-  { id: 'config', label: 'CONFIG', icon: '⚙️' },
+  { id: 'home', label: 'HOME', Icon: Home },
+  { id: 'filme', label: 'FILME', Icon: Film },
+  { id: 'orcamento', label: 'ORÇAMENTO', Icon: CircleDollarSign },
+  { id: 'orc-final', label: 'ORÇ. FINAL', Icon: BadgeDollarSign },
+  { id: 'fechamento', label: 'FECHAMENTO', Icon: CreditCard },
+  { id: 'team', label: 'EQUIPE', Icon: Users },
+  { id: 'dashboard', label: 'DASHBOARD', Icon: BarChart3 },
 ]
 
 interface BottomNavProps {
@@ -69,7 +71,7 @@ export default function BottomNav({ currentView, onViewChange, disabledViews = [
               pointerEvents: isDisabled ? 'none' : undefined,
             }}
           >
-            <span className="text-base sm:text-lg leading-none pointer-events-none" aria-hidden>{item.icon}</span>
+            <item.Icon size={20} strokeWidth={1.5} className="flex-shrink-0 pointer-events-none" aria-hidden style={{ color: isActive ? resolve.yellow : resolve.muted }} />
             <span className="pointer-events-none hidden md:inline" title={item.label}>{item.label}</span>
           </button>
         )

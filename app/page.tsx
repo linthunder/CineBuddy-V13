@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context'
 import LoginScreen from '@/components/LoginScreen'
 import Header from '@/components/Header'
 import BottomNav, { type ViewId } from '@/components/BottomNav'
+import ViewHome from '@/components/views/ViewHome'
 import ViewFilme from '@/components/views/ViewFilme'
 import ViewOrcamento, { type ViewOrcamentoHandle, getInitialLinesByPhase } from '@/components/views/ViewOrcamento'
 import ViewOrcFinal, { type ViewOrcFinalHandle } from '@/components/views/ViewOrcFinal'
@@ -54,7 +55,7 @@ const EMPTY_PROJECT: ProjectData = {
 
 export default function Home() {
   const { user, loading, logout, profile, forceFinishLoading } = useAuth()
-  const [currentView, setCurrentView] = useState<ViewId>('filme')
+  const [currentView, setCurrentView] = useState<ViewId>('home')
   const [projectStatus, setProjectStatus] = useState<ProjectStatus>({
     initial: 'open',
     final: 'open',
@@ -417,7 +418,7 @@ export default function Home() {
 
   const disabledViews = useMemo<ViewId[]>(() => {
     const disabled: ViewId[] = []
-    // ORÇAMENTO, DASHBOARD e EQUIPE bloqueados até criar/abrir um projeto
+    // ORÇAMENTO, DASHBOARD e EQUIPE bloqueados até criar/abrir um projeto (HOME e FILME sempre liberados)
     if (!projectData.nome) disabled.push('orcamento', 'dashboard', 'team')
     // Cascata de liberação: Orçamento Final só após finalizar Inicial; Fechamento só após finalizar Final
     if (projectStatus.initial !== 'locked') disabled.push('orc-final')
@@ -427,22 +428,25 @@ export default function Home() {
     return disabled
   }, [projectStatus, projectData.nome])
 
-  /* Redireciona para FILME se estiver em view bloqueada por falta de projeto */
+  /* Redireciona para HOME se estiver em view bloqueada por falta de projeto */
   useEffect(() => {
     if (!projectData.nome && ['orcamento', 'dashboard', 'team'].includes(currentView)) {
-      setCurrentView('filme')
+      setCurrentView('home')
     }
   }, [projectData.nome, currentView])
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4" style={{ backgroundColor: '#0d0d0f', color: '#8e8e93' }}>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-5 p-4" style={{ backgroundColor: '#0d0d0f', color: '#8e8e93' }}>
         <span className="text-sm">Carregando...</span>
+        <p className="text-xs text-center max-w-xs" style={{ color: '#6c6c70' }}>
+          Se a tela ficar parada aqui, clique no botão abaixo.
+        </p>
         <button
           type="button"
           onClick={forceFinishLoading}
-          className="text-xs px-3 py-1.5 rounded border"
-          style={{ borderColor: '#5c7c99', color: '#5c7c99' }}
+          className="text-sm px-4 py-2.5 rounded border font-medium transition-colors hover:opacity-90"
+          style={{ borderColor: '#5c7c99', color: '#5c7c99', backgroundColor: 'rgba(92, 124, 153, 0.1)' }}
         >
           Travou? Clique para continuar
         </button>
@@ -464,11 +468,15 @@ export default function Home() {
         onOpenProject={handleOpenProject}
         saving={saving}
         onLogout={logout}
+        onOpenConfig={() => setCurrentView('config')}
       />
       <main
         className="pt-[88px] sm:pt-[88px] pb-20 sm:pb-24 w-full min-h-0 min-w-0"
         style={{ backgroundColor: '#0d0d0f', color: '#e8e8ec', paddingLeft: 'var(--page-gutter-content)', paddingRight: 'var(--page-gutter-content)' }}
       >
+        <div style={{ display: currentView === 'home' ? 'block' : 'none' }}>
+          <ViewHome />
+        </div>
         <div style={{ display: currentView === 'filme' ? 'block' : 'none' }}>
           <ViewFilme />
         </div>

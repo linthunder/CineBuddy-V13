@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { Settings, Plus, FolderOpen, Copy, Save, LogOut, X } from 'lucide-react'
 import { resolve } from '@/lib/theme'
 import type { ProjectData } from '@/lib/types'
 import { listProjects, searchProjects } from '@/lib/services/projects'
@@ -30,9 +31,10 @@ interface HeaderProps {
   onOpenProject: (id: string) => void
   saving?: boolean
   onLogout?: () => void
+  onOpenConfig?: () => void
 }
 
-export default function Header({ projectData, logoUrl, onNewProject, onSave, onSaveCopy, onOpenProject, saving = false, onLogout }: HeaderProps) {
+export default function Header({ projectData, logoUrl, onNewProject, onSave, onSaveCopy, onOpenProject, saving = false, onLogout, onOpenConfig }: HeaderProps) {
   const [modalOpen, setModalOpen] = useState<'novo' | 'abrir' | 'copia' | null>(null)
 
   /* NOVO */
@@ -141,12 +143,19 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
           </span>
         </div>
         {/* Botões mobile */}
-        <div className="flex flex-wrap gap-1.5 sm:hidden justify-end">
-          <button type="button" onClick={openNew} className={btnBaseClsMobile} style={btnBaseStyle}>Novo</button>
-          <button type="button" onClick={openAbrir} className={btnBaseClsMobile} style={btnBaseStyle}>Abrir</button>
-          <button type="button" onClick={openCopy} className={btnBaseClsMobile} style={btnBaseStyle}>Salvar cópia</button>
-          <button type="button" onClick={onSave} disabled={saving} className={`btn-resolve-hover h-7 px-2 text-xs font-medium uppercase rounded`} style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }}>{saving ? '...' : 'Salvar'}</button>
-          {onLogout && <button type="button" onClick={onLogout} className={btnBaseClsMobile} style={btnBaseStyle}>Sair</button>}
+        <div className="flex flex-wrap gap-1.5 sm:hidden justify-end items-center">
+          <button type="button" onClick={openNew} className={`${btnBaseClsMobile} flex items-center gap-1`} style={btnBaseStyle}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Novo</button>
+          <button type="button" onClick={openAbrir} className={`${btnBaseClsMobile} flex items-center gap-1`} style={btnBaseStyle}><FolderOpen size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Abrir</button>
+          <button type="button" onClick={openCopy} className={`${btnBaseClsMobile} flex items-center gap-1`} style={btnBaseStyle}><Copy size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar cópia</button>
+          <button type="button" onClick={onSave} disabled={saving} className={`btn-resolve-hover h-7 px-2 text-xs font-medium uppercase rounded flex items-center gap-1`} style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{saving ? '...' : 'Salvar'}</button>
+          {onLogout && <button type="button" onClick={onLogout} className={`${btnBaseClsMobile} flex items-center gap-1`} style={btnBaseStyle}><LogOut size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Sair</button>}
+          {onOpenConfig && (
+            <div className="flex items-center pl-2 ml-1 border-l" style={{ borderColor: resolve.border }}>
+              <button type="button" onClick={onOpenConfig} aria-label="Configurações" className="flex items-center justify-center w-8 h-8 rounded" style={{ color: resolve.muted }}>
+                <Settings size={18} strokeWidth={1.5} aria-hidden color={resolve.muted} style={{ color: resolve.muted }} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -163,14 +172,27 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
         </div>
       </div>
 
-      {/* Direita: botões desktop */}
+      {/* Direita: botões desktop + Config */}
       <div className="hidden sm:flex gap-1.5 items-center">
-        <button type="button" onClick={openNew} className={btnBaseCls} style={btnBaseStyle}>Novo</button>
-        <button type="button" onClick={openAbrir} className={btnBaseCls} style={btnBaseStyle}>Abrir</button>
-        <button type="button" onClick={openCopy} className={btnBaseCls} style={btnBaseStyle}>Salvar cópia</button>
-        <button type="button" onClick={onSave} disabled={saving} className="btn-resolve-hover h-7 px-3 text-xs font-medium uppercase tracking-wide rounded" style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }}>{saving ? 'Salvando...' : 'Salvar'}</button>
+        <button type="button" onClick={openNew} className={`${btnBaseCls} flex items-center gap-1.5`} style={btnBaseStyle}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Novo</button>
+        <button type="button" onClick={openAbrir} className={`${btnBaseCls} flex items-center gap-1.5`} style={btnBaseStyle}><FolderOpen size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Abrir</button>
+        <button type="button" onClick={openCopy} className={`${btnBaseCls} flex items-center gap-1.5`} style={btnBaseStyle}><Copy size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar cópia</button>
+        <button type="button" onClick={onSave} disabled={saving} className="btn-resolve-hover h-7 px-3 text-xs font-medium uppercase tracking-wide rounded flex items-center gap-1.5" style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{saving ? 'Salvando...' : 'Salvar'}</button>
         {onLogout && (
-          <button type="button" onClick={onLogout} className="btn-resolve-hover h-7 px-3 text-xs font-medium uppercase tracking-wide rounded ml-1" style={{ backgroundColor: 'transparent', color: resolve.muted, borderColor: resolve.border }}>Sair</button>
+          <button type="button" onClick={onLogout} className="btn-resolve-hover h-7 px-3 text-xs font-medium uppercase tracking-wide rounded ml-1 flex items-center gap-1.5" style={{ backgroundColor: 'transparent', color: resolve.muted, borderColor: resolve.border }}><LogOut size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Sair</button>
+        )}
+        {onOpenConfig && (
+          <div className="flex items-center pl-3 ml-2 border-l" style={{ borderColor: resolve.border }}>
+            <button
+              type="button"
+              onClick={onOpenConfig}
+              aria-label="Configurações"
+              className="flex items-center justify-center w-8 h-8 rounded transition-colors hover:opacity-80"
+              style={{ color: resolve.muted }}
+            >
+              <Settings size={18} strokeWidth={1.5} aria-hidden color={resolve.muted} style={{ color: resolve.muted }} />
+            </button>
+          </div>
         )}
       </div>
 
@@ -180,7 +202,7 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
           <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
               <h3 className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2" style={{ color: resolve.text }}>➕ NOVO PROJETO</h3>
-              <button type="button" onClick={closeModal} className="text-lg leading-none px-1" style={{ color: resolve.muted }}>×</button>
+              <button type="button" onClick={closeModal} className="p-1 rounded" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
             </div>
             <div className="p-4 space-y-3">
               <div>
@@ -220,7 +242,7 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
           <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
               <h3 className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2" style={{ color: resolve.text }}>📂 ABRIR PROJETO</h3>
-              <button type="button" onClick={closeModal} className="text-lg leading-none px-1" style={{ color: resolve.muted }}>×</button>
+              <button type="button" onClick={closeModal} className="p-1 rounded" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
             </div>
             <div className="p-4">
               <input type="text" className="w-full px-2 py-1.5 text-sm rounded border mb-3" style={modalInputStyle} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar..." autoFocus />
@@ -268,7 +290,7 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
           <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
               <h3 className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2" style={{ color: resolve.text }}>📋 SALVAR CÓPIA</h3>
-              <button type="button" onClick={closeModal} className="text-lg leading-none px-1" style={{ color: resolve.muted }}>×</button>
+              <button type="button" onClick={closeModal} className="p-1 rounded" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
             </div>
             <div className="p-4 space-y-3">
               <div>

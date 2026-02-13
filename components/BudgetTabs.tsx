@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import type { PhaseKey } from '@/lib/constants'
 import { resolve, cinema } from '@/lib/theme'
+import { Lock, LockOpen } from 'lucide-react'
 
 interface CacheTableOption {
   id: string
@@ -129,7 +130,7 @@ export default function BudgetTabs({
               color: '#ffffff',
             }}
           >
-            <span aria-hidden>{isLocked ? '🔓' : '🔒'}</span>
+            {isLocked ? <LockOpen size={16} strokeWidth={2} aria-hidden style={{ color: '#fff' }} /> : <Lock size={16} strokeWidth={2} aria-hidden style={{ color: '#fff' }} />}
             <span className="md:hidden">{isLocked ? 'Abrir' : 'Finalizar'}</span>
             <span className="hidden md:inline">{isLocked ? 'Abrir orçamento' : 'Finalizar orçamento'}</span>
           </button>

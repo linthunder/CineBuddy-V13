@@ -43,22 +43,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
-    const timeout = setTimeout(() => {
+    /** Fallback: se getSession demorar ou travar (rede/Supabase/navegador), para de carregar após 1,2s */
+    const fallback = setTimeout(() => {
       if (cancelled) return
       setLoading(false)
-    }, 2000)
+    }, 1200)
 
     supabase.auth.getSession()
       .then(({ data: { session: s } }) => {
         if (cancelled) return
-        clearTimeout(timeout)
+        clearTimeout(fallback)
         setSession(s)
         if (s) getMyProfile().then((p) => !cancelled && setProfile(p))
         setLoading(false)
       })
       .catch((err) => {
         if (cancelled) return
-        clearTimeout(timeout)
+        clearTimeout(fallback)
         console.error('Auth getSession:', err)
         setLoading(false)
       })
@@ -72,7 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       cancelled = true
-      clearTimeout(timeout)
+      clearTimeout(fallback)
       subscription.unsubscribe()
     }
   }, [])

@@ -9,6 +9,7 @@ import { formatCurrency, parseCurrencyInput } from '@/lib/utils'
 import type { BudgetLinesByPhase, VerbaLinesByPhase, MiniTablesData, BudgetRow, BudgetRowLabor, PhaseDefaultsByPhase } from '@/lib/types'
 import { computeRowTotal, computeVerbaRowTotal, sumDeptTotal } from '@/lib/budgetUtils'
 import { listCollaborators, type Collaborator } from '@/lib/services/collaborators'
+import { X, Plus, Lock, LockOpen } from 'lucide-react'
 
 /* ── Tipos internos ── */
 /** Uma diária de gravação: horas da diária, adicional % e horas extras nesse dia */
@@ -529,7 +530,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
             color: '#ffffff',
           }}
         >
-          <span aria-hidden>{isLocked ? '🔓' : '🔒'}</span>
+          {isLocked ? <LockOpen size={16} strokeWidth={2} aria-hidden style={{ color: '#fff' }} /> : <Lock size={16} strokeWidth={2} aria-hidden style={{ color: '#fff' }} />}
           <span className="md:hidden">{isLocked ? 'Reabrir' : 'Concluir'}</span>
           <span className="hidden md:inline">{isLocked ? 'Reabrir fechamento' : 'Concluir fechamento'}</span>
         </button>
@@ -719,10 +720,10 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                                   </div>
                                   <div className="flex items-center gap-1 col-span-2 sm:col-span-1">
                                     {diarias.length > 1 && (
-                                      <button type="button" onClick={() => removeDiaria(line.id, diariaIdx)} className="h-7 w-7 flex items-center justify-center rounded border text-[10px] font-medium uppercase" style={{ borderColor: resolve.border, color: resolve.muted }} title="Excluir diária">−</button>
+                                      <button type="button" onClick={() => removeDiaria(line.id, diariaIdx)} className="h-7 w-7 flex items-center justify-center rounded border" style={{ borderColor: resolve.border, color: resolve.muted }} title="Excluir diária" aria-label="Excluir diária"><X size={14} strokeWidth={2} /></button>
                                     )}
                                     {diariaIdx === diarias.length - 1 && (
-                                      <button type="button" onClick={() => addDiaria(line.id)} className="h-7 px-2 flex items-center justify-center rounded border text-[10px] font-medium uppercase" style={{ borderColor: resolve.border, color: resolve.text }} title="Adicionar diária">+ Diária</button>
+                                      <button type="button" onClick={() => addDiaria(line.id)} className="h-7 px-2 flex items-center justify-center gap-1 rounded border text-[10px] font-medium uppercase" style={{ borderColor: resolve.border, color: resolve.text }} title="Adicionar diária"><Plus size={12} strokeWidth={2} style={{ color: 'currentColor' }} />Diária</button>
                                     )}
                                   </div>
                                 </div>
@@ -854,7 +855,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                     </button>
                   </td>
                   <td className="p-1.5 text-center">
-                    <button type="button" onClick={() => removeExpense(exp.id)} className="btn-remove-row" aria-label="Remover">×</button>
+                    <button type="button" onClick={() => removeExpense(exp.id)} className="btn-remove-row inline-flex items-center justify-center" aria-label="Remover"><X size={16} strokeWidth={2} /></button>
                   </td>
                 </tr>
               ))}
@@ -866,7 +867,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
             style={{ borderColor: resolve.border, color: resolve.muted, borderRadius: 3 }}
             onClick={addExpense}
           >
-            + Adicionar conta
+            <Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} className="shrink-0" /> Adicionar conta
           </button>
         </div>
       </div>

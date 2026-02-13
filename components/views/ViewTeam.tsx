@@ -6,6 +6,7 @@ import { resolve, cinema } from '@/lib/theme'
 import { formatCurrency } from '@/lib/utils'
 import type { BudgetLinesByPhase, VerbaLinesByPhase, BudgetRow } from '@/lib/types'
 import { listCollaborators, type Collaborator } from '@/lib/services/collaborators'
+import { Info, DollarSign, PenLine, Receipt } from 'lucide-react'
 
 interface TeamMember {
   name: string
@@ -71,7 +72,7 @@ function findCollaboratorByName(collaborators: Collaborator[], memberName: strin
   return collaborators.find((c) => c.nome?.trim().toLowerCase() === normalized)
 }
 
-const iconBtnCls = 'team-info-btn w-7 h-7 flex items-center justify-center rounded border transition-colors text-xs font-medium'
+const iconBtnCls = 'team-info-btn flex items-center justify-center rounded transition-colors text-xs font-medium'
 
 function CopyableLine({ label, value }: { label: string; value: string }) {
   const text = value || '—'
@@ -227,32 +228,36 @@ export default function ViewTeam({ getBudgetData }: ViewTeamProps) {
                             title="Telefone, e-mail e endereço"
                             className={iconBtnCls}
                             onClick={() => setModalContact(collab ?? 'no-data')}
+                            style={{ width: 22, height: 22, minWidth: 22, minHeight: 22, color: resolve.muted }}
                           >
-                            <span className="font-serif font-bold">i</span>
+                            <Info size={14} strokeWidth={1.5} aria-hidden />
                           </button>
                           <button
                             type="button"
                             title="Dados bancários e PIX"
                             className={iconBtnCls}
                             onClick={() => setModalBank(collab ?? 'no-data')}
+                            style={{ width: 22, height: 22, minWidth: 22, minHeight: 22, color: resolve.muted }}
                           >
-                            $
+                            <DollarSign size={14} strokeWidth={1.5} aria-hidden />
                           </button>
                           <button
                             type="button"
                             title="Contrato (Drive) — em breve"
                             className={`${iconBtnCls} opacity-70`}
                             onClick={() => window.alert('Abertura do contrato (Google Drive) será implementada em breve.')}
+                            style={{ width: 22, height: 22, minWidth: 22, minHeight: 22, color: resolve.muted }}
                           >
-                            ✎
+                            <PenLine size={14} strokeWidth={1.5} aria-hidden />
                           </button>
                           <button
                             type="button"
                             title="Nota fiscal (Drive) — em breve"
                             className={`${iconBtnCls} opacity-70`}
                             onClick={() => window.alert('Abertura da nota fiscal (Google Drive) será implementada em breve.')}
+                            style={{ width: 22, height: 22, minWidth: 22, minHeight: 22, color: resolve.muted }}
                           >
-                            📄
+                            <Receipt size={14} strokeWidth={1.5} aria-hidden />
                           </button>
                         </div>
                       </td>

@@ -9,6 +9,7 @@ import { resolve } from '@/lib/theme'
 import AutocompleteInput, { type AutocompleteOption } from '@/components/AutocompleteInput'
 import { searchRoles } from '@/lib/services/roles-rates'
 import { searchCollaborators } from '@/lib/services/collaborators'
+import { X } from 'lucide-react'
 
 interface BudgetTableRowProps {
   row: BudgetRow
@@ -98,7 +99,7 @@ export default function BudgetTableRow({ row, department, rowIndex = 0, cacheTab
         <td data-label={supplierLabel} className="p-1.5 align-middle">
           <input className={inputClassName} style={inputStyle} value={r.roleFunction} onChange={(e) => onUpdate({ roleFunction: e.target.value })} placeholder={supplierLabel} />
         </td>
-        <td className="budget-row-remove"><button type="button" onClick={onRemove} className="btn-remove-row" aria-label="Remover linha">×</button></td>
+        <td className="budget-row-remove"><button type="button" onClick={onRemove} className="btn-remove-row inline-flex items-center justify-center" aria-label="Remover linha"><X size={16} strokeWidth={2} /></button></td>
       </tr>
     )
   }
@@ -207,7 +208,7 @@ export default function BudgetTableRow({ row, department, rowIndex = 0, cacheTab
           <input type="number" className={`${inputClassName} text-center`} style={inputStyle} value={r.quantity || ''} onChange={(e) => onUpdate({ quantity: parseFloat(e.target.value) || 0 })} min={0} step="any" />
         </td>
         <td data-label="Total" className="p-1.5 align-middle font-mono text-[11px] text-right font-medium budget-cell-total" style={{ color: resolve.text }}>{formatCurrency(total)}</td>
-        <td className="budget-row-remove"><button type="button" onClick={onRemove} className="btn-remove-row" aria-label="Remover linha">×</button></td>
+        <td className="budget-row-remove"><button type="button" onClick={onRemove} className="btn-remove-row inline-flex items-center justify-center" aria-label="Remover linha"><X size={16} strokeWidth={2} /></button></td>
       </tr>
     )
   }
@@ -250,7 +251,7 @@ export default function BudgetTableRow({ row, department, rowIndex = 0, cacheTab
         <input type="number" className={`${inputClassName} text-center`} style={inputStyle} value={r.quantity || ''} onChange={(e) => onUpdate({ quantity: parseFloat(e.target.value) || 0 })} min={0} step="any" />
       </td>
       <td data-label="Total" className="p-1.5 align-middle font-mono text-[11px] text-right font-medium budget-cell-total" style={{ color: resolve.text }}>{formatCurrency(total)}</td>
-      <td className="budget-row-remove"><button type="button" onClick={onRemove} className="btn-remove-row" aria-label="Remover linha">×</button></td>
+      <td className="budget-row-remove"><button type="button" onClick={onRemove} className="btn-remove-row inline-flex items-center justify-center" aria-label="Remover linha"><X size={16} strokeWidth={2} /></button></td>
     </tr>
   )
 }

@@ -7,6 +7,7 @@ import { CUSTOM_HEADERS, LABOR_DEPTS, PEOPLE_DEPTS } from '@/lib/constants'
 import { computeRowTotal, computeVerbaRowTotal } from '@/lib/budgetUtils'
 import { resolve } from '@/lib/theme'
 import BudgetTableRow from './BudgetTableRow'
+import { X, Plus, Wallet } from 'lucide-react'
 
 interface BudgetDeptBlockProps {
   department: string
@@ -150,7 +151,7 @@ export default function BudgetDeptBlock({
         </table>
         <button
           type="button"
-          className="btn-resolve-hover w-full mt-2 py-2.5 border border-dashed rounded text-[11px] font-medium uppercase tracking-wider transition-colors cursor-pointer"
+          className="btn-resolve-hover w-full mt-2 py-2.5 border border-dashed rounded text-[11px] font-medium uppercase tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-2"
           style={{ borderColor: resolve.border, color: resolve.muted, borderRadius: 3 }}
           onClick={(e) => {
             e.preventDefault()
@@ -159,7 +160,8 @@ export default function BudgetDeptBlock({
           }}
           aria-label={`Adicionar ${isPeople ? 'pessoa' : isLabor ? 'profissional' : 'item'}`}
         >
-          + Adicionar {isPeople ? 'pessoa' : isLabor ? 'profissional' : 'item'}
+          <Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} className="shrink-0" />
+          <span>Adicionar {isPeople ? 'pessoa' : isLabor ? 'profissional' : 'item'}</span>
         </button>
         {showVerbaButton && !hasVerbaSection && !isPeople && (
           <button
@@ -173,13 +175,15 @@ export default function BudgetDeptBlock({
             }}
             aria-label="Adicionar verba"
           >
-            <span aria-hidden>💼</span> Adicionar verba
+            <Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} className="shrink-0" />
+            <span>Adicionar verba</span>
           </button>
         )}
         {hasVerbaSection && (
           <div className="mt-2 border rounded-b overflow-hidden" style={{ borderColor: resolve.border, borderTop: 'none', borderRadius: '0 0 6px 6px' }}>
             <div className="px-2 py-1.5 text-[11px] font-medium uppercase tracking-wider flex items-center gap-2" style={{ backgroundColor: resolve.accent, color: '#0d0d0f' }}>
-              <span aria-hidden>💼</span> Verbas
+              <Wallet size={16} strokeWidth={2} style={{ color: 'currentColor' }} aria-hidden />
+              Verbas
             </div>
             <div className="p-2 border-t" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
               <table className="budget-table-cards w-full border-collapse text-[11px] min-w-0 xl:min-w-[400px]">
@@ -221,7 +225,7 @@ export default function BudgetDeptBlock({
                       </td>
                       <td className="p-1.5 align-middle font-mono text-[11px] text-right font-medium budget-cell-total" style={{ color: resolve.text }}>{formatCurrency(computeVerbaRowTotal(v))}</td>
                       <td className="budget-row-remove">
-                        <button type="button" onClick={() => onRemoveVerbaRow(v.id)} className="btn-remove-row" aria-label="Remover linha">×</button>
+                        <button type="button" onClick={() => onRemoveVerbaRow(v.id)} className="btn-remove-row inline-flex items-center justify-center" aria-label="Remover linha"><X size={16} strokeWidth={2} /></button>
                       </td>
                     </tr>
                   ))}
@@ -229,12 +233,13 @@ export default function BudgetDeptBlock({
               </table>
               <button
                 type="button"
-                className="btn-resolve-hover w-full mt-2 py-2 border border-dashed rounded text-[11px] font-medium uppercase tracking-wider transition-colors cursor-pointer"
+                className="btn-resolve-hover w-full mt-2 py-2 border border-dashed rounded text-[11px] font-medium uppercase tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-2"
                 style={{ borderColor: resolve.border, color: resolve.muted, borderRadius: 3 }}
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAddVerbaRow() }}
                 aria-label="Adicionar item na verba"
               >
-                + Adicionar item
+                <Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} className="shrink-0" />
+                <span>Adicionar item</span>
               </button>
             </div>
           </div>

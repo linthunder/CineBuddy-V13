@@ -1,14 +1,15 @@
 'use client'
 
+import { ScrollText, ClipboardList, Image, CalendarDays } from 'lucide-react'
 import PageLayout from '@/components/PageLayout'
 import { resolve } from '@/lib/theme'
 
 export default function ViewFilme() {
   const actions = [
-    { id: 'roteiro', label: 'ROTEIRO', icon: '📜' },
-    { id: 'decupagem', label: 'DECUPAGEM', icon: '📋' },
-    { id: 'storyboard', label: 'STORYBOARD', icon: '🖼️' },
-    { id: 'ordemDia', label: 'ORDEM DO DIA', icon: '📌' },
+    { id: 'roteiro', label: 'ROTEIRO', Icon: ScrollText },
+    { id: 'decupagem', label: 'DECUPAGEM', Icon: ClipboardList },
+    { id: 'storyboard', label: 'STORYBOARD', Icon: Image },
+    { id: 'ordemDia', label: 'ORDEM DO DIA', Icon: CalendarDays },
   ]
 
   return (
@@ -32,7 +33,7 @@ export default function ViewFilme() {
             }}
             onClick={() => { if (typeof window !== 'undefined') window.alert(`Em breve: ${a.label.toLowerCase()}`) }}
           >
-            <span className="text-xl sm:text-2xl leading-none">{a.icon}</span>
+            <a.Icon size={28} strokeWidth={1.5} className="flex-shrink-0" color={resolve.muted} style={{ color: resolve.muted }} />
             <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-wider">{a.label}</span>
           </button>
         ))}

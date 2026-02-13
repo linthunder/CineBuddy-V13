@@ -417,7 +417,7 @@ const ViewOrcFinal = forwardRef<ViewOrcFinalHandle, ViewOrcFinalProps>(function 
 
   if (!initialSnapshot) {
     return (
-      <PageLayout title="Orç. Final">
+      <PageLayout title="Orçamento Final">
         <div className="text-center py-12" style={{ color: resolve.muted }}>
           <p className="text-sm">Finalize o Orçamento inicial para acessar o Orçamento Final.</p>
         </div>
@@ -457,7 +457,7 @@ const ViewOrcFinal = forwardRef<ViewOrcFinalHandle, ViewOrcFinalProps>(function 
 
   return (
     <PageLayout
-      title="Orç. Final"
+      title="Orçamento Final"
       strip={financeStrip}
       tabs={
         <BudgetTabs

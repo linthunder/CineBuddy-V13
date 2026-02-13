@@ -38,14 +38,6 @@ const config: Config = {
         sans: ['var(--font-sans)', 'Segoe UI', 'Roboto', 'sans-serif'],
         display: ['var(--font-display)', 'Impact', 'sans-serif'],
         mono: ['var(--font-mono)', 'Consolas', 'monospace'],
-        /* Fontes extras para testar na logo */
-        montserrat: ['var(--font-montserrat)', 'sans-serif'],
-        poppins: ['var(--font-poppins)', 'sans-serif'],
-        oswald: ['var(--font-oswald)', 'sans-serif'],
-        outfit: ['var(--font-outfit)', 'sans-serif'],
-        'space-grotesk': ['var(--font-space-grotesk)', 'sans-serif'],
-        rajdhani: ['var(--font-rajdhani)', 'sans-serif'],
-        orbitron: ['var(--font-orbitron)', 'sans-serif'],
       },
       borderRadius: {
         resolve: '3px',

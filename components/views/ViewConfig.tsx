@@ -17,6 +17,7 @@ import {
 } from '@/lib/services/cache-tables'
 import { formatCurrency } from '@/lib/utils'
 import { ROLES_DEPARTAMENTOS_ORDER } from '@/lib/constants'
+import { APP_ICONS, GALLERY_ICONS } from '@/lib/icons-gallery'
 import { getCompany, saveCompany, uploadCompanyLogo } from '@/lib/services/company'
 import {
   listProjects, updateProject, deleteProject,
@@ -24,8 +25,9 @@ import {
 } from '@/lib/services/projects'
 import { listProfiles, updateProfile, type Profile, type ProfileRole } from '@/lib/services/profiles'
 import { supabase } from '@/lib/supabase'
+import { X, Copy, Pencil, Save, Plus } from 'lucide-react'
 
-type ConfigTab = 'company' | 'users' | 'collaborators' | 'cache_tables' | 'roles' | 'projects' | 'logs'
+type ConfigTab = 'company' | 'users' | 'collaborators' | 'cache_tables' | 'roles' | 'projects' | 'icons' | 'logs'
 
 const TABS: { id: ConfigTab; label: string }[] = [
   { id: 'company', label: 'MINHA PRODUTORA' },
@@ -34,6 +36,7 @@ const TABS: { id: ConfigTab; label: string }[] = [
   { id: 'cache_tables', label: 'TABELAS DE CACHÊ' },
   { id: 'roles', label: 'FUNÇÕES E CACHÊS' },
   { id: 'projects', label: 'PROJETOS' },
+  { id: 'icons', label: 'ÍCONES' },
   { id: 'logs', label: 'LOGS' },
 ]
 
@@ -135,6 +138,7 @@ export interface ViewConfigProps {
 
 export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: ViewConfigProps) {
   const [activeTab, setActiveTab] = useState<ConfigTab>('company')
+  const [iconsSearch, setIconsSearch] = useState('')
 
   /* ── Dados da produtora ── */
   const [companyName, setCompanyName] = useState('')
@@ -754,7 +758,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
         <div className="rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
           <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between" style={{ borderColor: resolve.border, color: resolve.muted }}>
             <span>DADOS DA PRODUTORA</span>
-            <button type="button" className={btnSmall} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={handleSaveCompany} disabled={companySaving}>{companySaving ? 'Salvando...' : 'Salvar'}</button>
+            <button type="button" className={`${btnSmall} flex items-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={handleSaveCompany} disabled={companySaving}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{companySaving ? 'Salvando...' : 'Salvar'}</button>
           </div>
           <div className="p-3 sm:p-4 space-y-4">
             {/* Logo upload */}
@@ -800,7 +804,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                         onLogoChange?.('')
                       }}
                     >
-                      Remover
+                      <X size={14} strokeWidth={2} style={{ color: 'currentColor' }} className="inline-block mr-1" />Remover
                     </button>
                   )}
                 </div>
@@ -828,7 +832,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
           <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between gap-2" style={{ borderColor: resolve.border, color: resolve.muted }}>
             <span>USUÁRIOS ({profiles.length})</span>
             {isAdmin && (
-              <button type="button" className={btnSmall} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openUserModal('new')}>+ Novo usuário</button>
+              <button type="button" className={`${btnSmall} flex items-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openUserModal('new')}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Novo usuário</button>
             )}
           </div>
           <div className="p-3">
@@ -868,7 +872,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                 {userError && <div className="text-[11px]" style={{ color: cinema.danger }}>{userError}</div>}
                 <div className="flex gap-2 justify-end">
                   <button type="button" onClick={() => setUserModal(null)} className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }}>Cancelar</button>
-                  <button type="button" onClick={saveUser} disabled={userSaving} className={btnSmall} style={{ backgroundColor: resolve.accent, color: resolve.bg }}>{userSaving ? 'Salvando...' : 'Salvar'}</button>
+                  <button type="button" onClick={saveUser} disabled={userSaving} className={`${btnSmall} flex items-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{userSaving ? 'Salvando...' : 'Salvar'}</button>
                 </div>
               </div>
             )}
@@ -887,7 +891,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
               <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={exportCollabsCsv}>Exportar</button>
               <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => collabFileRef.current?.click()}>Importar</button>
               <input ref={collabFileRef} type="file" accept=".csv" className="hidden" onChange={(e) => { if (e.target.files?.[0]) importCollabsCsv(e.target.files[0]); e.target.value = '' }} />
-              <button type="button" className={btnSmall} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openCollabModal('new')}>+ Novo</button>
+              <button type="button" className={`${btnSmall} flex items-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openCollabModal('new')}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Novo</button>
             </div>
           </div>
           <div className="p-3">
@@ -919,8 +923,8 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                       <td className={tdCls} style={{ borderColor: resolve.border }}>{c.email || '—'}</td>
                       <td className={tdCls} style={{ borderColor: resolve.border }}>{c.pix || '—'}</td>
                       <td className={`${tdCls} text-right whitespace-nowrap`} style={{ borderColor: resolve.border }}>
-                        <button type="button" className="text-[11px] uppercase mr-2" style={{ color: resolve.accent }} onClick={() => openCollabModal(c)}>Editar</button>
-                        <button type="button" className="text-[11px] uppercase" style={{ color: cinema.danger }} onClick={() => removeCollab(c.id)}>×</button>
+                        <button type="button" className="inline-flex items-center justify-center p-1.5 rounded" style={{ color: resolve.accent }} onClick={() => openCollabModal(c)} aria-label="Editar"><Pencil size={16} strokeWidth={2} /></button>
+                        <button type="button" className="inline-flex items-center justify-center p-1.5 rounded" style={{ color: cinema.danger }} onClick={() => removeCollab(c.id)} aria-label="Excluir"><X size={16} strokeWidth={2} /></button>
                       </td>
                     </tr>
                   ))}
@@ -937,7 +941,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
           <div className="rounded border p-0 w-full max-w-lg shadow-lg overflow-hidden max-h-[90vh] overflow-y-auto" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
               <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: resolve.text }}>{collabModal === 'new' ? '➕ NOVO COLABORADOR' : '✏️ EDITAR COLABORADOR'}</h3>
-              <button type="button" onClick={() => setCollabModal(null)} className="text-lg leading-none px-1" style={{ color: resolve.muted }}>×</button>
+              <button type="button" onClick={() => setCollabModal(null)} className="p-1 rounded" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
             </div>
             <div className="p-4 space-y-3">
               <div><label className={labelCls} style={{ color: resolve.muted }}>Nome *</label><input type="text" className={inputCls} style={inputStyle} value={fNome} onChange={(e) => setFNome(e.target.value)} autoFocus /></div>
@@ -962,7 +966,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <button type="button" onClick={() => setCollabModal(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}>Cancelar</button>
-                <button type="button" onClick={saveCollab} className="h-8 px-3 text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.accent, color: resolve.bg }}>Salvar</button>
+                <button type="button" onClick={saveCollab} className="h-8 px-3 text-xs font-medium uppercase rounded flex items-center gap-1.5" style={{ backgroundColor: resolve.accent, color: resolve.bg }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar</button>
               </div>
             </div>
           </div>
@@ -976,7 +980,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
         <div className="rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
           <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between gap-2" style={{ borderColor: resolve.border, color: resolve.muted }}>
             <span>TABELAS DE CACHÊ ({cacheTables.length})</span>
-            <button type="button" className={btnSmall} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openCacheTableModal('new')}>+ Nova tabela</button>
+            <button type="button" className={`${btnSmall} flex items-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openCacheTableModal('new')}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Nova tabela</button>
           </div>
           <p className="px-3 py-1.5 text-[10px]" style={{ color: resolve.muted, borderBottom: `1px solid ${resolve.border}` }}>As tabelas criadas, duplicadas e editadas são salvas automaticamente no banco de dados.</p>
           <div className="p-3">
@@ -994,12 +998,12 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                       {t.description && <p className="text-[11px] truncate mt-0.5" style={{ color: resolve.muted }}>{t.description}</p>}
                     </div>
                     <div className="flex gap-1 flex-shrink-0 flex-wrap">
-                      <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => handleDuplicateCacheTable(t)}>Duplicar</button>
+                      <button type="button" className={`${btnSmall} flex items-center gap-1.5`} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => handleDuplicateCacheTable(t)} aria-label="Duplicar"><Copy size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Duplicar</button>
                       {!t.is_default && <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => setDefaultCacheTable(t.id).then(() => loadCacheTables())}>Tornar padrão</button>}
                       <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => { importTargetTableIdRef.current = t.id; cacheTableFileRef.current?.click(); }}>Importar CSV</button>
                       <input ref={cacheTableFileRef} type="file" accept=".csv" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; const tid = importTargetTableIdRef.current; if (file && tid) { importCacheTableCsv(file, tid); importTargetTableIdRef.current = null; } e.target.value = '' }} />
-                      <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.accent, border: `1px solid ${resolve.border}` }} onClick={() => openCacheTableModal(t)}>Editar</button>
-                      <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: cinema.danger, border: `1px solid ${resolve.border}` }} onClick={() => removeCacheTable(t.id, t.name)}>Excluir</button>
+                      <button type="button" className={`${btnSmall} flex items-center gap-1.5`} style={{ backgroundColor: 'transparent', color: resolve.accent, border: `1px solid ${resolve.border}` }} onClick={() => openCacheTableModal(t)} aria-label="Editar"><Pencil size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Editar</button>
+                      <button type="button" className={`${btnSmall} flex items-center gap-1.5`} style={{ backgroundColor: 'transparent', color: cinema.danger, border: `1px solid ${resolve.border}` }} onClick={() => removeCacheTable(t.id, t.name)} aria-label="Excluir"><X size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Excluir</button>
                     </div>
                   </div>
                 ))}
@@ -1015,7 +1019,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
           <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
               <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: resolve.text }}>{cacheTableModal === 'new' ? '➕ NOVA TABELA' : '✏️ EDITAR TABELA'}</h3>
-              <button type="button" onClick={() => setCacheTableModal(null)} className="text-lg leading-none px-1" style={{ color: resolve.muted }}>×</button>
+              <button type="button" onClick={() => setCacheTableModal(null)} className="p-1 rounded" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
             </div>
             <div className="p-4 space-y-3">
               <div><label className={labelCls} style={{ color: resolve.muted }}>Nome *</label><input type="text" className={inputCls} style={inputStyle} value={ctName} onChange={(e) => setCtName(e.target.value)} placeholder="Ex: SINDICINE 2024" autoFocus /></div>
@@ -1023,7 +1027,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
               <div><label className={labelCls} style={{ color: resolve.muted }}>Fonte</label><input type="text" className={inputCls} style={inputStyle} value={ctSource} onChange={(e) => setCtSource(e.target.value)} placeholder="Ex: SINDICINE 2024" /></div>
               <div className="flex gap-2 justify-end pt-2">
                 <button type="button" onClick={() => setCacheTableModal(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}>Cancelar</button>
-                <button type="button" onClick={saveCacheTable} className="h-8 px-3 text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.accent, color: resolve.bg }}>Salvar</button>
+                <button type="button" onClick={saveCacheTable} className="h-8 px-3 text-xs font-medium uppercase rounded flex items-center gap-1.5" style={{ backgroundColor: resolve.accent, color: resolve.bg }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar</button>
               </div>
             </div>
           </div>
@@ -1053,7 +1057,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                   <option key={d} value={d}>{d}</option>
                 ))}
               </select>
-              <button type="button" className={`${btnSmall} shrink-0 whitespace-nowrap`} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openRoleModal('new')}>+ Nova</button>
+              <button type="button" className={`${btnSmall} shrink-0 whitespace-nowrap flex items-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openRoleModal('new')}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Nova</button>
             </div>
           </div>
           <div className="p-3">
@@ -1104,7 +1108,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                           <div className="flex items-center justify-between gap-2">
                             <span>{section.name}</span>
                             {section.separatorId != null && (
-                              <button type="button" className="text-[10px] uppercase" style={{ color: cinema.danger }} onClick={() => removeRole(section.separatorId!)}>Remover separador</button>
+                              <button type="button" className="inline-flex items-center gap-1 text-[10px] uppercase" style={{ color: cinema.danger }} onClick={() => removeRole(section.separatorId!)} aria-label="Remover separador"><X size={14} strokeWidth={2} />Remover separador</button>
                             )}
                           </div>
                         </td>
@@ -1135,9 +1139,9 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                             <td className={`${tdCls} text-right font-mono`} style={{ borderColor: resolve.border }}>{formatCurrency(Number(r.cache_dia))}</td>
                             <td className={`${tdCls} text-right font-mono`} style={{ borderColor: resolve.border }}>{formatCurrency(Number(r.cache_semana))}</td>
                             <td className={`${tdCls} text-right whitespace-nowrap`} style={{ borderColor: resolve.border }}>
-                              <button type="button" className="text-[11px] uppercase mr-2" style={{ color: resolve.accent }} onClick={() => openRoleModal(r)}>Editar</button>
-                              <button type="button" className="text-[11px] uppercase mr-2" style={{ color: resolve.accent }} onClick={() => duplicateRole(r)}>Duplicar</button>
-                              <button type="button" className="text-[11px] uppercase" style={{ color: cinema.danger }} onClick={() => removeRole(r.id)}>×</button>
+                              <button type="button" className="inline-flex items-center justify-center p-1.5 rounded mr-1" style={{ color: resolve.accent }} onClick={() => openRoleModal(r)} aria-label="Editar"><Pencil size={16} strokeWidth={2} /></button>
+                              <button type="button" className="inline-flex items-center justify-center p-1.5 rounded mr-1" style={{ color: resolve.accent }} onClick={() => duplicateRole(r)} aria-label="Duplicar"><Copy size={16} strokeWidth={2} /></button>
+                              <button type="button" className="inline-flex items-center justify-center p-1.5 rounded" style={{ color: cinema.danger }} onClick={() => removeRole(r.id)} aria-label="Excluir"><X size={16} strokeWidth={2} /></button>
                             </td>
                           </tr>
                         )
@@ -1157,7 +1161,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
           <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
               <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: resolve.text }}>{roleModal === 'new' ? '➕ NOVA FUNÇÃO' : '✏️ EDITAR FUNÇÃO'}</h3>
-              <button type="button" onClick={() => setRoleModal(null)} className="text-lg leading-none px-1" style={{ color: resolve.muted }}>×</button>
+              <button type="button" onClick={() => setRoleModal(null)} className="p-1 rounded" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
             </div>
             <div className="p-4 space-y-3">
               <div><label className={labelCls} style={{ color: resolve.muted }}>Função *</label><input type="text" className={inputCls} style={inputStyle} value={rFuncao} onChange={(e) => setRFuncao(e.target.value)} autoFocus placeholder={roleModal !== 'new' && roleModal && isRoleSeparator(roleModal) ? 'Ex: --- DIREÇÃO ---' : undefined} /></div>
@@ -1167,7 +1171,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <button type="button" onClick={() => setRoleModal(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}>Cancelar</button>
-                <button type="button" onClick={saveRole} className="h-8 px-3 text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.accent, color: resolve.bg }}>Salvar</button>
+                <button type="button" onClick={saveRole} className="h-8 px-3 text-xs font-medium uppercase rounded flex items-center gap-1.5" style={{ backgroundColor: resolve.accent, color: resolve.bg }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar</button>
               </div>
             </div>
           </div>
@@ -1211,8 +1215,8 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                       <td className={tdCls} style={{ borderColor: resolve.border }}>{p.cliente || '—'}</td>
                       <td className={tdCls} style={{ borderColor: resolve.border, color: resolve.muted }}>{new Date(p.updated_at).toLocaleDateString('pt-BR')}</td>
                       <td className={`${tdCls} text-right whitespace-nowrap`} style={{ borderColor: resolve.border }}>
-                        <button type="button" className="text-[11px] uppercase mr-2" style={{ color: resolve.accent }} onClick={() => openProjectModal(p)}>Editar</button>
-                        <button type="button" className="text-[11px] uppercase" style={{ color: cinema.danger }} onClick={() => removeProject(p.id, p.nome)}>Excluir</button>
+                        <button type="button" className="inline-flex items-center justify-center p-1.5 rounded mr-1" style={{ color: resolve.accent }} onClick={() => openProjectModal(p)} aria-label="Editar"><Pencil size={16} strokeWidth={2} /></button>
+                        <button type="button" className="inline-flex items-center justify-center p-1.5 rounded" style={{ color: cinema.danger }} onClick={() => removeProject(p.id, p.nome)} aria-label="Excluir"><X size={16} strokeWidth={2} /></button>
                       </td>
                     </tr>
                   ))}
@@ -1229,7 +1233,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
           <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
               <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: resolve.text }}>✏️ EDITAR PROJETO</h3>
-              <button type="button" onClick={() => setProjectModal(null)} className="text-lg leading-none px-1" style={{ color: resolve.muted }}>×</button>
+              <button type="button" onClick={() => setProjectModal(null)} className="p-1 rounded" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
             </div>
             <div className="p-4 space-y-3">
               <div className="text-[11px] font-mono px-1 mb-1" style={{ color: resolve.muted }}>JOB #{projectModal.job_id}</div>
@@ -1250,8 +1254,67 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <button type="button" onClick={() => setProjectModal(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}>Cancelar</button>
-                <button type="button" onClick={saveProjectEdit} className="h-8 px-3 text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.accent, color: resolve.bg }}>Salvar</button>
+                <button type="button" onClick={saveProjectEdit} className="h-8 px-3 text-xs font-medium uppercase rounded flex items-center gap-1.5" style={{ backgroundColor: resolve.accent, color: resolve.bg }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ ÍCONES (referência temporária – pode ser removida quando o sistema estiver completo) ═══ */}
+      {activeTab === 'icons' && (
+        <div className="rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
+          <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider" style={{ borderColor: resolve.border, color: resolve.muted }}>
+            ÍCONES DO SISTEMA (Lucide)
+          </div>
+          <div className="p-4 space-y-6">
+            <p className="text-[11px]" style={{ color: resolve.muted }}>
+              Aba de referência para alinhar quais ícones usamos. Cores e tamanhos seguem o tema (resolve). Lista completa: <a href="https://lucide.dev/icons" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: resolve.accent }}>lucide.dev/icons</a>
+            </p>
+
+            <div>
+              <h3 className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: resolve.text }}>Usados no sistema</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {APP_ICONS.map(({ name, Icon, usage }) => (
+                  <div
+                    key={name}
+                    className="flex flex-col items-center justify-center gap-2 p-3 rounded border"
+                    style={{ borderColor: resolve.border, backgroundColor: resolve.bg }}
+                  >
+                    <Icon size={28} strokeWidth={1.5} color={resolve.muted} style={{ color: resolve.muted }} />
+                    <span className="text-[10px] font-mono text-center" style={{ color: resolve.text }}>{name}</span>
+                    <span className="text-[10px] text-center" style={{ color: resolve.muted }}>{usage}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: resolve.text }}>Galeria de referência</h3>
+              <input
+                type="text"
+                className={`${inputCls} mb-3 max-w-xs`}
+                style={inputStyle}
+                value={iconsSearch}
+                onChange={(e) => setIconsSearch(e.target.value)}
+                placeholder="Filtrar por nome (ex: Calendar, User)..."
+              />
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                {GALLERY_ICONS.filter((item) => !String(iconsSearch ?? '').trim() || (item.name || '').toLowerCase().includes((iconsSearch ?? '').toLowerCase())).map(({ name, Icon }) => (
+                  <div
+                    key={name}
+                    className="flex flex-col items-center justify-center gap-1.5 py-2 px-1 rounded border"
+                    style={{ borderColor: resolve.border, backgroundColor: resolve.bg }}
+                    title={name}
+                  >
+                    <Icon size={22} strokeWidth={1.5} color={resolve.muted} style={{ color: resolve.muted }} />
+                    <span className="text-[9px] font-mono truncate w-full text-center" style={{ color: resolve.text }}>{name}</span>
+                  </div>
+                ))}
+              </div>
+              {GALLERY_ICONS.filter((item) => !String(iconsSearch ?? '').trim() || (item.name || '').toLowerCase().includes((iconsSearch ?? '').toLowerCase())).length === 0 && (
+                <p className="text-[11px]" style={{ color: resolve.muted }}>Nenhum ícone encontrado. Tente outro termo.</p>
+              )}
             </div>
           </div>
         </div>
