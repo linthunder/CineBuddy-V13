@@ -612,10 +612,19 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
       return
     }
     newOrder.splice(insertIdx, 0, draggedId)
-    await updateRolesOrder(newOrder)
-    loadRoles()
+
+    const previousRoles = roles
+    const reordered: RoleRate[] = newOrder.map((id) => previousRoles.find((r) => r.id === id)).filter((r): r is RoleRate => r != null)
+    setRoles(reordered)
     setDraggedRoleId(null)
     setDropTargetId(null)
+
+    try {
+      await updateRolesOrder(newOrder)
+    } catch {
+      setRoles(previousRoles)
+      if (typeof window !== 'undefined') window.alert('Não foi possível salvar a ordem. Tente novamente.')
+    }
   }
 
   const exportRolesCsv = () => {

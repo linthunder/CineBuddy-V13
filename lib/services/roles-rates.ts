@@ -68,10 +68,19 @@ export async function listRoles(tableId?: string | null): Promise<RoleRate[]> {
   return data ?? []
 }
 
-/** Atualiza a ordem das funções (após arrastar). orderedIds = lista de id na nova ordem. */
+/** Atualiza a ordem das funções (após arrastar). Usa RPC em uma chamada; se não existir, faz N updates. */
 export async function updateRolesOrder(orderedIds: string[]): Promise<void> {
-  for (let i = 0; i < orderedIds.length; i++) {
-    await updateRole(orderedIds[i], { ordem: i })
+  if (orderedIds.length === 0) return
+  const { error } = await supabase.rpc('roles_rates_reorder', { ordered_ids: orderedIds })
+  if (error) {
+    if (error.code === '42883' || error.message?.includes('does not exist')) {
+      for (let i = 0; i < orderedIds.length; i++) {
+        await updateRole(orderedIds[i], { ordem: i })
+      }
+      return
+    }
+    console.error('Erro ao salvar ordem:', error)
+    throw error
   }
 }
 
