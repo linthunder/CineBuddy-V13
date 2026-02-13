@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import PageLayout from '@/components/PageLayout'
 import { resolve, cinema } from '@/lib/theme'
 import {
@@ -8,7 +8,7 @@ import {
   type Collaborator, type CollaboratorInsert,
 } from '@/lib/services/collaborators'
 import {
-  listRoles, createRole, updateRole, deleteRole, importRoles,
+  listRoles, createRole, updateRole, deleteRole, importRoles, updateRolesOrder, isRoleSeparator,
   type RoleRate, type RoleRateInsert,
 } from '@/lib/services/roles-rates'
 import {
@@ -16,6 +16,7 @@ import {
   type CacheTable, type CacheTableInsert,
 } from '@/lib/services/cache-tables'
 import { formatCurrency } from '@/lib/utils'
+import { ROLES_DEPARTAMENTOS_ORDER } from '@/lib/constants'
 import { getCompany, saveCompany, uploadCompanyLogo } from '@/lib/services/company'
 import {
   listProjects, updateProject, deleteProject,
@@ -476,6 +477,9 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
   const [rFuncao, setRFuncao] = useState('')
   const [rDia, setRDia] = useState('')
   const [rSemana, setRSemana] = useState('')
+  const [hoveredRowId, setHoveredRowId] = useState<string | null>(null)
+  const [draggedRoleId, setDraggedRoleId] = useState<string | null>(null)
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null)
 
   const loadRoles = useCallback(async () => {
     setRolesLoading(true)
@@ -503,7 +507,9 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
     if (role === 'new') {
       setRFuncao(''); setRDia(''); setRSemana('')
     } else {
-      setRFuncao(role.funcao); setRDia(String(role.cache_dia)); setRSemana(String(role.cache_semana))
+      setRFuncao(role.funcao)
+      setRDia(String(role.cache_dia))
+      setRSemana(String(role.cache_semana))
     }
     setRoleModal(role)
   }
@@ -530,6 +536,88 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
     loadRoles()
   }
 
+  const duplicateRole = async (r: RoleRate) => {
+    const tableId = selectedCacheTableId ?? r.table_id
+    if (!tableId) {
+      if (typeof window !== 'undefined') window.alert('Selecione uma tabela de cachê.')
+      return
+    }
+    const created = await createRole({
+      funcao: r.funcao,
+      cache_dia: Number(r.cache_dia),
+      cache_semana: Number(r.cache_semana),
+      table_id: tableId,
+    })
+    if (created) loadRoles()
+  }
+
+  const insertSeparator = async (dept: string) => {
+    if (!selectedCacheTableId) {
+      if (typeof window !== 'undefined') window.alert('Selecione uma tabela de cachê primeiro.')
+      return
+    }
+    const created = await createRole({
+      funcao: `--- ${dept} ---`,
+      cache_dia: 0,
+      cache_semana: 0,
+      table_id: selectedCacheTableId,
+    })
+    if (created) {
+      const currentIds = roles.map((r) => r.id)
+      await updateRolesOrder([created.id, ...currentIds])
+      loadRoles()
+    }
+  }
+
+  const orderedRoleIds = roles.map((r) => r.id)
+
+  const handleRoleDragStart = (e: React.DragEvent, roleId: string) => {
+    if ((e.target as HTMLElement).closest('button')) {
+      e.preventDefault()
+      return
+    }
+    e.dataTransfer.setData('text/plain', roleId)
+    e.dataTransfer.effectAllowed = 'move'
+    setDraggedRoleId(roleId)
+  }
+
+  const handleRoleDragEnd = () => {
+    setDraggedRoleId(null)
+    setDropTargetId(null)
+  }
+
+  const handleRoleDragOver = (e: React.DragEvent, targetRoleId: string) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (draggedRoleId && draggedRoleId !== targetRoleId) setDropTargetId(targetRoleId)
+  }
+
+  const handleRoleDragLeave = () => {
+    setDropTargetId(null)
+  }
+
+  const handleRoleDrop = async (e: React.DragEvent, targetRoleId: string) => {
+    e.preventDefault()
+    const draggedId = e.dataTransfer.getData('text/plain')
+    if (!draggedId || draggedId === targetRoleId) {
+      setDraggedRoleId(null)
+      setDropTargetId(null)
+      return
+    }
+    const newOrder = orderedRoleIds.filter((id) => id !== draggedId)
+    const insertIdx = newOrder.indexOf(targetRoleId)
+    if (insertIdx === -1) {
+      setDraggedRoleId(null)
+      setDropTargetId(null)
+      return
+    }
+    newOrder.splice(insertIdx, 0, draggedId)
+    await updateRolesOrder(newOrder)
+    loadRoles()
+    setDraggedRoleId(null)
+    setDropTargetId(null)
+  }
+
   const exportRolesCsv = () => {
     const header = 'Função,Cachê (Dia),Cachê (Semana)'
     const rows = roles.map((r) => `${r.funcao},"R$${Number(r.cache_dia).toFixed(2).replace('.', ',')}","R$${Number(r.cache_semana).toFixed(2).replace('.', ',')}"`)
@@ -554,6 +642,22 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
   const filteredRoles = rolesSearch
     ? roles.filter((r) => r.funcao.toLowerCase().includes(rolesSearch.toLowerCase()))
     : roles
+
+  /** Agrupa por linhas separadoras: funcao "--- DEPARTAMENTO ---" inicia nova seção. Ordem preservada (created_at). */
+  type Section = { name: string; separatorId: string | null; rows: RoleRate[] }
+  const sections: Section[] = []
+  let current: Section = { name: 'Outros', separatorId: null, rows: [] }
+  for (const r of filteredRoles) {
+    if (isRoleSeparator(r)) {
+      sections.push(current)
+      const name = r.funcao.replace(/^---\s*|\s*---$/g, '').trim() || 'Departamento'
+      current = { name, separatorId: r.id, rows: [] }
+    } else {
+      current.rows.push(r)
+    }
+  }
+  sections.push(current)
+  const sectionsToRender = sections.filter((s) => s.rows.length > 0 || s.separatorId != null)
 
   /* ═══════════════════════════════════════════════════════
    * PROJETOS
@@ -934,6 +1038,12 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
               <button type="button" className={`${btnSmall} shrink-0 whitespace-nowrap`} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={exportRolesCsv}>Exportar</button>
               <button type="button" className={`${btnSmall} shrink-0 whitespace-nowrap`} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => rolesFileRef.current?.click()}>Importar</button>
               <input ref={rolesFileRef} type="file" accept=".csv" className="hidden" onChange={(e) => { if (e.target.files?.[0]) importRolesCsv(e.target.files[0]); e.target.value = '' }} />
+              <select className={`${inputCls} shrink-0 w-auto max-w-[180px]`} style={inputStyle} defaultValue="" onChange={(e) => { const v = e.target.value; if (v) { insertSeparator(v); e.target.value = ''; } }}>
+                <option value="">Inserir separador...</option>
+                {ROLES_DEPARTAMENTOS_ORDER.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
               <button type="button" className={`${btnSmall} shrink-0 whitespace-nowrap`} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openRoleModal('new')}>+ Nova</button>
             </div>
           </div>
@@ -956,16 +1066,74 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredRoles.map((r) => (
-                    <tr key={r.id} style={{ borderColor: resolve.border }}>
-                      <td className={tdCls} style={{ borderColor: resolve.border, fontWeight: 500 }}>{r.funcao}</td>
-                      <td className={`${tdCls} text-right font-mono`} style={{ borderColor: resolve.border }}>{formatCurrency(Number(r.cache_dia))}</td>
-                      <td className={`${tdCls} text-right font-mono`} style={{ borderColor: resolve.border }}>{formatCurrency(Number(r.cache_semana))}</td>
-                      <td className={`${tdCls} text-right whitespace-nowrap`} style={{ borderColor: resolve.border }}>
-                        <button type="button" className="text-[11px] uppercase mr-2" style={{ color: resolve.accent }} onClick={() => openRoleModal(r)}>Editar</button>
-                        <button type="button" className="text-[11px] uppercase" style={{ color: cinema.danger }} onClick={() => removeRole(r.id)}>×</button>
-                      </td>
-                    </tr>
+                  {sectionsToRender.map((section, idx) => (
+                    <React.Fragment key={section.separatorId ?? `outros-${idx}`}>
+                      <tr
+                        {...(section.separatorId != null
+                          ? {
+                              draggable: true,
+                              onDragStart: (e: React.DragEvent) => handleRoleDragStart(e, section.separatorId!),
+                              onDragEnd: handleRoleDragEnd,
+                              onDragOver: (e: React.DragEvent) => handleRoleDragOver(e, section.separatorId!),
+                              onDragLeave: handleRoleDragLeave,
+                              onDrop: (e: React.DragEvent) => handleRoleDrop(e, section.separatorId!),
+                              onMouseEnter: () => setHoveredRowId(section.separatorId),
+                              onMouseLeave: () => { setHoveredRowId(null); setDropTargetId(null) },
+                              className: draggedRoleId === section.separatorId ? 'cursor-grabbing opacity-50' : 'cursor-grab',
+                              style: {
+                                borderColor: resolve.border,
+                                backgroundColor: dropTargetId === section.separatorId ? 'rgba(255,255,255,0.1)' : hoveredRowId === section.separatorId ? 'rgba(255,255,255,0.06)' : resolve.panel,
+                                transition: 'background-color 0.15s ease',
+                              },
+                            }
+                          : {
+                              style: { borderColor: resolve.border },
+                            }
+                        )}
+                      >
+                        <td colSpan={4} className="py-2 pr-3 text-[10px] font-semibold uppercase tracking-wider border-b" style={{ borderColor: resolve.border, color: resolve.muted, backgroundColor: 'transparent' }}>
+                          <div className="flex items-center justify-between gap-2">
+                            <span>{section.name}</span>
+                            {section.separatorId != null && (
+                              <button type="button" className="text-[10px] uppercase" style={{ color: cinema.danger }} onClick={() => removeRole(section.separatorId!)}>Remover separador</button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                      {section.rows.map((r) => {
+                        const isHovered = hoveredRowId === r.id
+                        const isDragging = draggedRoleId === r.id
+                        const isDropTarget = dropTargetId === r.id
+                        return (
+                          <tr
+                            key={r.id}
+                            draggable
+                            onDragStart={(e) => handleRoleDragStart(e, r.id)}
+                            onDragEnd={handleRoleDragEnd}
+                            onDragOver={(e) => handleRoleDragOver(e, r.id)}
+                            onDragLeave={handleRoleDragLeave}
+                            onDrop={(e) => handleRoleDrop(e, r.id)}
+                            onMouseEnter={() => setHoveredRowId(r.id)}
+                            onMouseLeave={() => { setHoveredRowId(null); setDropTargetId(null) }}
+                            className={isDragging ? 'cursor-grabbing opacity-50' : 'cursor-grab'}
+                            style={{
+                              borderColor: resolve.border,
+                              backgroundColor: isDropTarget ? 'rgba(255,255,255,0.1)' : isHovered ? 'rgba(255,255,255,0.06)' : undefined,
+                              transition: 'background-color 0.15s ease',
+                            }}
+                          >
+                            <td className={tdCls} style={{ borderColor: resolve.border, fontWeight: 500 }}>{r.funcao}</td>
+                            <td className={`${tdCls} text-right font-mono`} style={{ borderColor: resolve.border }}>{formatCurrency(Number(r.cache_dia))}</td>
+                            <td className={`${tdCls} text-right font-mono`} style={{ borderColor: resolve.border }}>{formatCurrency(Number(r.cache_semana))}</td>
+                            <td className={`${tdCls} text-right whitespace-nowrap`} style={{ borderColor: resolve.border }}>
+                              <button type="button" className="text-[11px] uppercase mr-2" style={{ color: resolve.accent }} onClick={() => openRoleModal(r)}>Editar</button>
+                              <button type="button" className="text-[11px] uppercase mr-2" style={{ color: resolve.accent }} onClick={() => duplicateRole(r)}>Duplicar</button>
+                              <button type="button" className="text-[11px] uppercase" style={{ color: cinema.danger }} onClick={() => removeRole(r.id)}>×</button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>
@@ -983,7 +1151,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
               <button type="button" onClick={() => setRoleModal(null)} className="text-lg leading-none px-1" style={{ color: resolve.muted }}>×</button>
             </div>
             <div className="p-4 space-y-3">
-              <div><label className={labelCls} style={{ color: resolve.muted }}>Função *</label><input type="text" className={inputCls} style={inputStyle} value={rFuncao} onChange={(e) => setRFuncao(e.target.value)} autoFocus /></div>
+              <div><label className={labelCls} style={{ color: resolve.muted }}>Função *</label><input type="text" className={inputCls} style={inputStyle} value={rFuncao} onChange={(e) => setRFuncao(e.target.value)} autoFocus placeholder={roleModal !== 'new' && roleModal && isRoleSeparator(roleModal) ? 'Ex: --- DIREÇÃO ---' : undefined} /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className={labelCls} style={{ color: resolve.muted }}>Cachê (Dia)</label><input type="number" step="0.01" className={inputCls} style={inputStyle} value={rDia} onChange={(e) => setRDia(e.target.value)} placeholder="0.00" /></div>
                 <div><label className={labelCls} style={{ color: resolve.muted }}>Cachê (Semana)</label><input type="number" step="0.01" className={inputCls} style={inputStyle} value={rSemana} onChange={(e) => setRSemana(e.target.value)} placeholder="0.00" /></div>

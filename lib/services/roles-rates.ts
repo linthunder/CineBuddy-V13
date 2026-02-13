@@ -6,12 +6,19 @@ export interface RoleRate {
   funcao: string
   cache_dia: number
   cache_semana: number
+  /** Ordem de exibição; null/undefined = usar created_at. */
+  ordem?: number | null
   created_at: string
   updated_at: string
 }
 
-/** table_id opcional; importRoles adiciona ao inserir. createRole usa table_id quando informado. */
-export type RoleRateInsert = Omit<RoleRate, 'id' | 'created_at' | 'updated_at' | 'table_id'> & { table_id?: string | null }
+/** Linha separadora de departamento: funcao no formato "--- NOME DO DEPARTAMENTO ---" (ex: "--- DIREÇÃO ---"). Não é uma função real; usada só para agrupar na tela. */
+export function isRoleSeparator(r: { funcao: string }): boolean {
+  return /^---\s*.+\s*---$/.test((r.funcao ?? '').trim())
+}
+
+/** table_id e ordem opcionais. */
+export type RoleRateInsert = Omit<RoleRate, 'id' | 'created_at' | 'updated_at' | 'table_id'> & { table_id?: string | null; ordem?: number | null }
 
 /**
  * Busca funções por nome (autocomplete).
@@ -38,14 +45,19 @@ export async function searchRoles(term: string, limit = 10, tableId?: string | n
     console.error('Erro ao buscar funções:', error)
     return []
   }
-  return data ?? []
+  const list = data ?? []
+  return list.filter((r) => !isRoleSeparator(r))
 }
 
-/** Lista todas as funções e cachês, ordenados por nome.
+/** Lista funções e cachês: ordem por `ordem` (nulls por último) e depois created_at.
  * @param tableId - UUID da tabela de cachê (opcional; se não informado, lista todas)
  */
 export async function listRoles(tableId?: string | null): Promise<RoleRate[]> {
-  let query = supabase.from('roles_rates').select('*').order('funcao')
+  let query = supabase
+    .from('roles_rates')
+    .select('*')
+    .order('ordem', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: true })
   if (tableId) query = query.eq('table_id', tableId)
   const { data, error } = await query
 
@@ -54,6 +66,13 @@ export async function listRoles(tableId?: string | null): Promise<RoleRate[]> {
     return []
   }
   return data ?? []
+}
+
+/** Atualiza a ordem das funções (após arrastar). orderedIds = lista de id na nova ordem. */
+export async function updateRolesOrder(orderedIds: string[]): Promise<void> {
+  for (let i = 0; i < orderedIds.length; i++) {
+    await updateRole(orderedIds[i], { ordem: i })
+  }
 }
 
 /** Cria uma nova função/cachê (table_id opcional). */

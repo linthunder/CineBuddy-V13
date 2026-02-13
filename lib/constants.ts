@@ -21,6 +21,9 @@ export const POS_PROD_LIST = ['FINALIZAÇÃO', 'ANIMAÇÃO', 'VFX', 'ÁUDIO'] as
 /** Produção: mesmos depts de pré/prod + AGÊNCIA e CLIENTE ao final (apenas em prod) */
 export const PROD_LIST = [...PRE_PROD_LIST, 'AGÊNCIA', 'CLIENTE'] as const
 
+/** Ordem dos departamentos para a tela Funções e Cachês (mesma sequência da página Orçamento) */
+export const ROLES_DEPARTAMENTOS_ORDER: string[] = [...PRE_PROD_LIST, 'AGÊNCIA', 'CLIENTE', ...POS_PROD_LIST]
+
 export const DEPARTMENTS = {
   pre: [...PRE_PROD_LIST],
   prod: [...PROD_LIST],
