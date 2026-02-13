@@ -744,9 +744,27 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
         {TABS.map((tab) => {
           const active = activeTab === tab.id
           return (
-            <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
-              className="px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider rounded transition-colors"
-              style={{ backgroundColor: active ? resolve.accent : 'transparent', color: active ? resolve.bg : resolve.muted }}>
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className="btn-resolve-hover px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider rounded transition-colors"
+              style={{
+                backgroundColor: active ? resolve.yellowDark : 'transparent',
+                border: `1px solid ${active ? resolve.yellow : 'transparent'}`,
+                color: active ? resolve.bg : resolve.muted,
+              }}
+              onMouseEnter={(e) => {
+                if (!active) {
+                  e.currentTarget.style.color = resolve.yellow
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!active) {
+                  e.currentTarget.style.color = resolve.muted
+                }
+              }}
+            >
               {tab.label}
             </button>
           )
@@ -758,7 +776,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
         <div className="rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
           <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between" style={{ borderColor: resolve.border, color: resolve.muted }}>
             <span>DADOS DA PRODUTORA</span>
-            <button type="button" className={`${btnSmall} flex items-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={handleSaveCompany} disabled={companySaving}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{companySaving ? 'Salvando...' : 'Salvar'}</button>
+            <button type="button" className={`${btnSmall} btn-resolve-hover flex items-center justify-center gap-1.5`} style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }} onClick={handleSaveCompany} disabled={companySaving} title={companySaving ? 'Salvando...' : 'Salvar'} aria-label={companySaving ? 'Salvando...' : 'Salvar'}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{companySaving ? '...' : ''}</button>
           </div>
           <div className="p-3 sm:p-4 space-y-4">
             {/* Logo upload */}
@@ -779,10 +797,12 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    className={btnSmall}
+                    className={`${btnSmall} btn-resolve-hover transition-colors`}
                     style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }}
                     onClick={() => logoFileRef.current?.click()}
                     disabled={logoUploading}
+                    onMouseEnter={(e) => { if (!logoUploading) { e.currentTarget.style.borderColor = resolve.yellow; e.currentTarget.style.color = resolve.yellow } }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = resolve.border; e.currentTarget.style.color = resolve.muted }}
                   >
                     {logoUploading ? 'Enviando...' : 'Escolher imagem'}
                   </button>
@@ -796,13 +816,15 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                   {logoPreview && (
                     <button
                       type="button"
-                      className={btnSmall}
+                      className={`${btnSmall} transition-colors`}
                       style={{ backgroundColor: 'transparent', color: cinema.danger, border: `1px solid ${resolve.border}` }}
                       onClick={async () => {
                         await saveCompany({ logo_url: '' })
                         setLogoPreview('')
                         onLogoChange?.('')
                       }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = cinema.danger; e.currentTarget.style.backgroundColor = 'rgba(201, 74, 74, 0.1)' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = resolve.border; e.currentTarget.style.backgroundColor = 'transparent' }}
                     >
                       <X size={14} strokeWidth={2} style={{ color: 'currentColor' }} className="inline-block mr-1" />Remover
                     </button>

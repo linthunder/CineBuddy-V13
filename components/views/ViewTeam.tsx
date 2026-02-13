@@ -228,36 +228,44 @@ export default function ViewTeam({ getBudgetData }: ViewTeamProps) {
                             title="Telefone, e-mail e endereço"
                             className={iconBtnCls}
                             onClick={() => setModalContact(collab ?? 'no-data')}
-                            style={{ width: 22, height: 22, minWidth: 22, minHeight: 22, color: resolve.muted }}
+                            style={{ width: 26, height: 26, minWidth: 26, minHeight: 26, color: resolve.muted }}
+                            onMouseEnter={(e) => { e.currentTarget.style.color = resolve.yellow }}
+                            onMouseLeave={(e) => { e.currentTarget.style.color = resolve.muted }}
                           >
-                            <Info size={14} strokeWidth={1.5} aria-hidden />
+                            <Info size={17} strokeWidth={1.5} aria-hidden />
                           </button>
                           <button
                             type="button"
                             title="Dados bancários e PIX"
                             className={iconBtnCls}
                             onClick={() => setModalBank(collab ?? 'no-data')}
-                            style={{ width: 22, height: 22, minWidth: 22, minHeight: 22, color: resolve.muted }}
+                            style={{ width: 26, height: 26, minWidth: 26, minHeight: 26, color: resolve.muted }}
+                            onMouseEnter={(e) => { e.currentTarget.style.color = resolve.yellow }}
+                            onMouseLeave={(e) => { e.currentTarget.style.color = resolve.muted }}
                           >
-                            <DollarSign size={14} strokeWidth={1.5} aria-hidden />
+                            <DollarSign size={17} strokeWidth={1.5} aria-hidden />
                           </button>
                           <button
                             type="button"
                             title="Contrato (Drive) — em breve"
                             className={`${iconBtnCls} opacity-70`}
                             onClick={() => window.alert('Abertura do contrato (Google Drive) será implementada em breve.')}
-                            style={{ width: 22, height: 22, minWidth: 22, minHeight: 22, color: resolve.muted }}
+                            style={{ width: 26, height: 26, minWidth: 26, minHeight: 26, color: resolve.muted }}
+                            onMouseEnter={(e) => { e.currentTarget.style.color = resolve.yellow }}
+                            onMouseLeave={(e) => { e.currentTarget.style.color = resolve.muted }}
                           >
-                            <PenLine size={14} strokeWidth={1.5} aria-hidden />
+                            <PenLine size={17} strokeWidth={1.5} aria-hidden />
                           </button>
                           <button
                             type="button"
                             title="Nota fiscal (Drive) — em breve"
                             className={`${iconBtnCls} opacity-70`}
                             onClick={() => window.alert('Abertura da nota fiscal (Google Drive) será implementada em breve.')}
-                            style={{ width: 22, height: 22, minWidth: 22, minHeight: 22, color: resolve.muted }}
+                            style={{ width: 26, height: 26, minWidth: 26, minHeight: 26, color: resolve.muted }}
+                            onMouseEnter={(e) => { e.currentTarget.style.color = resolve.yellow }}
+                            onMouseLeave={(e) => { e.currentTarget.style.color = resolve.muted }}
                           >
-                            <Receipt size={14} strokeWidth={1.5} aria-hidden />
+                            <Receipt size={17} strokeWidth={1.5} aria-hidden />
                           </button>
                         </div>
                       </td>

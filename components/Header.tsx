@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { Settings, Plus, FolderOpen, Copy, Save, LogOut, X } from 'lucide-react'
-import { resolve } from '@/lib/theme'
+import { resolve, cinema } from '@/lib/theme'
 import type { ProjectData } from '@/lib/types'
 import { listProjects, searchProjects } from '@/lib/services/projects'
 
@@ -151,8 +151,8 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
           {onLogout && <button type="button" onClick={onLogout} className={`${btnBaseClsMobile} flex items-center gap-1`} style={btnBaseStyle}><LogOut size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Sair</button>}
           {onOpenConfig && (
             <div className="flex items-center pl-2 ml-1 border-l" style={{ borderColor: resolve.border }}>
-              <button type="button" onClick={onOpenConfig} aria-label="Configurações" className="flex items-center justify-center w-8 h-8 rounded" style={{ color: resolve.muted }}>
-                <Settings size={18} strokeWidth={1.5} aria-hidden color={resolve.muted} style={{ color: resolve.muted }} />
+              <button type="button" onClick={onOpenConfig} aria-label="Configurações" className="flex items-center justify-center w-8 h-8 rounded transition-colors" style={{ color: resolve.muted }} onMouseEnter={(e) => { e.currentTarget.style.color = resolve.yellow }} onMouseLeave={(e) => { e.currentTarget.style.color = resolve.muted }}>
+                <Settings size={18} strokeWidth={1.5} aria-hidden style={{ color: 'currentColor' }} />
               </button>
             </div>
           )}
@@ -187,10 +187,12 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
               type="button"
               onClick={onOpenConfig}
               aria-label="Configurações"
-              className="flex items-center justify-center w-8 h-8 rounded transition-colors hover:opacity-80"
+              className="flex items-center justify-center w-8 h-8 rounded transition-colors"
               style={{ color: resolve.muted }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = resolve.yellow }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = resolve.muted }}
             >
-              <Settings size={18} strokeWidth={1.5} aria-hidden color={resolve.muted} style={{ color: resolve.muted }} />
+              <Settings size={18} strokeWidth={1.5} aria-hidden style={{ color: 'currentColor' }} />
             </button>
           </div>
         )}
@@ -201,8 +203,8 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && closeModal()}>
           <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
-              <h3 className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2" style={{ color: resolve.text }}>➕ NOVO PROJETO</h3>
-              <button type="button" onClick={closeModal} className="p-1 rounded" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
+              <h3 className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2" style={{ color: resolve.text }}><Plus size={18} strokeWidth={2} style={{ color: 'currentColor' }} aria-hidden />NOVO PROJETO</h3>
+              <button type="button" onClick={closeModal} className="p-1 rounded transition-colors" style={{ color: resolve.muted }} aria-label="Fechar" onMouseEnter={(e) => { e.currentTarget.style.color = cinema.danger }} onMouseLeave={(e) => { e.currentTarget.style.color = resolve.muted }}><X size={18} strokeWidth={2} style={{ color: 'currentColor' }} /></button>
             </div>
             <div className="p-4 space-y-3">
               <div>
@@ -229,7 +231,7 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <button type="button" onClick={closeModal} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}>Cancelar</button>
-                <button type="button" onClick={handleCreateNew} className="h-8 px-3 text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.accent, color: resolve.bg }}>Criar projeto</button>
+                <button type="button" onClick={handleCreateNew} className="btn-resolve-hover h-8 px-3 text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }} title="Criar projeto">Criar projeto</button>
               </div>
             </div>
           </div>
@@ -241,8 +243,8 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && closeModal()}>
           <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
-              <h3 className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2" style={{ color: resolve.text }}>📂 ABRIR PROJETO</h3>
-              <button type="button" onClick={closeModal} className="p-1 rounded" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
+              <h3 className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2" style={{ color: resolve.text }}><FolderOpen size={18} strokeWidth={2} style={{ color: 'currentColor' }} aria-hidden />ABRIR PROJETO</h3>
+              <button type="button" onClick={closeModal} className="p-1 rounded transition-colors" style={{ color: resolve.muted }} aria-label="Fechar" onMouseEnter={(e) => { e.currentTarget.style.color = cinema.danger }} onMouseLeave={(e) => { e.currentTarget.style.color = resolve.muted }}><X size={18} strokeWidth={2} style={{ color: 'currentColor' }} /></button>
             </div>
             <div className="p-4">
               <input type="text" className="w-full px-2 py-1.5 text-sm rounded border mb-3" style={modalInputStyle} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar..." autoFocus />
@@ -277,7 +279,7 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
                 )}
               </div>
               <div className="flex justify-end pt-3">
-                <button type="button" onClick={closeModal} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}>Fechar</button>
+                <button type="button" onClick={closeModal} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }} title="Fechar">Fechar</button>
               </div>
             </div>
           </div>
@@ -289,8 +291,8 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && closeModal()}>
           <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
-              <h3 className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2" style={{ color: resolve.text }}>📋 SALVAR CÓPIA</h3>
-              <button type="button" onClick={closeModal} className="p-1 rounded" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
+              <h3 className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2" style={{ color: resolve.text }}><Copy size={18} strokeWidth={2} style={{ color: 'currentColor' }} aria-hidden />SALVAR CÓPIA</h3>
+              <button type="button" onClick={closeModal} className="p-1 rounded transition-colors" style={{ color: resolve.muted }} aria-label="Fechar" onMouseEnter={(e) => { e.currentTarget.style.color = cinema.danger }} onMouseLeave={(e) => { e.currentTarget.style.color = resolve.muted }}><X size={18} strokeWidth={2} style={{ color: 'currentColor' }} /></button>
             </div>
             <div className="p-4 space-y-3">
               <div>
@@ -317,7 +319,7 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <button type="button" onClick={closeModal} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}>Cancelar</button>
-                <button type="button" onClick={handleCreateCopy} disabled={savingCopy} className="h-8 px-3 text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }}>{savingCopy ? 'Salvando...' : 'Criar cópia'}</button>
+                <button type="button" onClick={handleCreateCopy} disabled={savingCopy} className="btn-resolve-hover h-8 px-3 text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }}>{savingCopy ? 'Salvando...' : 'Criar cópia'}</button>
               </div>
             </div>
           </div>

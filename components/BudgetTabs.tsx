@@ -70,8 +70,8 @@ export default function BudgetTabs({
                   onClick={() => setDropdownOpen((o) => !o)}
                   className="btn-resolve-hover h-8 px-3 rounded text-[10px] sm:text-xs font-medium uppercase tracking-wide transition-colors border flex items-center gap-1 whitespace-nowrap"
                   style={{
-                    backgroundColor: dropdownOpen ? resolve.accent : resolve.panel,
-                    borderColor: dropdownOpen ? resolve.accent : resolve.border,
+                    backgroundColor: dropdownOpen ? resolve.yellowDark : resolve.panel,
+                    borderColor: dropdownOpen ? resolve.yellow : resolve.border,
                     color: dropdownOpen ? resolve.bg : resolve.muted,
                   }}
                 >
@@ -83,24 +83,29 @@ export default function BudgetTabs({
                     className="absolute left-0 top-full mt-1 py-1 rounded border shadow-lg z-50 flex flex-col min-w-[180px] max-h-[280px] overflow-y-auto"
                     style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}
                   >
-                    {cacheTables.map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => {
-                          onCacheTableChange?.(t.id)
-                          setDropdownOpen(false)
-                        }}
-                        className="text-left px-3 py-2 text-[11px] uppercase tracking-wide transition-colors"
-                        style={{
-                          backgroundColor: cacheTableId === t.id ? resolve.accent : 'transparent',
-                          color: cacheTableId === t.id ? resolve.bg : resolve.text,
-                        }}
-                      >
-                        {t.name}
-                        {t.is_default && <span className="ml-1 text-[9px] opacity-80">(padrão)</span>}
-                      </button>
-                    ))}
+                    {cacheTables.map((t) => {
+                      const isSelected = cacheTableId === t.id
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => {
+                            onCacheTableChange?.(t.id)
+                            setDropdownOpen(false)
+                          }}
+                          className="text-left px-3 py-2 text-[11px] uppercase tracking-wide transition-colors"
+                          style={{
+                            backgroundColor: 'transparent',
+                            color: isSelected ? resolve.yellow : resolve.text,
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.color = resolve.yellow }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = isSelected ? resolve.yellow : resolve.text }}
+                        >
+                          {t.name}
+                          {t.is_default && <span className="ml-1 text-[9px] opacity-80">(padrão)</span>}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
               </>
