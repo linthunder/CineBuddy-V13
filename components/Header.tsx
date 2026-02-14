@@ -137,7 +137,7 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
               'CB'
             )}
           </div>
-          <img src="/cinebuddy-logo.png" alt="CineBuddy" className="w-auto object-contain" style={{ width: 145, height: 75, maxHeight: 75 }} />
+          <img src="/cinebuddy-logo.png" alt="CineBuddy" className="w-auto object-contain" style={{ width: 145, height: 68, maxHeight: 68 }} />
         </div>
         {/* Botões mobile */}
         <div className="flex flex-wrap gap-1.5 sm:hidden justify-end items-center">

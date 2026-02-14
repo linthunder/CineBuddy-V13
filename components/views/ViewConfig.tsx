@@ -23,6 +23,7 @@ import {
   listProjects, updateProject, deleteProject,
   type ProjectRecord,
 } from '@/lib/services/projects'
+import { addLog, listLogs, type ActivityLog } from '@/lib/services/activity-logs'
 import { listProfiles, updateProfile, type Profile, type ProfileRole } from '@/lib/services/profiles'
 import { supabase } from '@/lib/supabase'
 import { X, Copy, Pencil, Save, Plus } from 'lucide-react'
@@ -210,6 +211,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
           setUserError(data.error || 'Falha ao criar usuário.')
           return
         }
+        await addLog({ action: 'create', entityType: 'profile', entityName: `${uName.trim()} ${uSurname.trim()}`.trim() || uEmail.trim() })
         const list = await listProfiles()
         setProfiles(list)
         setUserModal(null)
@@ -233,6 +235,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
             return
           }
         }
+        await addLog({ action: 'update', entityType: 'profile', entityId: userModal.id, entityName: `${uName.trim()} ${uSurname.trim()}`.trim() || userModal.email })
         const list = await listProfiles()
         setProfiles(list)
         setUserModal(null)
@@ -278,6 +281,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
     setLogoUploading(false)
 
     if (url) {
+      await addLog({ action: 'upload', entityType: 'logo', entityName: 'Logo da empresa' })
       setLogoPreview(url)
       onLogoChange?.(url)
       if (typeof window !== 'undefined') window.alert('Logo atualizada com sucesso!')
@@ -299,6 +303,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
     })
     setCompanySaving(false)
     if (result) {
+      await addLog({ action: 'update', entityType: 'company', entityName: companyFantasy || companyName || 'Produtora' })
       if (typeof window !== 'undefined') window.alert('Dados da produtora salvos com sucesso!')
     } else {
       if (typeof window !== 'undefined') window.alert('Erro ao salvar. Verifique o console.')
@@ -352,9 +357,11 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
     if (!fNome.trim()) return
     const data: CollaboratorInsert = { nome: fNome.trim(), cpf: fCpf, rg: fRg, telefone: fTel, email: fEmail, endereco: fEnd, mei: fMei, cnpj: fCnpj, pix: fPix, banco: fBanco, agencia: fAgencia, conta: fConta }
     if (collabModal === 'new') {
-      await createCollaborator(data)
+      const created = await createCollaborator(data)
+      if (created) await addLog({ action: 'create', entityType: 'collaborator', entityId: created.id, entityName: created.nome })
     } else if (collabModal) {
       await updateCollaborator(collabModal.id, data)
+      await addLog({ action: 'update', entityType: 'collaborator', entityId: collabModal.id, entityName: data.nome })
     }
     setCollabModal(null)
     loadCollabs()
@@ -362,7 +369,9 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
 
   const removeCollab = async (id: string) => {
     if (typeof window !== 'undefined' && !window.confirm('Remover este colaborador?')) return
+    const c = collabs.find((x) => x.id === id)
     await deleteCollaborator(id)
+    if (c) await addLog({ action: 'delete', entityType: 'collaborator', entityId: id, entityName: c.nome })
     loadCollabs()
   }
 
@@ -387,6 +396,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
       }
     }).filter((r) => r.nome)
     const count = await importCollaborators(rows)
+    if (count > 0) await addLog({ action: 'import', entityType: 'collaborator', entityName: `Importação`, details: { count } })
     if (typeof window !== 'undefined') window.alert(`${count} colaborador(es) importado(s)!`)
     loadCollabs()
   }
@@ -432,12 +442,14 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
     if (cacheTableModal === 'new') {
       const created = await createCacheTable({ name: ctName.trim(), description: ctDescription.trim(), source: ctSource.trim(), is_default: cacheTables.length === 0 })
       if (created) {
+        await addLog({ action: 'create', entityType: 'cache_table', entityId: created.id, entityName: created.name })
         setCacheTableModal(null)
         loadCacheTables()
         if (typeof window !== 'undefined') window.alert('Tabela criada! Use "Importar CSV" na tabela para adicionar funções.')
       }
     } else if (cacheTableModal) {
       await updateCacheTable(cacheTableModal.id, { name: ctName.trim(), description: ctDescription.trim(), source: ctSource.trim() })
+      await addLog({ action: 'update', entityType: 'cache_table', entityId: cacheTableModal.id, entityName: ctName.trim() })
       setCacheTableModal(null)
       loadCacheTables()
     }
@@ -450,6 +462,10 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
     if (lines.length < 2) return
     const rows: RoleRateInsert[] = lines.slice(1).map((line) => parseCachesLine(line)).filter((r) => r.funcao)
     const count = await importRoles(rows, tableId)
+    if (count > 0) {
+      const tbl = cacheTables.find((t) => t.id === tableId)
+      await addLog({ action: 'import', entityType: 'role', entityName: tbl?.name ?? 'Tabela de cachê', details: { count, tableId } })
+    }
     if (typeof window !== 'undefined') window.alert(`${count} função(ões) importada(s)!`)
     loadCacheTables()
   }
@@ -457,12 +473,14 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
   const removeCacheTable = async (id: string, name: string) => {
     if (typeof window !== 'undefined' && !window.confirm(`Excluir a tabela "${name}" e todas as suas funções? Esta ação não pode ser desfeita.`)) return
     await deleteCacheTable(id)
+    await addLog({ action: 'delete', entityType: 'cache_table', entityId: id, entityName: name })
     loadCacheTables()
   }
 
   const handleDuplicateCacheTable = async (t: CacheTable) => {
     const created = await duplicateCacheTable(t.id)
     if (created) {
+      await addLog({ action: 'create', entityType: 'cache_table', entityId: created.id, entityName: created.name, details: { duplicatedFrom: t.name } })
       loadCacheTables()
       if (typeof window !== 'undefined') window.alert(`Tabela "${t.name}" duplicada como "${created.name}".`)
     }
@@ -526,9 +544,11 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
         if (typeof window !== 'undefined') window.alert('Selecione uma tabela de cachê primeiro.')
         return
       }
-      await createRole({ ...base, table_id: selectedCacheTableId })
+      const created = await createRole({ ...base, table_id: selectedCacheTableId })
+      if (created) await addLog({ action: 'create', entityType: 'role', entityId: created.id, entityName: created.funcao })
     } else if (roleModal) {
       await updateRole(roleModal.id, base)
+      await addLog({ action: 'update', entityType: 'role', entityId: roleModal.id, entityName: base.funcao })
     }
     setRoleModal(null)
     loadRoles()
@@ -536,7 +556,9 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
 
   const removeRole = async (id: string) => {
     if (typeof window !== 'undefined' && !window.confirm('Remover esta função?')) return
+    const r = roles.find((x) => x.id === id)
     await deleteRole(id)
+    if (r) await addLog({ action: 'delete', entityType: 'role', entityId: id, entityName: r.funcao })
     loadRoles()
   }
 
@@ -648,6 +670,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
     if (lines.length < 2) return
     const rows: RoleRateInsert[] = lines.slice(1).map((line) => parseCachesLine(line)).filter((r) => r.funcao)
     const count = await importRoles(rows, selectedCacheTableId)
+    if (count > 0) await addLog({ action: 'import', entityType: 'role', entityName: 'Importação de funções', details: { count, tableId: selectedCacheTableId } })
     if (typeof window !== 'undefined') window.alert(`${count} função(ões) importada(s)!`)
     loadRoles()
   }
@@ -716,6 +739,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
       duracao: pDuracao.trim(),
       duracao_unit: pDuracaoUnit,
     })
+    await addLog({ action: 'update', entityType: 'project', entityId: projectModal.id, entityName: pNome.trim(), details: { job_id: projectModal.job_id } })
     setProjectModal(null)
     loadProjects()
     if (typeof window !== 'undefined') window.alert('Projeto atualizado!')
@@ -724,6 +748,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
   const removeProject = async (id: string, nome: string) => {
     if (typeof window !== 'undefined' && !window.confirm(`Excluir o projeto "${nome}"? Esta ação não pode ser desfeita.`)) return
     await deleteProject(id)
+    await addLog({ action: 'delete', entityType: 'project', entityId: id, entityName: nome })
     loadProjects()
   }
 
@@ -734,6 +759,52 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
         p.cliente.toLowerCase().includes(projectSearch.toLowerCase())
       )
     : projects
+
+  /* ═══════════════════════════════════════════════════════
+   * LOGS
+   * ═══════════════════════════════════════════════════════ */
+  const [logs, setLogs] = useState<ActivityLog[]>([])
+  const [logsLoading, setLogsLoading] = useState(false)
+  const [logsFilter, setLogsFilter] = useState<string>('')
+
+  const loadLogs = useCallback(async () => {
+    setLogsLoading(true)
+    const data = await listLogs({ limit: 200 })
+    setLogs(data)
+    setLogsLoading(false)
+  }, [])
+
+  useEffect(() => {
+    if (activeTab === 'logs') loadLogs()
+  }, [activeTab, loadLogs])
+
+  const filteredLogs = logsFilter
+    ? logs.filter(
+        (l) =>
+          (l.entity_type?.toLowerCase() ?? '').includes(logsFilter.toLowerCase()) ||
+          (l.action?.toLowerCase() ?? '').includes(logsFilter.toLowerCase()) ||
+          (l.entity_name?.toLowerCase() ?? '').includes(logsFilter.toLowerCase()) ||
+          (l.user_name?.toLowerCase() ?? '').includes(logsFilter.toLowerCase())
+      )
+    : logs
+
+  const formatActionLabel = (action: string) => {
+    const map: Record<string, string> = { create: 'Criou', update: 'Atualizou', delete: 'Excluiu', open: 'Abrir', save: 'Salvou', copy: 'Copiou', upload: 'Enviou', import: 'Importou' }
+    return map[action] ?? action
+  }
+  const formatEntityLabel = (entityType: string) => {
+    const map: Record<string, string> = { project: 'Projeto', company: 'Produtora', collaborator: 'Colaborador', role: 'Função', cache_table: 'Tabela de cachê', profile: 'Usuário', logo: 'Logo' }
+    return map[entityType] ?? entityType
+  }
+
+  const formatLogDate = (iso: string) => {
+    try {
+      const d = new Date(iso)
+      return d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+    } catch {
+      return iso
+    }
+  }
 
   /* ═══════════════════════════════════════════════════════ */
 
@@ -820,6 +891,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                       style={{ backgroundColor: 'transparent', color: cinema.danger, border: `1px solid ${resolve.border}` }}
                       onClick={async () => {
                         await saveCompany({ logo_url: '' })
+                        await addLog({ action: 'delete', entityType: 'logo', entityName: 'Logo da empresa' })
                         setLogoPreview('')
                         onLogoChange?.('')
                       }}
@@ -1345,8 +1417,47 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
       {/* ═══ LOGS ═══ */}
       {activeTab === 'logs' && (
         <div className="rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
-          <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider" style={{ borderColor: resolve.border, color: resolve.muted }}>LOGS</div>
-          <div className="p-8 text-center text-sm" style={{ color: resolve.muted }}>Em breve.</div>
+          <div className="px-3 py-2 border-b flex items-center justify-between gap-2 flex-wrap" style={{ borderColor: resolve.border, color: resolve.muted }}>
+            <span className="text-[11px] font-medium uppercase tracking-wider">LOG DE ATIVIDADES</span>
+            <input
+              type="text"
+              className={inputCls}
+              style={{ ...inputStyle, maxWidth: 200 }}
+              placeholder="Filtrar..."
+              value={logsFilter}
+              onChange={(e) => setLogsFilter(e.target.value)}
+            />
+          </div>
+          <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
+            {logsLoading ? (
+              <div className="p-8 text-center text-[11px]" style={{ color: resolve.muted }}>Carregando...</div>
+            ) : filteredLogs.length === 0 ? (
+              <div className="p-8 text-center text-[11px]" style={{ color: resolve.muted }}>Nenhum registro encontrado.</div>
+            ) : (
+              <table className="w-full text-[11px]">
+                <thead className="sticky top-0 z-10" style={{ backgroundColor: resolve.panel }}>
+                  <tr style={{ borderBottom: `1px solid ${resolve.border}` }}>
+                    <th className={thCls} style={{ color: resolve.muted }}>Data/Hora</th>
+                    <th className={thCls} style={{ color: resolve.muted }}>Usuário</th>
+                    <th className={thCls} style={{ color: resolve.muted }}>Ação</th>
+                    <th className={thCls} style={{ color: resolve.muted }}>Entidade</th>
+                    <th className={thCls} style={{ color: resolve.muted }}>Item</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredLogs.map((log) => (
+                    <tr key={log.id} style={{ borderBottom: `1px solid ${resolve.border}` }}>
+                      <td className={tdCls} style={{ color: resolve.muted }}>{formatLogDate(log.created_at)}</td>
+                      <td className={tdCls} style={{ color: resolve.text }}>{log.user_name || '—'}</td>
+                      <td className={tdCls} style={{ color: resolve.text }}>{formatActionLabel(log.action)}</td>
+                      <td className={tdCls} style={{ color: resolve.text }}>{formatEntityLabel(log.entity_type)}</td>
+                      <td className={tdCls} style={{ color: resolve.text }}>{log.entity_name || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
       )}
     </PageLayout>

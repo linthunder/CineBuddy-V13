@@ -16,6 +16,7 @@ import ViewConfig from '@/components/views/ViewConfig'
 import type { ProjectStatus, ProjectData, BudgetLinesByPhase, VerbaLinesByPhase, MiniTablesData, PhaseDefaultsByPhase } from '@/lib/types'
 import { createProject, updateProject, getProject, type ProjectRecord } from '@/lib/services/projects'
 import { getCompany } from '@/lib/services/company'
+import { addLog } from '@/lib/services/activity-logs'
 
 const INITIAL_PHASE_DEFAULTS: PhaseDefaultsByPhase = {
   pre: { dias: 0, semanas: 0, deslocamento: 0, alimentacaoPerPerson: 0 },
@@ -218,6 +219,13 @@ export default function Home() {
 
       if (result) {
         setProjectDbId(result.id)
+        await addLog({
+          action: projectDbId ? 'update' : 'create',
+          entityType: 'project',
+          entityId: result.id,
+          entityName: result.nome,
+          details: { job_id: result.job_id },
+        })
         if (typeof window !== 'undefined') window.alert('Projeto salvo com sucesso!')
       } else {
         if (typeof window !== 'undefined') window.alert('Erro ao salvar. Verifique o console.')
@@ -271,6 +279,13 @@ export default function Home() {
     const result = await createProject(payload)
 
     if (result) {
+      await addLog({
+        action: 'copy',
+        entityType: 'project',
+        entityId: result.id,
+        entityName: copyData.nome,
+        details: { job_id: newJobId },
+      })
       // Atualizar o projeto ativo para a cópia criada
       setProjectDbId(result.id)
       setProjectData({
@@ -367,6 +382,13 @@ export default function Home() {
       })
     }
 
+    await addLog({
+      action: 'open',
+      entityType: 'project',
+      entityId: project.id,
+      entityName: project.nome,
+      details: { job_id: project.job_id },
+    })
     setCurrentView('filme')
   }, [])
 

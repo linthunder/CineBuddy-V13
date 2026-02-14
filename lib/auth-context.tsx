@@ -43,11 +43,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
-    /** Fallback: se getSession demorar ou travar (rede/Supabase/navegador), para de carregar após 1,2s */
+    /** Fallback: se getSession demorar ou travar (rede/Supabase/navegador), para de carregar após 500ms */
     const fallback = setTimeout(() => {
       if (cancelled) return
       setLoading(false)
-    }, 1200)
+    }, 500)
 
     supabase.auth.getSession()
       .then(({ data: { session: s } }) => {
