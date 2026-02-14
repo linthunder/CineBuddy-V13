@@ -500,7 +500,7 @@ export default function Home() {
           <ViewHome />
         </div>
         <div style={{ display: currentView === 'filme' ? 'block' : 'none' }}>
-          <ViewFilme />
+          <ViewFilme projectData={projectData} />
         </div>
         <div style={{ display: currentView === 'orcamento' ? 'block' : 'none' }}>
           <ViewOrcamento
