@@ -57,6 +57,10 @@ export interface ExpenseDeptConfig {
 /** Cargos sempre disponíveis para responsáveis em todos os departamentos */
 const EXPENSE_FIXED_ROLES = ['Produtor Executivo', 'Diretor de produção', 'Diretor de Cena'] as const
 
+/** Opções do campo TIPO na prestação de contas */
+const EXPENSE_TYPE_OPTIONS = ['Alimentação', 'Combustível', 'Estacionamento', 'outros'] as const
+export type ExpenseTypeOption = (typeof EXPENSE_TYPE_OPTIONS)[number]
+
 interface ExpenseLine {
   id: string
   department: ExpenseDepartment
@@ -65,6 +69,12 @@ interface ExpenseLine {
   value: number
   invoiceNumber: string
   payStatus: 'pendente' | 'pago'
+  /** Data da despesa (YYYY-MM-DD) */
+  date: string
+  /** Fornecedor */
+  supplier: string
+  /** Tipo: Alimentação, Combustível, Estacionamento, outros */
+  expenseType: string
 }
 
 /* ── Helpers ── */
@@ -293,6 +303,9 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
       const expenseList = (state.expenses as (ExpenseLine & { department?: string })[]).map((e) => ({
         ...e,
         department: (e.department && EXPENSE_DEPARTMENTS.includes(e.department as ExpenseDepartment)) ? e.department as ExpenseDepartment : 'PRODUÇÃO',
+        date: e.date ?? '',
+        supplier: e.supplier ?? '',
+        expenseType: e.expenseType ?? 'outros',
       }))
       setExpenses(expenseList)
       if (state.expenseDepartmentConfig && typeof state.expenseDepartmentConfig === 'object') {
@@ -476,20 +489,27 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
     }, {} as Record<ExpenseDepartment, number>)
   }, [expenseDeptBudget, expenses])
 
-  /* Opções de responsáveis: para cargos fixos, buscar nome do profissional em closingLines; depois profissionais do dept */
+  /* Opções de responsáveis: cargos fixos (em todos os depts) + profissionais do dept. Diretor de Cena em qualquer dept pode ser responsável por qualquer verba. */
   const expenseDeptResponsibleOptions = useMemo(() => {
+    const normalizedRole = (r: string) => (r || '').trim().toLowerCase().replace(/\s+/g, ' ')
     const fixedWithNames: string[] = []
+    const addLabel = (label: string) => {
+      if (label && !fixedWithNames.includes(label)) fixedWithNames.push(label)
+    }
     EXPENSE_FIXED_ROLES.forEach((role) => {
-      const matches = closingLines.filter((l) => (l.role || '').trim().toLowerCase() === role.toLowerCase())
+      const roleNorm = normalizedRole(role)
+      const matches = closingLines.filter((l) => normalizedRole(l.role || '') === roleNorm)
       if (matches.length > 0) {
-        matches.forEach((l) => {
-          const label = l.name ? `${l.name} (${l.role})` : (l.role || '')
-          if (label && !fixedWithNames.includes(label)) fixedWithNames.push(label)
-        })
+        matches.forEach((l) => addLabel(l.name ? `${l.name} (${l.role})` : (l.role || '')))
       } else {
         fixedWithNames.push(role)
       }
     })
+    /* Diretores de Cena de qualquer departamento: podem ser responsáveis por todas as verbas */
+    const diretorCenaNorm = normalizedRole('Diretor de Cena')
+    closingLines
+      .filter((l) => (l.name || l.role) && normalizedRole(l.role || '').includes(diretorCenaNorm))
+      .forEach((l) => addLabel(l.name ? `${l.name} (${l.role})` : (l.role || '')))
     return EXPENSE_DEPARTMENTS.reduce((acc, dept) => {
       const fromLines = closingLines
         .filter((l) => l.department === dept && (l.name || l.role))
@@ -530,7 +550,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
   /* Prestação de contas */
   const addExpense = useCallback((department: ExpenseDepartment = 'PRODUÇÃO') => {
     if (isLocked) return
-    setExpenses((prev) => [...prev, { id: `exp-${Date.now()}`, department, name: '', description: '', value: 0, invoiceNumber: '', payStatus: 'pendente' }])
+    setExpenses((prev) => [...prev, { id: `exp-${Date.now()}`, department, name: '', description: '', value: 0, invoiceNumber: '', payStatus: 'pendente', date: '', supplier: '', expenseType: 'outros' }])
   }, [isLocked])
   const updateExpense = useCallback((id: string, updates: Partial<ExpenseLine>) => {
     if (isLocked) return
@@ -959,9 +979,18 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                 <div className="flex flex-wrap items-center gap-2 min-w-0">
                   <span className="text-[11px] font-semibold uppercase tracking-wider shrink-0" style={{ color: resolve.text }}>{dept}</span>
                   <span className="text-[10px] text-left shrink-0" style={{ color: resolve.muted }}>Responsáveis:</span>
-                  <span className="text-[11px] truncate" style={{ color: resolve.text }}>
-                    {r1 || r2 ? [r1, r2].filter(Boolean).join(' • ') : 'Nenhum'}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
+                    {r1 || r2 ? (
+                      [r1, r2].filter(Boolean).map((name, i) => (
+                      <Fragment key={name}>
+                        {i > 0 && sepVertical(`sep-${dept}-${i}`)}
+                        <span className="text-[11px] truncate" style={{ color: resolve.text }}>{name}</span>
+                      </Fragment>
+                      ))
+                    ) : (
+                      <span className="text-[11px]" style={{ color: resolve.text }}>Nenhum</span>
+                    )}
+                  </div>
                   {!isLocked && (
                     <button
                       type="button"
@@ -984,15 +1013,21 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
               </div>
               <table className="budget-table-cards w-full border-collapse text-[11px] min-w-[500px] table-fixed">
                 <colgroup>
-                  <col style={{ width: '60%' }} />
                   <col style={{ width: '10%' }} />
-                  <col style={{ width: '5%' }} />
-                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '26%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '6%' }} />
+                  <col style={{ width: '16%' }} />
                   <col style={{ width: '40px' }} />
                 </colgroup>
                 <thead>
                   <tr className="border-b" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.04)' }}>
+                    <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Data</th>
+                    <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Fornecedor</th>
                     <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Descrição</th>
+                    <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Tipo</th>
                     <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Valor</th>
                     <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>NF</th>
                     <th className="text-center text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Status</th>
@@ -1002,7 +1037,18 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                 <tbody>
                   {expenses.filter((e) => e.department === dept).map((exp) => (
                     <tr key={exp.id} className="border-b" style={{ borderColor: resolve.border }}>
+                      <td className="p-1.5">
+                        <input type="date" className={inputClassName} style={inputStyle} value={exp.date} onChange={(e) => updateExpense(exp.id, { date: e.target.value })} />
+                      </td>
+                      <td className="p-1.5"><input className={inputClassName} style={inputStyle} value={exp.supplier} onChange={(e) => updateExpense(exp.id, { supplier: e.target.value })} placeholder="Fornecedor" /></td>
                       <td className="p-1.5"><input className={inputClassName} style={inputStyle} value={exp.description} onChange={(e) => updateExpense(exp.id, { description: e.target.value })} placeholder="Descrição" /></td>
+                      <td className="p-1.5">
+                        <select className={inputClassName} style={inputStyle} value={exp.expenseType} onChange={(e) => updateExpense(exp.id, { expenseType: e.target.value })}>
+                          {EXPENSE_TYPE_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </td>
                       <td className="p-1.5">
                         <input
                           className={inputClassName}
