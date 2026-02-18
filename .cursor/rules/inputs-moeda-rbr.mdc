@@ -1,0 +1,32 @@
+---
+description: Regra para campos de valor em moeda (R$) no CineBuddy
+alwaysApply: true
+---
+
+# Campos de input de valor (moeda) — Real brasileiro (R$)
+
+## Moeda do sistema
+- O sistema trabalha em **Real brasileiro (R$)**. Todo campo de input de valor deve respeitar essa moeda.
+
+## Implementação obrigatória
+Ao adicionar ou alterar qualquer campo de input de valor no sistema:
+
+1. **Usar os utilitários de moeda existentes** em `lib/utils.ts`:
+   - `formatCurrency(value: number)` — exibição formatada (ex.: "R$ 1.234,56")
+   - `parseCurrencyInput(str: string)` — converte string do input em número (aceita "1.234,56", "1234,56", etc., convenção pt-BR)
+
+2. **Padrão de estado de edição (evitar bug de “valor vira 1,00” ou não permitir valores altos)**:
+   - **Não** fazer: `value={valor} onChange={(e) => setValor(parseCurrencyInput(e.target.value))}` direto no estado final.
+   - **Fazer**: usar estado de edição local (ex.: `editingValue` / `editingField` ou equivalente por linha/campo):
+     - **Focus**: guardar o valor atual em string de edição (ex.: `toEditValue(num)` → "1234,56").
+     - **Change**: atualizar apenas a string de edição e, opcionalmente, o valor numérico no estado (para totais em tempo real).
+     - **Blur**: limpar o estado de edição; o valor exibido passa a ser o formatado (`formatCurrency`).
+   - Enquanto o campo está focado, o **value** do input deve ser a **string de edição** (o que o usuário está digitando), não o valor já formatado. Assim o usuário consegue digitar "100,00", "1000,00", etc., sem o valor ser truncado ou alterado a cada tecla.
+
+3. **Referência de implementação**: em `components/BudgetTableRow.tsx`:
+   - Campos Cachê e Desl. (labor): `editingField`, `editingValue`, `handleCurrencyFocus`, `handleCurrencyChange`, `handleCurrencyBlur`, `currencyDisplayValue`.
+   - Campo Valor da linha complementar: `editingComplementaryValorId`, `editingComplementaryValorValue`, `handleComplementaryValorFocus`, `handleComplementaryValorChange`, `handleComplementaryValorBlur`, `complementaryValorDisplayValue`.
+
+4. **Placeholder**: usar `"R$ 0,00"` em inputs de moeda para consistência.
+
+Seguir esse padrão evita bugs recorrentes em que o valor não aceita números altos ou se transforma incorretamente (ex.: 100,00 virando 1,00).

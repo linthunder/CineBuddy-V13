@@ -1,8 +1,12 @@
-import type { BudgetRow, BudgetRowLabor, BudgetRowCost, BudgetRowPeople, VerbaRow, PhaseDefaults } from './types'
+import type { BudgetRow, BudgetRowLabor, BudgetRowCost, BudgetRowPeople, VerbaRow, PhaseDefaults, ComplementaryLine } from './types'
 import { LABOR_DEPTS, PEOPLE_DEPTS } from './constants'
 
 export function computeRowTotal(row: BudgetRow): number {
-  if (row.type === 'labor') return (row.unitCost + row.extraCost) * row.quantity
+  if (row.type === 'labor') {
+    const laborTotal = (row.unitCost + row.extraCost) * row.quantity
+    const complTotal = (row.complementaryLines ?? []).reduce((s, c) => s + c.value, 0)
+    return laborTotal + complTotal
+  }
   if (row.type === 'people') return 0
   return row.unitCost * row.quantity
 }
@@ -68,4 +72,9 @@ export function computeVerbaRowTotal(row: VerbaRow): number {
 export function createEmptyVerbaRow(): VerbaRow {
   const id = crypto.randomUUID?.() ?? `verba-${Date.now()}-${Math.random().toString(36).slice(2)}`
   return { id, itemName: '', unitCost: 0, quantity: 1, totalCost: 0 }
+}
+
+export function createEmptyComplementaryLine(): ComplementaryLine {
+  const id = crypto.randomUUID?.() ?? `compl-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return { id, lineType: 'OUTROS', description: '', value: 0 }
 }

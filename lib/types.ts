@@ -6,6 +6,25 @@ export type LaborUnitType = 'dia' | 'sem' | 'flat'
 /** Tipo de unidade para linha de custo */
 export type CostUnitType = 'cache' | 'verba' | 'extra'
 
+/** Tipo de linha complementar (adicionais ao cachê do profissional) */
+export type ComplementaryLineType =
+  | 'RETIRADA'
+  | 'ENTREGA'
+  | 'CONFERENCIA'
+  | 'MONTAGEM'
+  | 'DESPRODUÇÃO'
+  | 'PRÉ-DIÁRIA'
+  | 'PRÉ-LIGHT'
+  | 'SCOUT'
+  | 'OUTROS'
+
+export interface ComplementaryLine {
+  id: string
+  lineType: ComplementaryLineType
+  description: string
+  value: number
+}
+
 /** Linha de orçamento - Mão de obra (diárias, etc.) */
 export interface BudgetRowLabor {
   id: string
@@ -18,6 +37,8 @@ export interface BudgetRowLabor {
   extraCost: number
   quantity: number
   totalCost: number
+  /** Linhas complementares (adicionais somados ao total do profissional) */
+  complementaryLines?: ComplementaryLine[]
 }
 
 /** Linha de orçamento - Custo (item/fornecedor) */

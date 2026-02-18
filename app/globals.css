@@ -79,10 +79,11 @@ input[type='number'] {
 .budget-table-cards tbody td {
   display: table-cell;
 }
-.budget-table-cards thead th.budget-th-remove {
-  width: 32px;
-  min-width: 32px;
-  max-width: 32px;
+.budget-table-cards thead th.budget-th-remove,
+.budget-table-cards thead th.budget-th-add-compl {
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
   padding: 0;
   box-sizing: border-box;
 }
@@ -107,16 +108,30 @@ input[type='number'] {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.budget-table-cards .budget-row-remove {
-  width: 32px !important;
-  min-width: 32px !important;
-  max-width: 32px !important;
-  padding: 2px !important;
+.budget-table-cards .budget-row-remove,
+.budget-table-cards .budget-row-add-compl {
+  width: 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
+  padding: 0 !important;
   text-align: center;
   vertical-align: middle;
-  border-left: 1px solid var(--resolve-border);
   overflow: visible;
   box-sizing: border-box;
+  position: relative;
+  border-left: none;
+}
+/* Separador vertical em altura total da linha (cobre de cima até a base) */
+.budget-table-cards .budget-row-add-compl::before,
+.budget-table-cards .budget-row-remove::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--resolve-border);
+  pointer-events: none;
 }
 .budget-table-cards .btn-remove-row {
   display: inline-flex;
@@ -139,6 +154,25 @@ input[type='number'] {
   color: var(--cinema-danger) !important;
   border-color: var(--cinema-danger);
   background: rgba(201, 74, 74, 0.1);
+}
+/* Botão "Adicionar linha complementar": hover amarelo (vermelho é só para exclusão) */
+.budget-table-cards .budget-row-add-compl .btn-remove-row:hover {
+  color: var(--resolve-yellow) !important;
+  border-color: var(--resolve-yellow);
+  background: rgba(245, 197, 24, 0.12);
+}
+
+/* Linha complementar: altura menor que a do profissional e alinhamento do campo Valor com Qtd */
+.budget-table-cards tr.budget-row-complementary td:not(.budget-row-add-compl):not(.budget-row-remove) {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+.budget-table-cards .budget-compl-cell-valor {
+  padding-right: 2px;
+  box-sizing: border-box;
+}
+.budget-table-cards .budget-compl-cell-valor input {
+  text-align: right;
 }
 
 /* Mobile: linhas duplas apenas na tabela principal; preencher toda a largura horizontal */
@@ -166,7 +200,7 @@ input[type='number'] {
     align-items: center;
   }
   .budget-table-cards.budget-table-main tbody tr.budget-row-labor {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, max-content) 28px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, max-content) 28px 28px;
     grid-template-rows: auto auto;
   }
   .budget-table-cards.budget-table-main tbody tr.budget-row-labor td {
@@ -197,14 +231,16 @@ input[type='number'] {
     padding-right: 2px;
   }
   .budget-table-cards.budget-table-main tbody tr.budget-row-labor td:nth-child(7) { grid-column: 5; grid-row: 2; text-align: left; }
-  .budget-table-cards.budget-table-main tbody tr.budget-row-labor td:nth-child(8) {
-    grid-column: 6;
+  .budget-table-cards.budget-table-main tbody tr.budget-row-labor td:nth-child(8),
+  .budget-table-cards.budget-table-main tbody tr.budget-row-labor td:nth-child(9) {
     grid-row: 2;
     min-width: 28px !important;
     max-width: 28px !important;
     width: 28px !important;
     padding: 2px !important;
   }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-labor td:nth-child(8) { grid-column: 6; }
+  .budget-table-cards.budget-table-main tbody tr.budget-row-labor td:nth-child(9) { grid-column: 7; }
   .budget-table-cards.budget-table-main tbody tr.budget-row-cost {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, max-content) 28px;
     grid-template-rows: auto auto;

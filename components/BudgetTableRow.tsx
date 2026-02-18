@@ -2,14 +2,26 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { formatCurrency, parseCurrencyInput } from '@/lib/utils'
-import type { BudgetRow, BudgetRowLabor, BudgetRowCost, BudgetRowPeople } from '@/lib/types'
+import type { BudgetRow, BudgetRowLabor, BudgetRowCost, BudgetRowPeople, ComplementaryLine, ComplementaryLineType } from '@/lib/types'
 import { CUSTOM_HEADERS } from '@/lib/constants'
-import { computeRowTotal } from '@/lib/budgetUtils'
+import { computeRowTotal, createEmptyComplementaryLine } from '@/lib/budgetUtils'
 import { resolve } from '@/lib/theme'
 import AutocompleteInput, { type AutocompleteOption } from '@/components/AutocompleteInput'
 import { searchRoles } from '@/lib/services/roles-rates'
 import { searchCollaborators } from '@/lib/services/collaborators'
-import { X } from 'lucide-react'
+import { X, ChevronDown, Plus } from 'lucide-react'
+
+const COMPLEMENTARY_LINE_TYPES: { value: ComplementaryLineType; label: string }[] = [
+  { value: 'RETIRADA', label: 'Retirada' },
+  { value: 'ENTREGA', label: 'Entrega' },
+  { value: 'CONFERENCIA', label: 'Conferência' },
+  { value: 'MONTAGEM', label: 'Montagem' },
+  { value: 'DESPRODUÇÃO', label: 'Desprodução' },
+  { value: 'PRÉ-DIÁRIA', label: 'Pré-diária' },
+  { value: 'PRÉ-LIGHT', label: 'Pré-light' },
+  { value: 'SCOUT', label: 'Scout' },
+  { value: 'OUTROS', label: 'Outros' },
+]
 
 interface BudgetTableRowProps {
   row: BudgetRow
@@ -63,6 +75,9 @@ export default function BudgetTableRow({ row, department, rowIndex = 0, cacheTab
 
   const [editingField, setEditingField] = useState<'unitCost' | 'extraCost' | null>(null)
   const [editingValue, setEditingValue] = useState('')
+  /** Estado de edição do campo Valor nas linhas complementares (moeda pt-BR, mesmo padrão dos outros inputs R$) */
+  const [editingComplementaryValorId, setEditingComplementaryValorId] = useState<string | null>(null)
+  const [editingComplementaryValorValue, setEditingComplementaryValorValue] = useState('')
 
   const handleCurrencyFocus = useCallback((field: 'unitCost' | 'extraCost', value: number) => {
     setEditingField(field)
@@ -151,65 +166,136 @@ export default function BudgetTableRow({ row, department, rowIndex = 0, cacheTab
       onUpdate(updates)
     }
 
+    const complementaryLines = r.complementaryLines ?? []
+    const addComplementaryLine = () => {
+      onUpdate({ complementaryLines: [...complementaryLines, createEmptyComplementaryLine()] })
+    }
+    const updateComplementaryLine = (lineId: string, updates: Partial<ComplementaryLine>) => {
+      onUpdate({
+        complementaryLines: complementaryLines.map((l) => (l.id === lineId ? { ...l, ...updates } : l)),
+      })
+    }
+    const removeComplementaryLine = (lineId: string) => {
+      onUpdate({ complementaryLines: complementaryLines.filter((l) => l.id !== lineId) })
+    }
+
+    /** Input Valor da linha complementar: mesmo padrão dos outros campos R$ (estado de edição para digitar valores altos) */
+    const complementaryValorDisplayValue = (compl: ComplementaryLine): string => {
+      if (editingComplementaryValorId === compl.id) return editingComplementaryValorValue
+      return compl.value > 0 ? formatCurrency(compl.value) : ''
+    }
+    const handleComplementaryValorFocus = (compl: ComplementaryLine) => {
+      setEditingComplementaryValorId(compl.id)
+      setEditingComplementaryValorValue(compl.value > 0 ? toEditValue(compl.value) : '')
+    }
+    const handleComplementaryValorChange = (lineId: string, raw: string) => {
+      setEditingComplementaryValorValue(raw)
+      updateComplementaryLine(lineId, { value: parseCurrencyInput(raw) })
+    }
+    const handleComplementaryValorBlur = () => {
+      setEditingComplementaryValorId(null)
+      setEditingComplementaryValorValue('')
+    }
+
     return (
-      <tr className="border-b transition-colors budget-row-labor" style={{ borderColor: resolve.border }}>
-        <td data-label="Função" className="p-1.5 align-middle">
-          <AutocompleteInput
-            value={r.roleFunction}
-            onChange={(val) => onUpdate({ roleFunction: val })}
-            onSelect={handleRoleSelect}
-            search={searchRolesFn}
-            placeholder="Função"
-            className={inputClassName}
-            style={inputStyle}
-          />
-        </td>
-        <td data-label="Nome" className="p-1.5 align-middle">
-          <AutocompleteInput
-            value={r.itemName}
-            onChange={(val) => onUpdate({ itemName: val })}
-            onSelect={handleCollabSelect}
-            search={searchCollabFn}
-            placeholder="Nome"
-            className={inputClassName}
-            style={inputStyle}
-          />
-        </td>
-        <td data-label="Tipo" className="p-1.5 align-middle">
-          <select className={inputClassName} style={inputStyle} value={r.unitType} onChange={(e) => handleUnitTypeChange(e.target.value as BudgetRowLabor['unitType'])}>
-            <option value="dia">Diária</option>
-            <option value="sem">Semana</option>
-            <option value="flat">Fechado</option>
-          </select>
-        </td>
-        <td data-label="Cachê" className="p-1.5 align-middle">
-          <input
-            className={inputClassName}
-            style={inputStyle}
-            value={currencyDisplayValue('unitCost', r.unitCost)}
-            placeholder="R$ 0,00"
-            onFocus={() => handleCurrencyFocus('unitCost', r.unitCost)}
-            onChange={(e) => handleCurrencyChange('unitCost', e.target.value)}
-            onBlur={handleCurrencyBlur}
-          />
-        </td>
-        <td data-label="Desl." className="p-1.5 align-middle">
-          <input
-            className={inputClassName}
-            style={inputStyle}
-            value={currencyDisplayValue('extraCost', r.extraCost)}
-            placeholder="R$ 0,00"
-            onFocus={() => handleCurrencyFocus('extraCost', r.extraCost)}
-            onChange={(e) => handleCurrencyChange('extraCost', e.target.value)}
-            onBlur={handleCurrencyBlur}
-          />
-        </td>
-        <td data-label="Qtd" className="p-1.5 align-middle budget-cell-qty">
-          <input type="number" className={`${inputClassName} text-center`} style={inputStyle} value={r.quantity || ''} onChange={(e) => onUpdate({ quantity: parseFloat(e.target.value) || 0 })} min={0} step="any" />
-        </td>
-        <td data-label="Total" className="p-1.5 align-middle font-mono text-[11px] text-right font-medium budget-cell-total" style={{ color: resolve.text }}>{formatCurrency(total)}</td>
-        <td className="budget-row-remove"><button type="button" onClick={onRemove} className="btn-remove-row inline-flex items-center justify-center" aria-label="Remover linha"><X size={16} strokeWidth={2} /></button></td>
-      </tr>
+      <>
+        <tr className="border-b transition-colors budget-row-labor" style={{ borderColor: resolve.border }}>
+          <td data-label="Função" className="p-1.5 align-middle">
+            <AutocompleteInput
+              value={r.roleFunction}
+              onChange={(val) => onUpdate({ roleFunction: val })}
+              onSelect={handleRoleSelect}
+              search={searchRolesFn}
+              placeholder="Função"
+              className={inputClassName}
+              style={inputStyle}
+            />
+          </td>
+          <td data-label="Nome" className="p-1.5 align-middle">
+            <AutocompleteInput
+              value={r.itemName}
+              onChange={(val) => onUpdate({ itemName: val })}
+              onSelect={handleCollabSelect}
+              search={searchCollabFn}
+              placeholder="Nome"
+              className={inputClassName}
+              style={inputStyle}
+            />
+          </td>
+          <td data-label="Tipo" className="p-1.5 align-middle">
+            <select className={inputClassName} style={inputStyle} value={r.unitType} onChange={(e) => handleUnitTypeChange(e.target.value as BudgetRowLabor['unitType'])}>
+              <option value="dia">Diária</option>
+              <option value="sem">Semana</option>
+              <option value="flat">Fechado</option>
+            </select>
+          </td>
+          <td data-label="Cachê" className="p-1.5 align-middle">
+            <input
+              className={inputClassName}
+              style={inputStyle}
+              value={currencyDisplayValue('unitCost', r.unitCost)}
+              placeholder="R$ 0,00"
+              onFocus={() => handleCurrencyFocus('unitCost', r.unitCost)}
+              onChange={(e) => handleCurrencyChange('unitCost', e.target.value)}
+              onBlur={handleCurrencyBlur}
+            />
+          </td>
+          <td data-label="Desl." className="p-1.5 align-middle">
+            <input
+              className={inputClassName}
+              style={inputStyle}
+              value={currencyDisplayValue('extraCost', r.extraCost)}
+              placeholder="R$ 0,00"
+              onFocus={() => handleCurrencyFocus('extraCost', r.extraCost)}
+              onChange={(e) => handleCurrencyChange('extraCost', e.target.value)}
+              onBlur={handleCurrencyBlur}
+            />
+          </td>
+          <td data-label="Qtd" className="p-1.5 align-middle budget-cell-qty">
+            <input type="number" className={`${inputClassName} text-center`} style={inputStyle} value={r.quantity || ''} onChange={(e) => onUpdate({ quantity: parseFloat(e.target.value) || 0 })} min={0} step="any" />
+          </td>
+          <td data-label="Total" className="p-1.5 align-middle font-mono text-[11px] text-right font-medium budget-cell-total" style={{ color: resolve.text }}>{formatCurrency(total)}</td>
+          <td className="budget-row-add-compl align-middle">
+            <button type="button" onClick={addComplementaryLine} className="btn-remove-row inline-flex items-center justify-center" aria-label="Adicionar linha complementar" title="Adicionar linha complementar"><ChevronDown size={16} strokeWidth={2} /></button>
+          </td>
+          <td className="budget-row-remove align-middle">
+            <button type="button" onClick={onRemove} className="btn-remove-row inline-flex items-center justify-center" aria-label="Remover linha"><X size={16} strokeWidth={2} /></button>
+          </td>
+        </tr>
+        {complementaryLines.map((compl) => (
+          <tr key={compl.id} className="border-b transition-colors budget-row-complementary" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.04)' }}>
+            <td className="p-1.5 align-middle pl-12" style={{ borderColor: resolve.border }} />
+            <td className="p-1.5 align-middle" data-label="Descrição">
+              <input className={inputClassName} style={inputStyle} value={compl.description} onChange={(e) => updateComplementaryLine(compl.id, { description: e.target.value })} placeholder="Descrição" />
+            </td>
+            <td colSpan={2} className="p-1.5 align-middle" data-label="Tipo">
+              <select className={inputClassName} style={inputStyle} value={compl.lineType} onChange={(e) => updateComplementaryLine(compl.id, { lineType: e.target.value as ComplementaryLineType })}>
+                {COMPLEMENTARY_LINE_TYPES.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </td>
+            <td colSpan={2} className="p-1.5 align-middle budget-compl-cell-valor" data-label="Valor">
+              <input
+                className={`${inputClassName} text-right`}
+                style={inputStyle}
+                value={complementaryValorDisplayValue(compl)}
+                placeholder="R$ 0,00"
+                onFocus={() => handleComplementaryValorFocus(compl)}
+                onChange={(e) => handleComplementaryValorChange(compl.id, e.target.value)}
+                onBlur={handleComplementaryValorBlur}
+              />
+            </td>
+            <td className="p-1.5 align-middle font-mono text-[11px] text-right font-medium budget-cell-total" style={{ color: resolve.text }}>{formatCurrency(compl.value)}</td>
+            <td className="budget-row-add-compl align-middle">
+              <button type="button" onClick={addComplementaryLine} className="btn-remove-row inline-flex items-center justify-center" aria-label="Adicionar linha complementar"><Plus size={16} strokeWidth={2} /></button>
+            </td>
+            <td className="budget-row-remove align-middle">
+              <button type="button" onClick={() => removeComplementaryLine(compl.id)} className="btn-remove-row inline-flex items-center justify-center" aria-label="Remover linha complementar"><X size={16} strokeWidth={2} /></button>
+            </td>
+          </tr>
+        ))}
+      </>
     )
   }
 

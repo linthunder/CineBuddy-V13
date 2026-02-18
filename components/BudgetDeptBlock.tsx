@@ -93,7 +93,8 @@ export default function BudgetDeptBlock({
                 <col style={{ width: '8%' }} />
                 <col style={{ width: '32px' }} />
                 <col style={{ width: '11%' }} />
-                <col style={{ width: '32px' }} />
+                <col style={{ width: '40px' }} />
+                <col style={{ width: '40px' }} />
               </>
             ) : (
               <>
@@ -120,6 +121,7 @@ export default function BudgetDeptBlock({
                   {['Função', 'Nome', 'Tipo', 'Cachê', 'Desl.', 'Qtd', 'Total'].map((h) => (
                     <th key={h} className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>{h}</th>
                   ))}
+                  <th className="budget-th-add-compl w-8" aria-hidden title="Linha complementar" />
                   <th className="budget-th-remove" aria-hidden />
                 </>
               ) : (
