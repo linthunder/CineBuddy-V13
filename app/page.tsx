@@ -207,7 +207,7 @@ export default function Home() {
         tax_rate_final: orcState?.taxRate ?? 12.5,
         notes_final: (orcFinalState?.notes ?? { pre: '', prod: '', pos: '' }) as unknown as Record<string, string>,
         // Fechamento
-        closing_lines: (fechamentoState ? [fechamentoState.closingLines, fechamentoState.expenses, fechamentoState.saving ?? null] : []) as unknown[],
+        closing_lines: (fechamentoState ? [fechamentoState.closingLines, fechamentoState.expenses, fechamentoState.saving ?? null, fechamentoState.expenseDepartmentConfig ?? null] : []) as unknown[],
       }
 
       let result: ProjectRecord | null
@@ -272,7 +272,7 @@ export default function Home() {
       job_value_final: orcState?.jobValue ?? 0,
       tax_rate_final: orcState?.taxRate ?? 12.5,
       notes_final: (orcFinalState?.notes ?? { pre: '', prod: '', pos: '' }) as unknown as Record<string, string>,
-      closing_lines: (fechamentoState ? [fechamentoState.closingLines, fechamentoState.expenses, fechamentoState.saving ?? null] : []) as unknown[],
+      closing_lines: (fechamentoState ? [fechamentoState.closingLines, fechamentoState.expenses, fechamentoState.saving ?? null, fechamentoState.expenseDepartmentConfig ?? null] : []) as unknown[],
     }
 
     // Sempre cria um NOVO projeto (nunca atualiza o existente)
@@ -375,10 +375,14 @@ export default function Home() {
       const saving = rawSaving != null && typeof rawSaving === 'object' && 'items' in rawSaving
         ? (rawSaving as { items: string[]; pct: number; responsibleId: string | null })
         : undefined
+      const expenseDepartmentConfig = closingData.length >= 4 && closingData[3] != null && typeof closingData[3] === 'object'
+        ? (closingData[3] as Record<string, { responsible1?: string; responsible2?: string }>)
+        : undefined
       viewFechamentoRef.current?.loadState({
         closingLines: closingData[0] as never[],
         expenses: closingData[1] as never[],
         saving: saving ?? undefined,
+        expenseDepartmentConfig,
       })
     }
 

@@ -32,6 +32,8 @@ interface ClosingLine {
   finalUnitCost: number
   finalExtraCost: number
   finalQuantity: number
+  /** Soma dos valores das linhas complementares (para exibir no resumo do profissional) */
+  complementaryTotal?: number
   /** Diárias de gravação (uma entrada por dia); substitui os campos únicos para labor */
   diarias: DiariaEntry[]
   /** @deprecated use diarias; mantido para migração no loadState */
@@ -42,8 +44,22 @@ interface ClosingLine {
   payStatus: 'pendente' | 'pago'
 }
 
+/** Departamentos da prestação de contas */
+const EXPENSE_DEPARTMENTS = ['PRODUÇÃO', 'ARTE E CENOGRAFIA', 'FIGURINO E MAQUIAGEM', 'FOTOGRAFIA E TÉCNICA'] as const
+export type ExpenseDepartment = (typeof EXPENSE_DEPARTMENTS)[number]
+
+/** Responsáveis pela prestação de contas do departamento (até 2) */
+export interface ExpenseDeptConfig {
+  responsible1?: string
+  responsible2?: string
+}
+
+/** Cargos sempre disponíveis para responsáveis em todos os departamentos */
+const EXPENSE_FIXED_ROLES = ['Produtor Executivo', 'Diretor de produção', 'Diretor de Cena'] as const
+
 interface ExpenseLine {
   id: string
+  department: ExpenseDepartment
   name: string
   description: string
   value: number
@@ -104,6 +120,22 @@ function findCollaboratorByName(collaborators: Collaborator[], name: string): Co
 
 function calcTotalNF(line: ClosingLine): number {
   return line.finalValue + calcOvertime(line)
+}
+
+/** Verba total destinada ao departamento no orçamento final (budget + verba) */
+function getDeptBudget(
+  budgetLines: BudgetLinesByPhase,
+  verbaLines: VerbaLinesByPhase,
+  dept: string
+): number {
+  let total = 0
+  ;(['pre', 'prod', 'pos'] as const).forEach((phase) => {
+    const rows = budgetLines[phase]?.[dept] ?? []
+    total += sumDeptTotal(rows)
+    const verbaRows = verbaLines[phase]?.[dept] ?? []
+    total += verbaRows.reduce((s, r) => s + computeVerbaRowTotal(r), 0)
+  })
+  return total
 }
 
 const inputStyle: React.CSSProperties = {
@@ -206,8 +238,8 @@ interface ViewFechamentoProps {
 }
 
 export interface ViewFechamentoHandle {
-  getState: () => { closingLines: ClosingLine[]; expenses: ExpenseLine[]; saving: SavingConfig | undefined }
-  loadState: (state: { closingLines: ClosingLine[]; expenses: ExpenseLine[]; saving?: SavingConfig | null }) => void
+  getState: () => { closingLines: ClosingLine[]; expenses: ExpenseLine[]; expenseDepartmentConfig?: Record<ExpenseDepartment, ExpenseDeptConfig>; saving: SavingConfig | undefined }
+  loadState: (state: { closingLines: ClosingLine[]; expenses: ExpenseLine[]; expenseDepartmentConfig?: Record<string, ExpenseDeptConfig>; saving?: SavingConfig | null }) => void
 }
 
 /* ── Componente ── */
@@ -228,24 +260,48 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
   const [activePhase, setActivePhase] = useState<PhaseKey>('prod')
   /** Para tipo 'sem': linha expandida para cálculo de HE (mostra diárias) */
   const [showOvertimeForLineId, setShowOvertimeForLineId] = useState<Record<string, boolean>>({})
+  const [expenseDepartmentConfig, setExpenseDepartmentConfig] = useState<Record<ExpenseDepartment, ExpenseDeptConfig>>(() =>
+    EXPENSE_DEPARTMENTS.reduce((acc, d) => ({ ...acc, [d]: {} }), {} as Record<ExpenseDepartment, ExpenseDeptConfig>)
+  )
+  const [expenseResponsibleModalDept, setExpenseResponsibleModalDept] = useState<ExpenseDepartment | null>(null)
+  const [editingExpenseValueId, setEditingExpenseValueId] = useState<string | null>(null)
+  const [editingExpenseValueRaw, setEditingExpenseValueRaw] = useState('')
   const loadedFromDB = useRef(false)
+
+  const toEditValue = (n: number): string => (n <= 0 ? '' : n.toFixed(2).replace('.', ','))
 
   useEffect(() => {
     listCollaborators().then(setCollaborators).catch(() => setCollaborators([]))
   }, [])
 
   useImperativeHandle(ref, () => ({
-    getState: () => ({ closingLines, expenses, saving: saving.items.length > 0 || saving.responsibleId ? saving : undefined }),
+    getState: () => ({
+      closingLines,
+      expenses,
+      expenseDepartmentConfig: expenseDepartmentConfig,
+      saving: saving.items.length > 0 || saving.responsibleId ? saving : undefined,
+    }),
     loadState: (state) => {
       loadedFromDB.current = state.closingLines.length > 0 || state.expenses.length > 0
-      const normalized = state.closingLines.map((l: ClosingLine) => {
+      const normalized = state.closingLines.map((l: ClosingLine & { complementaryTotal?: number }) => {
         const diarias = l.diarias?.length
           ? l.diarias
           : [{ dailyHours: l.dailyHours ?? 8, additionalPct: l.additionalPct ?? 0, overtimeHours: l.overtimeHours ?? 0 }]
         return { ...l, diarias }
       })
       setClosingLines(normalized)
-      setExpenses(state.expenses)
+      const expenseList = (state.expenses as (ExpenseLine & { department?: string })[]).map((e) => ({
+        ...e,
+        department: (e.department && EXPENSE_DEPARTMENTS.includes(e.department as ExpenseDepartment)) ? e.department as ExpenseDepartment : 'PRODUÇÃO',
+      }))
+      setExpenses(expenseList)
+      if (state.expenseDepartmentConfig && typeof state.expenseDepartmentConfig === 'object') {
+        const next: Record<ExpenseDepartment, ExpenseDeptConfig> = EXPENSE_DEPARTMENTS.reduce((acc, d) => ({
+          ...acc,
+          [d]: (state.expenseDepartmentConfig as Record<string, ExpenseDeptConfig>)[d] || {},
+        }), {} as Record<ExpenseDepartment, ExpenseDeptConfig>)
+        setExpenseDepartmentConfig(next)
+      }
       setSaving(state.saving != null ? { ...defaultSaving, ...state.saving } : defaultSaving)
     },
   }))
@@ -264,6 +320,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
           const total = computeRowTotal(row)
           if (total <= 0 && !row.itemName && !row.roleFunction) return
           const laborRow = row as BudgetRowLabor
+          const complementaryTotal = isLabor ? (laborRow.complementaryLines ?? []).reduce((s, c) => s + c.value, 0) : 0
           const numDias = Math.max(1, row.quantity || 1)
           const diarias: DiariaEntry[] = Array.from({ length: numDias }, () => defaultDiaria())
           lines.push({
@@ -279,6 +336,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
             finalUnitCost: row.unitCost,
             finalExtraCost: isLabor ? (laborRow.extraCost ?? 0) : 0,
             finalQuantity: row.quantity,
+            complementaryTotal: complementaryTotal > 0 ? complementaryTotal : undefined,
             diarias,
             invoiceNumber: '',
             payStatus: 'pendente',
@@ -402,6 +460,56 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
   }, [closingLines, expenses])
   const lucroFinal = initialJobValue - totalCustoFinal - totalExpenses
 
+  /* Verba destinada e saldo por departamento (prestação de contas) */
+  const expenseDeptBudget = useMemo(() => {
+    if (!finalSnapshot) return {} as Record<ExpenseDepartment, number>
+    return EXPENSE_DEPARTMENTS.reduce((acc, d) => ({
+      ...acc,
+      [d]: getDeptBudget(finalSnapshot.budgetLines, finalSnapshot.verbaLines, d),
+    }), {} as Record<ExpenseDepartment, number>)
+  }, [finalSnapshot])
+  const expenseDeptSaldo = useMemo(() => {
+    return EXPENSE_DEPARTMENTS.reduce((acc, d) => {
+      const budget = expenseDeptBudget[d] ?? 0
+      const gasto = expenses.filter((e) => e.department === d).reduce((s, e) => s + e.value, 0)
+      return { ...acc, [d]: budget - gasto }
+    }, {} as Record<ExpenseDepartment, number>)
+  }, [expenseDeptBudget, expenses])
+
+  /* Opções de responsáveis: para cargos fixos, buscar nome do profissional em closingLines; depois profissionais do dept */
+  const expenseDeptResponsibleOptions = useMemo(() => {
+    const fixedWithNames: string[] = []
+    EXPENSE_FIXED_ROLES.forEach((role) => {
+      const matches = closingLines.filter((l) => (l.role || '').trim().toLowerCase() === role.toLowerCase())
+      if (matches.length > 0) {
+        matches.forEach((l) => {
+          const label = l.name ? `${l.name} (${l.role})` : (l.role || '')
+          if (label && !fixedWithNames.includes(label)) fixedWithNames.push(label)
+        })
+      } else {
+        fixedWithNames.push(role)
+      }
+    })
+    return EXPENSE_DEPARTMENTS.reduce((acc, dept) => {
+      const fromLines = closingLines
+        .filter((l) => l.department === dept && (l.name || l.role))
+        .map((l) => (l.role ? `${l.name || ''} (${l.role})`.trim() || l.role : l.name || ''))
+        .filter(Boolean)
+      const uniq = Array.from(new Set(fromLines))
+      acc[dept] = [...fixedWithNames, ...uniq]
+      return acc
+    }, {} as Record<ExpenseDepartment, string[]>)
+  }, [closingLines])
+
+  const setExpenseDeptResponsible = useCallback((dept: ExpenseDepartment, slot: 1 | 2, value: string | undefined) => {
+    if (isLocked) return
+    setExpenseDepartmentConfig((prev) => {
+      const cur = prev[dept] || {}
+      if (slot === 1) return { ...prev, [dept]: { ...cur, responsible1: value, responsible2: value === cur.responsible2 ? undefined : cur.responsible2 } }
+      return { ...prev, [dept]: { ...cur, responsible2: value, responsible1: value === cur.responsible1 ? undefined : cur.responsible1 } }
+    })
+  }, [isLocked])
+
   /* Saving: economia inicial vs final nos itens selecionados; valor a pagar = economia × % */
   const { totalEconomy, valueToPay } = useMemo(() => {
     if (!finalSnapshot || saving.items.length === 0) return { totalEconomy: 0, valueToPay: 0 }
@@ -420,9 +528,9 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
   const laborLinesForSaving = useMemo(() => closingLines.filter((l) => l.isLabor && (l.name || l.role)), [closingLines])
 
   /* Prestação de contas */
-  const addExpense = useCallback(() => {
+  const addExpense = useCallback((department: ExpenseDepartment = 'PRODUÇÃO') => {
     if (isLocked) return
-    setExpenses((prev) => [...prev, { id: `exp-${Date.now()}`, name: '', description: '', value: 0, invoiceNumber: '', payStatus: 'pendente' }])
+    setExpenses((prev) => [...prev, { id: `exp-${Date.now()}`, department, name: '', description: '', value: 0, invoiceNumber: '', payStatus: 'pendente' }])
   }, [isLocked])
   const updateExpense = useCallback((id: string, updates: Partial<ExpenseLine>) => {
     if (isLocked) return
@@ -432,6 +540,23 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
     if (isLocked) return
     setExpenses((prev) => prev.filter((e) => e.id !== id))
   }, [isLocked])
+
+  const expenseValueDisplay = (exp: ExpenseLine): string => {
+    if (editingExpenseValueId === exp.id) return editingExpenseValueRaw
+    return exp.value > 0 ? formatCurrency(exp.value) : ''
+  }
+  const handleExpenseValueFocus = useCallback((exp: ExpenseLine) => {
+    setEditingExpenseValueId(exp.id)
+    setEditingExpenseValueRaw(toEditValue(exp.value))
+  }, [])
+  const handleExpenseValueChange = useCallback((id: string, raw: string) => {
+    setEditingExpenseValueRaw(raw)
+    updateExpense(id, { value: parseCurrencyInput(raw) })
+  }, [updateExpense])
+  const handleExpenseValueBlur = useCallback(() => {
+    setEditingExpenseValueId(null)
+    setEditingExpenseValueRaw('')
+  }, [])
 
   if (!finalSnapshot) {
     return (
@@ -723,7 +848,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                                       <button type="button" onClick={() => removeDiaria(line.id, diariaIdx)} className="h-7 w-7 flex items-center justify-center rounded border" style={{ borderColor: resolve.border, color: resolve.muted }} title="Excluir diária" aria-label="Excluir diária"><X size={14} strokeWidth={2} /></button>
                                     )}
                                     {diariaIdx === diarias.length - 1 && (
-                                      <button type="button" onClick={() => addDiaria(line.id)} className="h-7 px-2 flex items-center justify-center gap-1 rounded border text-[10px] font-medium uppercase" style={{ borderColor: resolve.border, color: resolve.text }} title="Adicionar diária"><Plus size={12} strokeWidth={2} style={{ color: 'currentColor' }} />Diária</button>
+                                      <button type="button" onClick={() => addDiaria(line.id)} className="btn-resolve-hover h-7 px-2 flex items-center justify-center gap-1 rounded border text-[10px] font-medium uppercase" style={{ borderColor: resolve.border, color: resolve.text }} title="Adicionar diária"><Plus size={12} strokeWidth={2} style={{ color: 'currentColor' }} />Diária</button>
                                     )}
                                   </div>
                                 </div>
@@ -755,6 +880,12 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                                   <>
                                     {sepVertical()}
                                     <span className="whitespace-nowrap">Desl. <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency(line.finalExtraCost * line.finalQuantity)}</strong></span>
+                                  </>
+                                )}
+                                {(line.complementaryTotal ?? 0) > 0 && (
+                                  <>
+                                    {sepVertical()}
+                                    <span className="whitespace-nowrap">Complementares <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency(line.complementaryTotal!)}</strong></span>
                                   </>
                                 )}
                                 {line.type === 'sem' && (
@@ -816,61 +947,156 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
           <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: resolve.muted }}>Prestação de contas</span>
         </div>
         <div className="p-2 sm:p-3 overflow-x-auto min-w-0" style={{ backgroundColor: resolve.panel }}>
-          <table className="w-full border-collapse text-[11px] min-w-[500px]">
-            <thead>
-              <tr className="border-b" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.04)' }}>
-                <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Nome</th>
-                <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Descrição</th>
-                <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Valor</th>
-                <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>NF</th>
-                <th className="text-center text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Status</th>
-                <th className="w-10" />
-              </tr>
-            </thead>
-            <tbody>
-              {expenses.map((exp) => (
-                <tr key={exp.id} className="border-b" style={{ borderColor: resolve.border }}>
-                  <td className="p-1.5"><input className={inputClassName} style={inputStyle} value={exp.name} onChange={(e) => updateExpense(exp.id, { name: e.target.value })} placeholder="Nome" /></td>
-                  <td className="p-1.5"><input className={inputClassName} style={inputStyle} value={exp.description} onChange={(e) => updateExpense(exp.id, { description: e.target.value })} placeholder="Descrição" /></td>
-                  <td className="p-1.5">
-                    <input
-                      className={inputClassName}
-                      style={inputStyle}
-                      value={exp.value > 0 ? formatCurrency(exp.value) : ''}
-                      onFocus={(e) => { e.target.value = exp.value > 0 ? exp.value.toFixed(2).replace('.', ',') : '' }}
-                      onChange={(e) => updateExpense(exp.id, { value: parseCurrencyInput(e.target.value) })}
-                      onBlur={(e) => { e.target.value = exp.value > 0 ? formatCurrency(exp.value) : '' }}
-                      placeholder="R$ 0,00"
-                    />
-                  </td>
-                  <td className="p-1.5"><input className={inputClassName} style={inputStyle} value={exp.invoiceNumber} onChange={(e) => updateExpense(exp.id, { invoiceNumber: e.target.value })} placeholder="NF" /></td>
-                  <td className="p-1.5 text-center">
+          {EXPENSE_DEPARTMENTS.map((dept) => {
+            const config = expenseDepartmentConfig[dept] || {}
+            const r1 = config.responsible1 ?? ''
+            const r2 = config.responsible2 ?? ''
+            const saldo = expenseDeptSaldo[dept] ?? 0
+            const budget = expenseDeptBudget[dept] ?? 0
+            return (
+            <div key={dept} className="mt-4 first:mt-0">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5 py-2 px-3 rounded border-l-2" style={{ borderColor: resolve.border, borderLeftColor: resolve.accent, backgroundColor: 'rgba(255,255,255,0.06)' }}>
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider shrink-0" style={{ color: resolve.text }}>{dept}</span>
+                  <span className="text-[10px] text-left shrink-0" style={{ color: resolve.muted }}>Responsáveis:</span>
+                  <span className="text-[11px] truncate" style={{ color: resolve.text }}>
+                    {r1 || r2 ? [r1, r2].filter(Boolean).join(' • ') : 'Nenhum'}
+                  </span>
+                  {!isLocked && (
                     <button
                       type="button"
-                      className="text-[10px] font-medium uppercase px-2 py-1 rounded"
-                      style={{ backgroundColor: exp.payStatus === 'pago' ? cinema.success : cinema.danger, color: '#fff' }}
-                      onClick={() => updateExpense(exp.id, { payStatus: exp.payStatus === 'pago' ? 'pendente' : 'pago' })}
+                      className="btn-resolve-hover text-[10px] font-medium uppercase px-2 py-0.5 rounded border shrink-0"
+                      style={{ borderColor: resolve.border, color: resolve.accent }}
+                      onClick={() => setExpenseResponsibleModalDept(dept)}
                     >
-                      {exp.payStatus === 'pago' ? 'PAGO ✓' : 'A PAGAR'}
+                      Selecionar
                     </button>
-                  </td>
-                  <td className="p-1.5 text-center">
-                    <button type="button" onClick={() => removeExpense(exp.id)} className="btn-remove-row inline-flex items-center justify-center" aria-label="Remover"><X size={16} strokeWidth={2} /></button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <button
-            type="button"
-            className="btn-resolve-hover w-full mt-2 py-2.5 border border-dashed rounded text-[11px] font-medium uppercase tracking-wider transition-colors cursor-pointer"
-            style={{ borderColor: resolve.border, color: resolve.muted, borderRadius: 3 }}
-            onClick={addExpense}
-          >
-            <Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} className="shrink-0" /> Adicionar conta
-          </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className={`font-mono text-[11px] font-medium ${saldo < 0 ? '' : ''}`} style={{ color: saldo < 0 ? cinema.danger : resolve.text }}>
+                    {formatCurrency(saldo)}
+                  </span>
+                  {budget > 0 && (
+                    <span className="text-[10px]" style={{ color: resolve.muted }} title={`Orçado: ${formatCurrency(budget)}`}>/ {formatCurrency(budget)}</span>
+                  )}
+                </div>
+              </div>
+              <table className="budget-table-cards w-full border-collapse text-[11px] min-w-[500px] table-fixed">
+                <colgroup>
+                  <col style={{ width: '60%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '5%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '40px' }} />
+                </colgroup>
+                <thead>
+                  <tr className="border-b" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.04)' }}>
+                    <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Descrição</th>
+                    <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Valor</th>
+                    <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>NF</th>
+                    <th className="text-center text-xs uppercase font-semibold py-1.5 px-2" style={{ color: resolve.text }}>Status</th>
+                    <th className="budget-th-remove" aria-hidden />
+                  </tr>
+                </thead>
+                <tbody>
+                  {expenses.filter((e) => e.department === dept).map((exp) => (
+                    <tr key={exp.id} className="border-b" style={{ borderColor: resolve.border }}>
+                      <td className="p-1.5"><input className={inputClassName} style={inputStyle} value={exp.description} onChange={(e) => updateExpense(exp.id, { description: e.target.value })} placeholder="Descrição" /></td>
+                      <td className="p-1.5">
+                        <input
+                          className={inputClassName}
+                          style={inputStyle}
+                          value={expenseValueDisplay(exp)}
+                          onFocus={() => handleExpenseValueFocus(exp)}
+                          onChange={(e) => handleExpenseValueChange(exp.id, e.target.value)}
+                          onBlur={handleExpenseValueBlur}
+                          placeholder="R$ 0,00"
+                        />
+                      </td>
+                      <td className="p-1.5"><input className={inputClassName} style={inputStyle} value={exp.invoiceNumber} onChange={(e) => updateExpense(exp.id, { invoiceNumber: e.target.value })} placeholder="NF" /></td>
+                      <td className="p-1.5 text-center">
+                        <button
+                          type="button"
+                          className="text-[10px] font-medium uppercase px-2 py-1 rounded"
+                          style={{ backgroundColor: exp.payStatus === 'pago' ? cinema.success : cinema.danger, color: '#fff' }}
+                          onClick={() => updateExpense(exp.id, { payStatus: exp.payStatus === 'pago' ? 'pendente' : 'pago' })}
+                        >
+                          {exp.payStatus === 'pago' ? 'PAGO ✓' : 'A PAGAR'}
+                        </button>
+                      </td>
+                      <td className="budget-row-remove align-middle">
+                        <button type="button" onClick={() => removeExpense(exp.id)} className="btn-remove-row inline-flex items-center justify-center" aria-label="Remover"><X size={16} strokeWidth={2} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button
+                type="button"
+                className="btn-resolve-hover w-full mt-2 py-2.5 border border-dashed rounded text-[11px] font-medium uppercase tracking-wider transition-colors cursor-pointer inline-flex items-center justify-center gap-2"
+                style={{ borderColor: resolve.border, color: resolve.muted, borderRadius: 3 }}
+                onClick={() => addExpense(dept)}
+              >
+                <Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} className="shrink-0" aria-hidden /> Adicionar conta
+              </button>
+            </div>
+            )
+          })}
         </div>
       </div>
+
+      {/* Modal: Selecionar responsáveis pela prestação de contas do departamento */}
+      {expenseResponsibleModalDept !== null && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setExpenseResponsibleModalDept(null)}>
+          <div className="rounded border p-4 w-full max-w-md shadow-lg" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: resolve.text }}>Responsáveis — {expenseResponsibleModalDept}</h3>
+            <p className="text-[10px] uppercase tracking-wider mb-2" style={{ color: resolve.muted }}>Até 2 responsáveis (clique para adicionar)</p>
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {[expenseDepartmentConfig[expenseResponsibleModalDept]?.responsible1, expenseDepartmentConfig[expenseResponsibleModalDept]?.responsible2].filter(Boolean).map((name, idx) => (
+                <span key={name} className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[11px]" style={{ borderColor: resolve.border, color: resolve.text }}>
+                  {name}
+                  {!isLocked && (
+                    <button type="button" onClick={() => setExpenseDeptResponsible(expenseResponsibleModalDept, (idx + 1) as 1 | 2, undefined)} className="p-0.5 rounded hover:opacity-80" style={{ color: resolve.muted }} aria-label="Remover"><X size={12} strokeWidth={2} /></button>
+                  )}
+                </span>
+              ))}
+            </div>
+            <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+              {expenseDeptResponsibleOptions[expenseResponsibleModalDept]?.map((opt) => {
+                const cur = expenseDepartmentConfig[expenseResponsibleModalDept]
+                const already1 = cur?.responsible1 === opt
+                const already2 = cur?.responsible2 === opt
+                const canAdd = !cur?.responsible1 || !cur?.responsible2
+                const disabled = (already1 && already2) || (!already1 && !already2 && !canAdd)
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    className="text-left text-[11px] py-1.5 px-2 rounded border transition-colors"
+                    style={{
+                      borderColor: resolve.border,
+                      color: disabled ? resolve.muted : resolve.text,
+                      backgroundColor: already1 || already2 ? 'rgba(92, 124, 153, 0.15)' : 'transparent',
+                    }}
+                    onClick={() => {
+                      if (already1) setExpenseDeptResponsible(expenseResponsibleModalDept, 1, undefined)
+                      else if (already2) setExpenseDeptResponsible(expenseResponsibleModalDept, 2, undefined)
+                      else if (!cur?.responsible1) setExpenseDeptResponsible(expenseResponsibleModalDept, 1, opt)
+                      else if (!cur?.responsible2) setExpenseDeptResponsible(expenseResponsibleModalDept, 2, opt)
+                    }}
+                  >
+                    {opt} {already1 ? '(Responsável 1)' : already2 ? '(Responsável 2)' : ''}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button type="button" onClick={() => setExpenseResponsibleModalDept(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ borderColor: resolve.border, color: resolve.text }}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal: Contato (telefone, e-mail, endereço) */}
       {modalContact !== null && (

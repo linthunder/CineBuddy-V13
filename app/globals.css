@@ -353,14 +353,10 @@ input[type='number'] {
   border-color: var(--resolve-yellow) !important;
 }
 
-/* Equipe: botões de informação (azul, hover amarelo) */
-.team-info-btn {
-  border-color: var(--resolve-accent);
-  color: var(--resolve-accent);
-}
+/* Equipe: botões de informação (hover amarelo; !important para vencer estilos inline) */
 .team-info-btn:hover {
-  border-color: var(--resolve-yellow);
-  color: var(--resolve-yellow);
+  border-color: var(--resolve-yellow) !important;
+  color: var(--resolve-yellow) !important;
 }
 
 /* ========== LAYOUT MESTRE (páginas: Orçamento, Filme, Config, etc.) ========== */
