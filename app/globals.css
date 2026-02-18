@@ -175,6 +175,46 @@ input[type='number'] {
   text-align: right;
 }
 
+/* Linha complementar: ícone de desdobramento (↪) à direita da célula vazia */
+.budget-table-cards .budget-compl-cell-icon {
+  vertical-align: middle;
+  text-align: right;
+}
+.budget-table-cards .budget-compl-cell-icon span {
+  display: inline-flex;
+  width: 100%;
+  justify-content: flex-end;
+}
+
+/* Linhas complementares: sem bordas horizontais entre elas (bloco único visual) */
+.budget-table-cards tr.budget-row-complementary {
+  border-bottom: none !important;
+}
+.budget-table-cards tr.budget-row-complementary td {
+  border-bottom: none !important;
+}
+
+/* Última linha complementar: sem linha abaixo, cantos arredondados */
+.budget-table-cards tr.budget-row-complementary-last td {
+  border-bottom: none !important;
+}
+.budget-table-cards tr.budget-row-complementary-last td:first-child {
+  border-bottom-left-radius: 6px;
+}
+.budget-table-cards tr.budget-row-complementary-last td:last-child {
+  border-bottom-right-radius: 6px;
+}
+/* Espaço entre última complementar e profissional: linha de spacer no DOM (BudgetTableRow) */
+.budget-table-cards tr.budget-compl-spacer td {
+  border: none !important;
+  line-height: 0;
+  overflow: hidden;
+}
+/* Linha separadora no topo da linha de profissional que vem após o spacer */
+.budget-table-cards tr.budget-compl-spacer + tr {
+  border-top: 1px solid var(--resolve-border);
+}
+
 /* Mobile: linhas duplas apenas na tabela principal; preencher toda a largura horizontal */
 @media (max-width: 767px) {
   .budget-table-cards.budget-table-main {

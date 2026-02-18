@@ -9,7 +9,7 @@ import { resolve } from '@/lib/theme'
 import AutocompleteInput, { type AutocompleteOption } from '@/components/AutocompleteInput'
 import { searchRoles } from '@/lib/services/roles-rates'
 import { searchCollaborators } from '@/lib/services/collaborators'
-import { X, ChevronDown, Plus } from 'lucide-react'
+import { X, ChevronDown, Plus, CornerDownRight } from 'lucide-react'
 
 const COMPLEMENTARY_LINE_TYPES: { value: ComplementaryLineType; label: string }[] = [
   { value: 'RETIRADA', label: 'Retirada' },
@@ -262,9 +262,19 @@ export default function BudgetTableRow({ row, department, rowIndex = 0, cacheTab
             <button type="button" onClick={onRemove} className="btn-remove-row inline-flex items-center justify-center" aria-label="Remover linha"><X size={16} strokeWidth={2} /></button>
           </td>
         </tr>
-        {complementaryLines.map((compl) => (
-          <tr key={compl.id} className="border-b transition-colors budget-row-complementary" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.04)' }}>
-            <td className="p-1.5 align-middle pl-12" style={{ borderColor: resolve.border }} />
+        {complementaryLines.map((compl, complIndex) => {
+          const isLastComplementary = complIndex === complementaryLines.length - 1
+          return (
+          <tr
+            key={compl.id}
+            className={`transition-colors budget-row-complementary ${isLastComplementary ? 'budget-row-complementary-last' : ''}`}
+            style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}
+          >
+            <td className="p-1.5 align-middle pl-12 budget-compl-cell-icon" style={{ borderColor: resolve.border }}>
+              <span className="inline-flex items-center justify-end w-full" style={{ color: resolve.muted }} aria-hidden>
+                <CornerDownRight size={14} strokeWidth={2} />
+              </span>
+            </td>
             <td className="p-1.5 align-middle" data-label="Descrição">
               <input className={inputClassName} style={inputStyle} value={compl.description} onChange={(e) => updateComplementaryLine(compl.id, { description: e.target.value })} placeholder="Descrição" />
             </td>
@@ -294,7 +304,23 @@ export default function BudgetTableRow({ row, department, rowIndex = 0, cacheTab
               <button type="button" onClick={() => removeComplementaryLine(compl.id)} className="btn-remove-row inline-flex items-center justify-center" aria-label="Remover linha complementar"><X size={16} strokeWidth={2} /></button>
             </td>
           </tr>
-        ))}
+          )
+        })}
+        {complementaryLines.length > 0 && (
+          <tr className="budget-compl-spacer" role="presentation" aria-hidden="true">
+            <td
+              colSpan={9}
+              style={{
+                height: 8,
+                padding: 0,
+                border: 'none',
+                borderBottom: 'none',
+                verticalAlign: 'top',
+                backgroundColor: resolve.panel,
+              }}
+            />
+          </tr>
+        )}
       </>
     )
   }
