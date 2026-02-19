@@ -7,6 +7,14 @@ import { signPrestacaoToken } from '@/lib/prestacao-contas-jwt'
 /** POST: gera link com token para o departamento. Exige usuário logado (Bearer). */
 export async function POST(request: NextRequest) {
   try {
+    if (!process.env.PRESTACAO_CONTAS_JWT_SECRET) {
+      console.error('prestacao-contas/gerar-link: PRESTACAO_CONTAS_JWT_SECRET não definida (Vercel/env)')
+      return NextResponse.json(
+        { error: 'Serviço de link não configurado. Defina PRESTACAO_CONTAS_JWT_SECRET no painel da Vercel.' },
+        { status: 503 }
+      )
+    }
+
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.replace(/Bearer\s+/i, '')
     if (!token) {
@@ -16,9 +24,9 @@ export async function POST(request: NextRequest) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     const supabaseAuth = createClient(url, anonKey)
-    const { data: { user } } = await supabaseAuth.auth.getUser(token)
-    if (!user) {
-      return NextResponse.json({ error: 'Sessão inválida.' }, { status: 401 })
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token)
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Sessão inválida ou expirada. Faça login novamente.' }, { status: 401 })
     }
 
     const body = await request.json().catch(() => ({}))
@@ -53,7 +61,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ url: fullUrl, expiresAt: expiresAt.toISOString() })
   } catch (e) {
+    const msg = e instanceof Error ? e.message : ''
     console.error('prestacao-contas/gerar-link error:', e)
+    if (msg.includes('SUPABASE_SERVICE_ROLE_KEY')) {
+      return NextResponse.json({ error: 'Servidor: configure SUPABASE_SERVICE_ROLE_KEY na Vercel.' }, { status: 503 })
+    }
     return NextResponse.json({ error: 'Erro ao gerar link.' }, { status: 500 })
   }
 }
