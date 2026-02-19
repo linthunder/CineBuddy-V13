@@ -252,9 +252,9 @@ export default function Home() {
   /* ══════════════════════════════════════════════════════
    * SALVAR PROJETO
    * ══════════════════════════════════════════════════════ */
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (opts?: { silent?: boolean }) => {
     if (!projectData.nome) {
-      if (typeof window !== 'undefined') window.alert('Crie um projeto primeiro (botão NOVO).')
+      if (!opts?.silent && typeof window !== 'undefined') window.alert('Crie um projeto primeiro (botão NOVO).')
       return
     }
 
@@ -608,14 +608,13 @@ export default function Home() {
     forceFinishLoading()
   }, [forceFinishLoading])
 
-  /** Logout: salva o projeto aberto e em seguida faz logout; evita reabrir último projeto ao logar de novo (reset é feito no effect quando user vira null).
-   *  Executado fora do handler para não bloquear a UI (evita NP / "blocked UI updates" no console). */
+  /** Logout: salva o projeto aberto (se houver) em silêncio e faz logout. silent evita o alert "Crie um projeto primeiro". */
   const [loggingOut, setLoggingOut] = useState(false)
   const handleLogout = useCallback(() => {
     setLoggingOut(true)
     void (async () => {
       try {
-        await handleSaveRef.current?.()
+        await handleSaveRef.current?.({ silent: true })
       } finally {
         await logout()
         setLoggingOut(false)

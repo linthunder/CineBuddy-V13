@@ -125,7 +125,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [refreshProfile])
 
   const logout = useCallback(async () => {
-    await supabase.auth.signOut()
+    try {
+      await supabase.auth.signOut()
+    } catch {
+      // 403 ou rede: limpa estado local mesmo assim para não travar na tela
+    }
+    setSession(null)
     setProfile(null)
     // Nao zera hasUsers: uma vez que existem usuarios, a tela inicial deve ser sempre login
   }, [])
