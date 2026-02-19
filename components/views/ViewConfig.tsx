@@ -926,7 +926,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
           <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between gap-2" style={{ borderColor: resolve.border, color: resolve.muted }}>
             <span>USUÁRIOS ({profiles.length})</span>
             {isAdmin && (
-              <button type="button" className={`${btnSmall} flex items-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openUserModal('new')}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Novo usuário</button>
+              <button type="button" className={`${btnSmall} btn-resolve-hover flex items-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openUserModal('new')}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Novo usuário</button>
             )}
           </div>
           <div className="p-3">
@@ -941,7 +941,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                     key={p.id}
                     type="button"
                     onClick={() => openUserModal(p)}
-                    className="px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider rounded transition-colors"
+                    className="btn-resolve-hover px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider rounded transition-colors"
                     style={{
                       backgroundColor: userModal && userModal !== 'new' && userModal.id === p.id ? resolve.accent : 'transparent',
                       color: userModal && userModal !== 'new' && userModal.id === p.id ? resolve.bg : resolve.muted,
@@ -982,10 +982,10 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
           <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between gap-2" style={{ borderColor: resolve.border, color: resolve.muted }}>
             <span>COLABORADORES ({collabs.length})</span>
             <div className="flex gap-1.5">
-              <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={exportCollabsCsv}>Exportar</button>
-              <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => collabFileRef.current?.click()}>Importar</button>
+              <button type="button" className={`${btnSmall} btn-resolve-hover`} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={exportCollabsCsv}>Exportar</button>
+              <button type="button" className={`${btnSmall} btn-resolve-hover`} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => collabFileRef.current?.click()}>Importar</button>
               <input ref={collabFileRef} type="file" accept=".csv" className="hidden" onChange={(e) => { if (e.target.files?.[0]) importCollabsCsv(e.target.files[0]); e.target.value = '' }} />
-              <button type="button" className={`${btnSmall} flex items-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openCollabModal('new')}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Novo</button>
+              <button type="button" className={`${btnSmall} btn-resolve-hover flex items-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openCollabModal('new')}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Novo</button>
             </div>
           </div>
           <div className="p-3">
@@ -1017,8 +1017,8 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                       <td className={tdCls} style={{ borderColor: resolve.border }}>{c.email || '—'}</td>
                       <td className={tdCls} style={{ borderColor: resolve.border }}>{c.pix || '—'}</td>
                       <td className={`${tdCls} text-right whitespace-nowrap`} style={{ borderColor: resolve.border }}>
-                        <button type="button" className="inline-flex items-center justify-center p-1.5 rounded" style={{ color: resolve.accent }} onClick={() => openCollabModal(c)} aria-label="Editar"><Pencil size={16} strokeWidth={2} /></button>
-                        <button type="button" className="inline-flex items-center justify-center p-1.5 rounded" style={{ color: cinema.danger }} onClick={() => removeCollab(c.id)} aria-label="Excluir"><X size={16} strokeWidth={2} /></button>
+                        <button type="button" className="btn-resolve-hover inline-flex items-center justify-center p-1.5 rounded transition-colors border border-transparent" style={{ color: resolve.accent }} onClick={() => openCollabModal(c)} aria-label="Editar"><Pencil size={16} strokeWidth={2} /></button>
+                        <button type="button" className="btn-danger-hover inline-flex items-center justify-center p-1.5 rounded transition-colors border border-transparent" style={{ color: cinema.danger }} onClick={() => removeCollab(c.id)} aria-label="Excluir"><X size={16} strokeWidth={2} /></button>
                       </td>
                     </tr>
                   ))}
@@ -1035,7 +1035,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
           <div className="rounded border p-0 w-full max-w-lg shadow-lg overflow-hidden max-h-[90vh] overflow-y-auto" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
               <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: resolve.text }}>{collabModal === 'new' ? '➕ NOVO COLABORADOR' : '✏️ EDITAR COLABORADOR'}</h3>
-              <button type="button" onClick={() => setCollabModal(null)} className="p-1 rounded" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
+              <button type="button" onClick={() => setCollabModal(null)} className="btn-resolve-hover p-1 rounded border border-transparent transition-colors" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
             </div>
             <div className="p-4 space-y-3">
               <div><label className={labelCls} style={{ color: resolve.muted }}>Nome *</label><input type="text" className={inputCls} style={inputStyle} value={fNome} onChange={(e) => setFNome(e.target.value)} autoFocus /></div>
@@ -1060,7 +1060,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <button type="button" onClick={() => setCollabModal(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}>Cancelar</button>
-                <button type="button" onClick={saveCollab} className="h-8 px-3 text-xs font-medium uppercase rounded flex items-center gap-1.5" style={{ backgroundColor: resolve.accent, color: resolve.bg }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar</button>
+                <button type="button" onClick={saveCollab} className="btn-resolve-hover h-8 px-3 text-xs font-medium uppercase rounded flex items-center gap-1.5" style={{ backgroundColor: resolve.accent, color: resolve.bg }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar</button>
               </div>
             </div>
           </div>
@@ -1074,7 +1074,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
         <div className="rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
           <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between gap-2" style={{ borderColor: resolve.border, color: resolve.muted }}>
             <span>TABELAS DE CACHÊ ({cacheTables.length})</span>
-            <button type="button" className={`${btnSmall} flex items-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openCacheTableModal('new')}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Nova tabela</button>
+            <button type="button" className={`${btnSmall} btn-resolve-hover inline-flex items-center justify-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openCacheTableModal('new')}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor', flexShrink: 0 }} />Nova tabela</button>
           </div>
           <p className="px-3 py-1.5 text-[10px]" style={{ color: resolve.muted, borderBottom: `1px solid ${resolve.border}` }}>As tabelas criadas, duplicadas e editadas são salvas automaticamente no banco de dados.</p>
           <div className="p-3">
@@ -1092,12 +1092,12 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                       {t.description && <p className="text-[11px] truncate mt-0.5" style={{ color: resolve.muted }}>{t.description}</p>}
                     </div>
                     <div className="flex gap-1 flex-shrink-0 flex-wrap">
-                      <button type="button" className={`${btnSmall} flex items-center gap-1.5`} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => handleDuplicateCacheTable(t)} aria-label="Duplicar"><Copy size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Duplicar</button>
-                      {!t.is_default && <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => setDefaultCacheTable(t.id).then(() => loadCacheTables())}>Tornar padrão</button>}
-                      <button type="button" className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => { importTargetTableIdRef.current = t.id; cacheTableFileRef.current?.click(); }}>Importar CSV</button>
+                      <button type="button" className={`${btnSmall} btn-resolve-hover flex items-center gap-1.5`} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => handleDuplicateCacheTable(t)} aria-label="Duplicar"><Copy size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Duplicar</button>
+                      {!t.is_default && <button type="button" className={`${btnSmall} btn-resolve-hover`} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => setDefaultCacheTable(t.id).then(() => loadCacheTables())}>Tornar padrão</button>}
+                      <button type="button" className={`${btnSmall} btn-resolve-hover`} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => { importTargetTableIdRef.current = t.id; cacheTableFileRef.current?.click(); }}>Importar CSV</button>
                       <input ref={cacheTableFileRef} type="file" accept=".csv" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; const tid = importTargetTableIdRef.current; if (file && tid) { importCacheTableCsv(file, tid); importTargetTableIdRef.current = null; } e.target.value = '' }} />
-                      <button type="button" className={`${btnSmall} flex items-center gap-1.5`} style={{ backgroundColor: 'transparent', color: resolve.accent, border: `1px solid ${resolve.border}` }} onClick={() => openCacheTableModal(t)} aria-label="Editar"><Pencil size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Editar</button>
-                      <button type="button" className={`${btnSmall} flex items-center gap-1.5`} style={{ backgroundColor: 'transparent', color: cinema.danger, border: `1px solid ${resolve.border}` }} onClick={() => removeCacheTable(t.id, t.name)} aria-label="Excluir"><X size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Excluir</button>
+                      <button type="button" className={`${btnSmall} btn-resolve-hover flex items-center gap-1.5`} style={{ backgroundColor: 'transparent', color: resolve.accent, border: `1px solid ${resolve.border}` }} onClick={() => openCacheTableModal(t)} aria-label="Editar"><Pencil size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Editar</button>
+                      <button type="button" className={`${btnSmall} btn-danger-hover flex items-center gap-1.5`} style={{ backgroundColor: 'transparent', color: cinema.danger, border: `1px solid ${resolve.border}` }} onClick={() => removeCacheTable(t.id, t.name)} aria-label="Excluir"><X size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Excluir</button>
                     </div>
                   </div>
                 ))}
@@ -1113,7 +1113,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
           <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
               <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: resolve.text }}>{cacheTableModal === 'new' ? '➕ NOVA TABELA' : '✏️ EDITAR TABELA'}</h3>
-              <button type="button" onClick={() => setCacheTableModal(null)} className="p-1 rounded" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
+              <button type="button" onClick={() => setCacheTableModal(null)} className="btn-resolve-hover p-1 rounded border border-transparent transition-colors" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
             </div>
             <div className="p-4 space-y-3">
               <div><label className={labelCls} style={{ color: resolve.muted }}>Nome *</label><input type="text" className={inputCls} style={inputStyle} value={ctName} onChange={(e) => setCtName(e.target.value)} placeholder="Ex: SINDICINE 2024" autoFocus /></div>
@@ -1121,7 +1121,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
               <div><label className={labelCls} style={{ color: resolve.muted }}>Fonte</label><input type="text" className={inputCls} style={inputStyle} value={ctSource} onChange={(e) => setCtSource(e.target.value)} placeholder="Ex: SINDICINE 2024" /></div>
               <div className="flex gap-2 justify-end pt-2">
                 <button type="button" onClick={() => setCacheTableModal(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}>Cancelar</button>
-                <button type="button" onClick={saveCacheTable} className="h-8 px-3 text-xs font-medium uppercase rounded flex items-center gap-1.5" style={{ backgroundColor: resolve.accent, color: resolve.bg }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar</button>
+                <button type="button" onClick={saveCacheTable} className="btn-resolve-hover h-8 px-3 text-xs font-medium uppercase rounded flex items-center gap-1.5" style={{ backgroundColor: resolve.accent, color: resolve.bg }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar</button>
               </div>
             </div>
           </div>
@@ -1142,8 +1142,8 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                   <option key={t.id} value={t.id}>{t.name}{t.is_default ? ' (padrão)' : ''}</option>
                 ))}
               </select>
-              <button type="button" className={`${btnSmall} shrink-0 whitespace-nowrap`} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={exportRolesCsv}>Exportar</button>
-              <button type="button" className={`${btnSmall} shrink-0 whitespace-nowrap`} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => rolesFileRef.current?.click()}>Importar</button>
+              <button type="button" className={`${btnSmall} btn-resolve-hover shrink-0 whitespace-nowrap`} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={exportRolesCsv}>Exportar</button>
+              <button type="button" className={`${btnSmall} btn-resolve-hover shrink-0 whitespace-nowrap`} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => rolesFileRef.current?.click()}>Importar</button>
               <input ref={rolesFileRef} type="file" accept=".csv" className="hidden" onChange={(e) => { if (e.target.files?.[0]) importRolesCsv(e.target.files[0]); e.target.value = '' }} />
               <select className={`${inputCls} shrink-0 w-auto max-w-[180px]`} style={inputStyle} defaultValue="" onChange={(e) => { const v = e.target.value; if (v) { insertSeparator(v); e.target.value = ''; } }}>
                 <option value="">Inserir separador...</option>
@@ -1151,7 +1151,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                   <option key={d} value={d}>{d}</option>
                 ))}
               </select>
-              <button type="button" className={`${btnSmall} shrink-0 whitespace-nowrap flex items-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openRoleModal('new')}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Nova</button>
+              <button type="button" className={`${btnSmall} btn-resolve-hover shrink-0 whitespace-nowrap flex items-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openRoleModal('new')}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Nova</button>
             </div>
           </div>
           <div className="p-3">
@@ -1202,7 +1202,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                           <div className="flex items-center justify-between gap-2">
                             <span>{section.name}</span>
                             {section.separatorId != null && (
-                              <button type="button" className="inline-flex items-center gap-1 text-[10px] uppercase" style={{ color: cinema.danger }} onClick={() => removeRole(section.separatorId!)} aria-label="Remover separador"><X size={14} strokeWidth={2} />Remover separador</button>
+                              <button type="button" className="btn-danger-hover inline-flex items-center gap-1 text-[10px] uppercase transition-colors border border-transparent rounded px-1 py-0.5" style={{ color: cinema.danger }} onClick={() => removeRole(section.separatorId!)} aria-label="Remover separador"><X size={14} strokeWidth={2} />Remover separador</button>
                             )}
                           </div>
                         </td>
@@ -1233,9 +1233,9 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                             <td className={`${tdCls} text-right font-mono`} style={{ borderColor: resolve.border }}>{formatCurrency(Number(r.cache_dia))}</td>
                             <td className={`${tdCls} text-right font-mono`} style={{ borderColor: resolve.border }}>{formatCurrency(Number(r.cache_semana))}</td>
                             <td className={`${tdCls} text-right whitespace-nowrap`} style={{ borderColor: resolve.border }}>
-                              <button type="button" className="inline-flex items-center justify-center p-1.5 rounded mr-1" style={{ color: resolve.accent }} onClick={() => openRoleModal(r)} aria-label="Editar"><Pencil size={16} strokeWidth={2} /></button>
-                              <button type="button" className="inline-flex items-center justify-center p-1.5 rounded mr-1" style={{ color: resolve.accent }} onClick={() => duplicateRole(r)} aria-label="Duplicar"><Copy size={16} strokeWidth={2} /></button>
-                              <button type="button" className="inline-flex items-center justify-center p-1.5 rounded" style={{ color: cinema.danger }} onClick={() => removeRole(r.id)} aria-label="Excluir"><X size={16} strokeWidth={2} /></button>
+                              <button type="button" className="btn-resolve-hover inline-flex items-center justify-center p-1.5 rounded mr-1 transition-colors border border-transparent" style={{ color: resolve.accent }} onClick={() => openRoleModal(r)} aria-label="Editar"><Pencil size={16} strokeWidth={2} /></button>
+                              <button type="button" className="btn-resolve-hover inline-flex items-center justify-center p-1.5 rounded mr-1 transition-colors border border-transparent" style={{ color: resolve.accent }} onClick={() => duplicateRole(r)} aria-label="Duplicar"><Copy size={16} strokeWidth={2} /></button>
+                              <button type="button" className="btn-danger-hover inline-flex items-center justify-center p-1.5 rounded transition-colors border border-transparent" style={{ color: cinema.danger }} onClick={() => removeRole(r.id)} aria-label="Excluir"><X size={16} strokeWidth={2} /></button>
                             </td>
                           </tr>
                         )
@@ -1255,7 +1255,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
           <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
               <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: resolve.text }}>{roleModal === 'new' ? '➕ NOVA FUNÇÃO' : '✏️ EDITAR FUNÇÃO'}</h3>
-              <button type="button" onClick={() => setRoleModal(null)} className="p-1 rounded" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
+              <button type="button" onClick={() => setRoleModal(null)} className="btn-resolve-hover p-1 rounded border border-transparent transition-colors" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
             </div>
             <div className="p-4 space-y-3">
               <div><label className={labelCls} style={{ color: resolve.muted }}>Função *</label><input type="text" className={inputCls} style={inputStyle} value={rFuncao} onChange={(e) => setRFuncao(e.target.value)} autoFocus placeholder={roleModal !== 'new' && roleModal && isRoleSeparator(roleModal) ? 'Ex: --- DIREÇÃO ---' : undefined} /></div>
@@ -1265,7 +1265,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <button type="button" onClick={() => setRoleModal(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}>Cancelar</button>
-                <button type="button" onClick={saveRole} className="h-8 px-3 text-xs font-medium uppercase rounded flex items-center gap-1.5" style={{ backgroundColor: resolve.accent, color: resolve.bg }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar</button>
+                <button type="button" onClick={saveRole} className="btn-resolve-hover h-8 px-3 text-xs font-medium uppercase rounded flex items-center gap-1.5" style={{ backgroundColor: resolve.accent, color: resolve.bg }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar</button>
               </div>
             </div>
           </div>
@@ -1309,8 +1309,8 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                       <td className={tdCls} style={{ borderColor: resolve.border }}>{p.cliente || '—'}</td>
                       <td className={tdCls} style={{ borderColor: resolve.border, color: resolve.muted }}>{new Date(p.updated_at).toLocaleDateString('pt-BR')}</td>
                       <td className={`${tdCls} text-right whitespace-nowrap`} style={{ borderColor: resolve.border }}>
-                        <button type="button" className="inline-flex items-center justify-center p-1.5 rounded mr-1" style={{ color: resolve.accent }} onClick={() => openProjectModal(p)} aria-label="Editar"><Pencil size={16} strokeWidth={2} /></button>
-                        <button type="button" className="inline-flex items-center justify-center p-1.5 rounded" style={{ color: cinema.danger }} onClick={() => removeProject(p.id, p.nome)} aria-label="Excluir"><X size={16} strokeWidth={2} /></button>
+                        <button type="button" className="btn-resolve-hover inline-flex items-center justify-center p-1.5 rounded mr-1 transition-colors border border-transparent" style={{ color: resolve.accent }} onClick={() => openProjectModal(p)} aria-label="Editar"><Pencil size={16} strokeWidth={2} /></button>
+                        <button type="button" className="btn-danger-hover inline-flex items-center justify-center p-1.5 rounded transition-colors border border-transparent" style={{ color: cinema.danger }} onClick={() => removeProject(p.id, p.nome)} aria-label="Excluir"><X size={16} strokeWidth={2} /></button>
                       </td>
                     </tr>
                   ))}
@@ -1327,7 +1327,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
           <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
               <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: resolve.text }}>✏️ EDITAR PROJETO</h3>
-              <button type="button" onClick={() => setProjectModal(null)} className="p-1 rounded" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
+              <button type="button" onClick={() => setProjectModal(null)} className="btn-resolve-hover p-1 rounded border border-transparent transition-colors" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
             </div>
             <div className="p-4 space-y-3">
               <div className="text-[11px] font-mono px-1 mb-1" style={{ color: resolve.muted }}>JOB #{projectModal.job_id}</div>
@@ -1394,9 +1394,9 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                 placeholder="Filtrar por nome (ex: Calendar, User)..."
               />
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-                {GALLERY_ICONS.filter((item) => !String(iconsSearch ?? '').trim() || (item.name || '').toLowerCase().includes((iconsSearch ?? '').toLowerCase())).map(({ name, Icon }) => (
+                {GALLERY_ICONS.filter((item) => !String(iconsSearch ?? '').trim() || (item.name || '').toLowerCase().includes((iconsSearch ?? '').toLowerCase())).map(({ name, Icon }, i) => (
                   <div
-                    key={name}
+                    key={`gallery-icon-${i}`}
                     className="flex flex-col items-center justify-center gap-1.5 py-2 px-1 rounded border"
                     style={{ borderColor: resolve.border, backgroundColor: resolve.bg }}
                     title={name}

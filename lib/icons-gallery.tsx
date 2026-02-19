@@ -122,8 +122,8 @@ import {
 export const APP_ICONS: { name: string; Icon: LucideIcon; usage: string }[] = [
   { name: 'Home', Icon: Home, usage: 'Menu inferior – HOME' },
   { name: 'Film', Icon: Film, usage: 'Menu inferior – FILME' },
-  { name: 'DollarSign', Icon: DollarSign, usage: 'Menu inferior – ORÇAMENTO' },
-  { name: 'FileText', Icon: FileText, usage: 'Menu inferior – ORÇ. FINAL' },
+  { name: 'DollarSign', Icon: DollarSign, usage: 'Menu inferior – ORÇ. PREVISTO' },
+  { name: 'FileText', Icon: FileText, usage: 'Menu inferior – ORÇ. REALIZADO' },
   { name: 'CreditCard', Icon: CreditCard, usage: 'Menu inferior – FECHAMENTO' },
   { name: 'Users', Icon: Users, usage: 'Menu inferior – EQUIPE' },
   { name: 'BarChart3', Icon: BarChart3, usage: 'Menu inferior – DASHBOARD' },

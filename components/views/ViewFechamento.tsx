@@ -6,8 +6,9 @@ import { DEPARTMENTS, LABOR_DEPTS } from '@/lib/constants'
 import type { PhaseKey } from '@/lib/constants'
 import { resolve, cinema } from '@/lib/theme'
 import { formatCurrency, parseCurrencyInput } from '@/lib/utils'
+import { getSlugByDept } from '@/lib/prestacao-contas'
 import type { BudgetLinesByPhase, VerbaLinesByPhase, MiniTablesData, BudgetRow, BudgetRowLabor, PhaseDefaultsByPhase } from '@/lib/types'
-import { computeRowTotal, computeVerbaRowTotal, sumDeptTotal } from '@/lib/budgetUtils'
+import { computeRowTotal, computeVerbaRowTotal, sumDeptTotal, getDeptBudget } from '@/lib/budgetUtils'
 import { listCollaborators, type Collaborator } from '@/lib/services/collaborators'
 import { X, Plus, Lock, LockOpen } from 'lucide-react'
 
@@ -132,22 +133,6 @@ function calcTotalNF(line: ClosingLine): number {
   return line.finalValue + calcOvertime(line)
 }
 
-/** Verba total destinada ao departamento no orçamento final (budget + verba) */
-function getDeptBudget(
-  budgetLines: BudgetLinesByPhase,
-  verbaLines: VerbaLinesByPhase,
-  dept: string
-): number {
-  let total = 0
-  ;(['pre', 'prod', 'pos'] as const).forEach((phase) => {
-    const rows = budgetLines[phase]?.[dept] ?? []
-    total += sumDeptTotal(rows)
-    const verbaRows = verbaLines[phase]?.[dept] ?? []
-    total += verbaRows.reduce((s, r) => s + computeVerbaRowTotal(r), 0)
-  })
-  return total
-}
-
 const inputStyle: React.CSSProperties = {
   backgroundColor: resolve.bg,
   border: `1px solid ${resolve.border}`,
@@ -245,6 +230,10 @@ interface ViewFechamentoProps {
   onToggleLock?: () => void
   /** Padrões por fase (dias da fase) para HE de profissional por semana */
   getPhaseDefaults?: () => PhaseDefaultsByPhase | undefined
+  /** ID do projeto no banco (para gerar link da prestação por departamento) */
+  projectDbId?: string | null
+  /** Gera URL com token para a página exclusiva do departamento. Retorna { url } ou { error }. */
+  onGenerateLink?: (projectId: string, deptSlug: string) => Promise<{ url: string } | { error: string }>
 }
 
 export interface ViewFechamentoHandle {
@@ -259,7 +248,7 @@ const defaultDiaria = (): DiariaEntry => ({ dailyHours: 8, additionalPct: 0, ove
 
 const JORNADA_LABEL: Record<string, string> = { dia: 'Diária', sem: 'Semana', flat: 'Fechado' }
 
-const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(function ViewFechamento({ finalSnapshot, initialSnapshot, initialJobValue, isLocked = false, onToggleLock, getPhaseDefaults }, ref) {
+const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(function ViewFechamento({ finalSnapshot, initialSnapshot, initialJobValue, isLocked = false, onToggleLock, getPhaseDefaults, projectDbId, onGenerateLink }, ref) {
   const [closingLines, setClosingLines] = useState<ClosingLine[]>([])
   const [expenses, setExpenses] = useState<ExpenseLine[]>([])
   const [saving, setSaving] = useState<SavingConfig>(defaultSaving)
@@ -274,6 +263,9 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
     EXPENSE_DEPARTMENTS.reduce((acc, d) => ({ ...acc, [d]: {} }), {} as Record<ExpenseDepartment, ExpenseDeptConfig>)
   )
   const [expenseResponsibleModalDept, setExpenseResponsibleModalDept] = useState<ExpenseDepartment | null>(null)
+  const [linkModal, setLinkModal] = useState<{ url: string; department: string } | { error: string } | null>(null)
+  /** Loading por departamento: só o dept em que clicou mostra "…"; os outros continuam "Gerar link". */
+  const [linkModalLoadingDept, setLinkModalLoadingDept] = useState<ExpenseDepartment | null>(null)
   const [editingExpenseValueId, setEditingExpenseValueId] = useState<string | null>(null)
   const [editingExpenseValueRaw, setEditingExpenseValueRaw] = useState('')
   const loadedFromDB = useRef(false)
@@ -516,7 +508,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
         .map((l) => (l.role ? `${l.name || ''} (${l.role})`.trim() || l.role : l.name || ''))
         .filter(Boolean)
       const uniq = Array.from(new Set(fromLines))
-      acc[dept] = [...fixedWithNames, ...uniq]
+      acc[dept] = Array.from(new Set([...fixedWithNames, ...uniq]))
       return acc
     }, {} as Record<ExpenseDepartment, string[]>)
   }, [closingLines])
@@ -595,7 +587,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
       style={{ backgroundColor: resolve.panel, borderColor: resolve.purple, borderRadius: 3 }}
     >
       <div className="p-3 border-b lg:border-b-0 lg:border-r flex flex-col items-center justify-center min-w-0" style={{ borderColor: resolve.border }}>
-        <label className="text-[11px] uppercase tracking-wider font-medium mb-0.5" style={{ color: resolve.muted }}>Valor Job</label>
+        <label className="text-[11px] uppercase tracking-wider font-medium mb-0.5" style={{ color: resolve.muted }}>Valor total</label>
         <div className="text-base sm:text-lg font-semibold font-mono" style={{ color: resolve.text }}>{formatCurrency(initialJobValue)}</div>
       </div>
       <div className="p-3 border-b lg:border-b-0 lg:border-r flex flex-col items-center justify-center min-w-0" style={{ borderColor: resolve.border }}>
@@ -865,7 +857,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                                   </div>
                                   <div className="flex items-center gap-1 col-span-2 sm:col-span-1">
                                     {diarias.length > 1 && (
-                                      <button type="button" onClick={() => removeDiaria(line.id, diariaIdx)} className="h-7 w-7 flex items-center justify-center rounded border" style={{ borderColor: resolve.border, color: resolve.muted }} title="Excluir diária" aria-label="Excluir diária"><X size={14} strokeWidth={2} /></button>
+                                      <button type="button" onClick={() => removeDiaria(line.id, diariaIdx)} className="btn-danger-hover h-7 w-7 flex items-center justify-center rounded border transition-colors" style={{ borderColor: resolve.border, color: resolve.muted }} title="Excluir diária" aria-label="Excluir diária"><X size={14} strokeWidth={2} /></button>
                                     )}
                                     {diariaIdx === diarias.length - 1 && (
                                       <button type="button" onClick={() => addDiaria(line.id)} className="btn-resolve-hover h-7 px-2 flex items-center justify-center gap-1 rounded border text-[10px] font-medium uppercase" style={{ borderColor: resolve.border, color: resolve.text }} title="Adicionar diária"><Plus size={12} strokeWidth={2} style={{ color: 'currentColor' }} />Diária</button>
@@ -982,7 +974,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
                     {r1 || r2 ? (
                       [r1, r2].filter(Boolean).map((name, i) => (
-                      <Fragment key={name}>
+                      <Fragment key={`${dept}-resp-${i}`}>
                         {i > 0 && sepVertical(`sep-${dept}-${i}`)}
                         <span className="text-[11px] truncate" style={{ color: resolve.text }}>{name}</span>
                       </Fragment>
@@ -992,14 +984,40 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                     )}
                   </div>
                   {!isLocked && (
-                    <button
-                      type="button"
-                      className="btn-resolve-hover text-[10px] font-medium uppercase px-2 py-0.5 rounded border shrink-0"
-                      style={{ borderColor: resolve.border, color: resolve.accent }}
-                      onClick={() => setExpenseResponsibleModalDept(dept)}
-                    >
-                      Selecionar
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className="btn-resolve-hover text-[10px] font-medium uppercase px-2 py-0.5 rounded border shrink-0"
+                        style={{ borderColor: resolve.border, color: resolve.accent }}
+                        onClick={() => setExpenseResponsibleModalDept(dept)}
+                      >
+                        Selecionar
+                      </button>
+                      {projectDbId && onGenerateLink && (
+                        <button
+                          key={`gerar-link-${dept}`}
+                          type="button"
+                          className="btn-resolve-hover text-[10px] font-medium uppercase px-2 py-0.5 rounded border shrink-0"
+                          style={{ borderColor: resolve.border, color: resolve.muted }}
+                          onClick={async () => {
+                            setLinkModalLoadingDept(dept)
+                            setLinkModal(null)
+                            try {
+                              const result = await onGenerateLink(projectDbId, getSlugByDept(dept))
+                              if ('url' in result) setLinkModal({ url: result.url, department: dept })
+                              else setLinkModal({ error: result.error })
+                            } catch (e) {
+                              setLinkModal({ error: 'Erro ao gerar link.' })
+                            } finally {
+                              setLinkModalLoadingDept(null)
+                            }
+                          }}
+                          disabled={linkModalLoadingDept !== null}
+                        >
+                          {linkModalLoadingDept === dept ? '…' : 'Gerar link'}
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -1100,7 +1118,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
             <p className="text-[10px] uppercase tracking-wider mb-2" style={{ color: resolve.muted }}>Até 2 responsáveis (clique para adicionar)</p>
             <div className="flex flex-wrap gap-1.5 mb-3">
               {[expenseDepartmentConfig[expenseResponsibleModalDept]?.responsible1, expenseDepartmentConfig[expenseResponsibleModalDept]?.responsible2].filter(Boolean).map((name, idx) => (
-                <span key={name} className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[11px]" style={{ borderColor: resolve.border, color: resolve.text }}>
+                <span key={`${expenseResponsibleModalDept}-resp-${idx}`} className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[11px]" style={{ borderColor: resolve.border, color: resolve.text }}>
                   {name}
                   {!isLocked && (
                     <button type="button" onClick={() => setExpenseDeptResponsible(expenseResponsibleModalDept, (idx + 1) as 1 | 2, undefined)} className="p-0.5 rounded hover:opacity-80" style={{ color: resolve.muted }} aria-label="Remover"><X size={12} strokeWidth={2} /></button>
@@ -1109,7 +1127,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
               ))}
             </div>
             <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
-              {expenseDeptResponsibleOptions[expenseResponsibleModalDept]?.map((opt) => {
+              {expenseDeptResponsibleOptions[expenseResponsibleModalDept]?.map((opt, idx) => {
                 const cur = expenseDepartmentConfig[expenseResponsibleModalDept]
                 const already1 = cur?.responsible1 === opt
                 const already2 = cur?.responsible2 === opt
@@ -1117,7 +1135,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                 const disabled = (already1 && already2) || (!already1 && !already2 && !canAdd)
                 return (
                   <button
-                    key={opt}
+                    key={`${expenseResponsibleModalDept}-opt-${idx}`}
                     type="button"
                     className="text-left text-[11px] py-1.5 px-2 rounded border transition-colors"
                     style={{
@@ -1139,6 +1157,36 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
             </div>
             <div className="mt-4 flex justify-end">
               <button type="button" onClick={() => setExpenseResponsibleModalDept(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ borderColor: resolve.border, color: resolve.text }}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Link da prestação de contas (departamento) */}
+      {linkModal !== null && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setLinkModal(null)}>
+          <div className="rounded border p-4 w-full max-w-lg shadow-lg" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: resolve.text }}>Link para prestação de contas</h3>
+            {'error' in linkModal ? (
+              <p className="text-sm mb-4" style={{ color: cinema.danger }}>{linkModal.error}</p>
+            ) : (
+              <>
+                <p className="text-[11px] mb-2" style={{ color: resolve.muted }}>Envie este link ao responsável pelo departamento <strong style={{ color: resolve.text }}>{linkModal.department}</strong>. Ele poderá preencher as despesas sem acessar o sistema.</p>
+                <div className="flex gap-2 mb-4">
+                  <input type="text" readOnly className="flex-1 py-1.5 px-2 text-[11px] rounded border truncate" style={{ ...inputStyle }} value={linkModal.url} />
+                  <button
+                    type="button"
+                    className="btn-resolve-hover shrink-0 px-3 py-1.5 border text-[11px] font-medium uppercase rounded"
+                    style={{ borderColor: resolve.border, color: resolve.text }}
+                    onClick={() => { navigator.clipboard.writeText(linkModal.url).then(() => window.alert('Link copiado!')).catch(() => {}) }}
+                  >
+                    Copiar
+                  </button>
+                </div>
+              </>
+            )}
+            <div className="flex justify-end">
+              <button type="button" onClick={() => setLinkModal(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ borderColor: resolve.border, color: resolve.text }}>Fechar</button>
             </div>
           </div>
         </div>

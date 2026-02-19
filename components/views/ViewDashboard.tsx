@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useLayoutEffect } from 'react'
 import PageLayout from '@/components/PageLayout'
 import { DEPARTMENTS, LABOR_DEPTS, PEOPLE_DEPTS } from '@/lib/constants'
 import { resolve, cinema } from '@/lib/theme'
@@ -11,6 +11,42 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from 'recharts'
+
+/** Só renderiza o gráfico quando o container tem width/height > 0 para evitar aviso do Recharts (width/height 0). */
+function ChartContainer({
+  children,
+  className = '',
+  style = {},
+}: {
+  children: React.ReactNode
+  className?: string
+  style?: React.CSSProperties
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [size, setSize] = useState({ w: 0, h: 0 })
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const update = () => {
+      const w = el.offsetWidth
+      const h = el.offsetHeight
+      if (w > 0 && h > 0) setSize((prev) => (prev.w === w && prev.h === h ? prev : { w, h }))
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  return (
+    <div ref={ref} className={className} style={style}>
+      {size.w > 0 && size.h > 0 ? (
+        <ResponsiveContainer width={size.w} height={size.h}>
+          {children}
+        </ResponsiveContainer>
+      ) : null}
+    </div>
+  )
+}
 
 /* ══════════════════════════════════════════════════════════
  * TYPES
@@ -421,7 +457,7 @@ function IndividualAnalysis({ data, stageLabel }: { data: ProcessedData; stageLa
           <div>
             {data.departments.map((d, i) => (
               <HBarItem
-                key={d.name}
+                key={`dept-cost-${i}`}
                 label={d.name}
                 value={formatCurrency(d.totalCost)}
                 pct={(d.totalCost / maxDeptCost) * 100}
@@ -440,8 +476,7 @@ function IndividualAnalysis({ data, stageLabel }: { data: ProcessedData; stageLa
             <p className="text-xs text-center py-4" style={{ color: resolve.muted }}>Nenhum dado disponível.</p>
           ) : (
             <div className="flex flex-col items-center gap-4">
-              <div className="w-full" style={{ height: 220 }}>
-                <ResponsiveContainer width="100%" height="100%">
+              <ChartContainer className="w-full min-w-0" style={{ height: 220, minHeight: 220 }}>
                   <PieChart>
                     <Pie
                       data={donutData}
@@ -463,8 +498,7 @@ function IndividualAnalysis({ data, stageLabel }: { data: ProcessedData; stageLa
                       iconSize={10}
                     />
                   </PieChart>
-                </ResponsiveContainer>
-              </div>
+                </ChartContainer>
               <div className="w-full space-y-1.5">
                 {data.phases.map((p) => {
                   const pct = totalPhaseCost > 0 ? (p.cost / totalPhaseCost) * 100 : 0
@@ -494,7 +528,7 @@ function IndividualAnalysis({ data, stageLabel }: { data: ProcessedData; stageLa
             <div>
               {deptsWithHeadcount.map((d, i) => (
                 <HBarItem
-                  key={d.name}
+                  key={`dept-hc-${i}`}
                   label={d.name}
                   value={`${d.headcount}`}
                   pct={(d.headcount / maxHeadcount) * 100}
@@ -557,8 +591,7 @@ function IndividualAnalysis({ data, stageLabel }: { data: ProcessedData; stageLa
       {/* ── Composição por departamento: Equipe vs Materiais vs Verbas (recharts stacked bar) ── */}
       {data.departments.length > 0 && (
         <SectionCard title="Composição do Custo por Departamento — Equipe vs Materiais vs Verbas">
-          <div style={{ height: Math.max(data.departments.length * 36, 200) }}>
-            <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer className="min-w-0" style={{ height: Math.max(data.departments.length * 36, 200), minHeight: 200 }}>
               <BarChart data={data.departments} layout="vertical" margin={{ left: 0, right: 16, top: 4, bottom: 4 }}>
                 <XAxis
                   type="number"
@@ -580,8 +613,7 @@ function IndividualAnalysis({ data, stageLabel }: { data: ProcessedData; stageLa
                 <Bar dataKey="materialCost" name="Materiais" stackId="stack" fill={resolve.yellow} radius={[0, 0, 0, 0]} />
                 <Bar dataKey="verbaCost" name="Verbas" stackId="stack" fill={resolve.purple} radius={[0, 2, 2, 0]} />
               </BarChart>
-            </ResponsiveContainer>
-          </div>
+            </ChartContainer>
           <div className="flex items-center justify-center gap-4 mt-3 text-[10px]">
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: resolve.accent }} /><span style={{ color: resolve.text }}>Equipe</span></div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: resolve.yellow }} /><span style={{ color: resolve.text }}>Materiais</span></div>
@@ -706,8 +738,7 @@ function ComparisonAnalysis({ leftData, rightData, leftLabel, rightLabel }: {
       {/* ── Gráfico comparativo de barras agrupadas ── */}
       {barChartData.length > 0 && (
         <SectionCard title={`Comparativo por Departamento — ${leftLabel} vs ${rightLabel}`}>
-          <div style={{ height: Math.max(barChartData.length * 48, 200) }}>
-            <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer className="min-w-0" style={{ height: Math.max(barChartData.length * 48, 200), minHeight: 200 }}>
               <BarChart data={barChartData} layout="vertical" margin={{ left: 0, right: 16, top: 4, bottom: 4 }}>
                 <XAxis
                   type="number"
@@ -728,8 +759,7 @@ function ComparisonAnalysis({ leftData, rightData, leftLabel, rightLabel }: {
                 <Bar dataKey={leftLabel} fill={resolve.accent} radius={[0, 2, 2, 0]} barSize={14} />
                 <Bar dataKey={rightLabel} fill={resolve.yellow} radius={[0, 2, 2, 0]} barSize={14} />
               </BarChart>
-            </ResponsiveContainer>
-          </div>
+            </ChartContainer>
           <div className="flex items-center justify-center gap-4 mt-3 text-[10px]">
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: resolve.accent }} /><span style={{ color: resolve.text }}>{leftLabel}</span></div>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: resolve.yellow }} /><span style={{ color: resolve.text }}>{rightLabel}</span></div>
@@ -751,8 +781,8 @@ function ComparisonAnalysis({ leftData, rightData, leftLabel, rightLabel }: {
               </tr>
             </thead>
             <tbody>
-              {comparisonDepts.filter(d => d.leftCost > 0 || d.rightCost > 0).map((d) => (
-                <tr key={d.name} className="border-b" style={{ borderColor: resolve.border }}>
+              {comparisonDepts.filter(d => d.leftCost > 0 || d.rightCost > 0).map((d, i) => (
+                <tr key={`comp-${i}`} className="border-b" style={{ borderColor: resolve.border }}>
                   <td className="py-2 px-2 font-medium" style={{ color: resolve.text }}>{d.name}</td>
                   <td className="py-2 px-2 text-right font-mono" style={{ color: resolve.accent }}>{formatCurrency(d.leftCost)}</td>
                   <td className="py-2 px-2 text-right font-mono" style={{ color: resolve.yellow }}>{formatCurrency(d.rightCost)}</td>

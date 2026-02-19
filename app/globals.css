@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* DaVinci Resolve–inspired theme: fundo escuro + amarelo (hover) e roxo */
+/* DaVinci Resolve-inspired theme: fundo escuro + amarelo (hover) e roxo */
 :root {
   --resolve-bg: #0d0d0f;
   --resolve-panel: #1a1a1e;
@@ -344,6 +344,13 @@ input[type='number'] {
   border-color: var(--resolve-yellow) !important;
   color: var(--resolve-yellow) !important;
 }
+
+/* Hover vermelho para botões de excluir/remover (fora da tabela de orçamento) */
+.btn-danger-hover:hover {
+  border-color: var(--cinema-danger) !important;
+  color: var(--cinema-danger) !important;
+  background: rgba(201, 74, 74, 0.1) !important;
+}
 .nav-btn-resolve:hover {
   color: var(--resolve-yellow) !important;
   border-color: var(--resolve-yellow) !important;
@@ -367,8 +374,8 @@ input[type='number'] {
 }
 
 .page-layout__title {
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.8125rem;
+  font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   margin-bottom: var(--page-section-gap);
@@ -447,7 +454,7 @@ input[type='number'] {
   }
 }
 
-/* 2 colunas apenas em telas grandes (ex.: > 15"); 13" (1280–1440px) fica em 1 coluna */
+/* 2 colunas apenas em telas grandes (ex.: > 15"); 13" (1280-1440px) fica em 1 coluna */
 @media (min-width: 1536px) {
   .page-layout__content--grid {
     grid-template-columns: repeat(2, 1fr);

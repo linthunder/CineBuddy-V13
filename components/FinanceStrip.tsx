@@ -44,7 +44,7 @@ export default function FinanceStrip({
 
   return (
     <div
-      className="rounded overflow-hidden grid grid-cols-1 lg:grid-cols-[1.3fr_1fr_1fr_1.2fr_0.8fr] gap-0 border-b min-w-0"
+      className="rounded overflow-hidden grid grid-cols-1 lg:grid-cols-5 gap-0 border-b min-w-0"
       style={{ backgroundColor: resolve.panel, borderColor: resolve.purple, borderRadius: 3 }}
     >
       <div className="p-3 border-b lg:border-b-0 lg:border-r flex flex-col items-center justify-center min-w-0" style={{ borderColor: resolve.border }}>

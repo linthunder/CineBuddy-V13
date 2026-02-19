@@ -17,6 +17,7 @@ import type { ProjectStatus, ProjectData, BudgetLinesByPhase, VerbaLinesByPhase,
 import { createProject, updateProject, getProject, type ProjectRecord } from '@/lib/services/projects'
 import { getCompany } from '@/lib/services/company'
 import { addLog } from '@/lib/services/activity-logs'
+import { supabase } from '@/lib/supabase'
 
 const INITIAL_PHASE_DEFAULTS: PhaseDefaultsByPhase = {
   pre: { dias: 0, semanas: 0, deslocamento: 0, alimentacaoPerPerson: 0 },
@@ -56,6 +57,8 @@ const EMPTY_PROJECT: ProjectData = {
 
 export default function Home() {
   const { user, loading, logout, profile, forceFinishLoading } = useAuth()
+  /** Escape local: se o usuário clicar em "Travou?", sair da tela de carregamento mesmo que o contexto não atualize */
+  const [skipLoading, setSkipLoading] = useState(false)
   const [currentView, setCurrentView] = useState<ViewId>('home')
   const [projectStatus, setProjectStatus] = useState<ProjectStatus>({
     initial: 'open',
@@ -68,6 +71,8 @@ export default function Home() {
   /** ID do registro no Supabase (null = projeto ainda não salvo) */
   const [projectDbId, setProjectDbId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  /** True enquanto um projeto está sendo carregado (Abrir) — evita mostrar dados do projeto anterior */
+  const [loadingOpen, setLoadingOpen] = useState(false)
 
   /* Logo da empresa */
   const [companyLogoUrl, setCompanyLogoUrl] = useState('')
@@ -78,10 +83,19 @@ export default function Home() {
     })
   }, [])
 
+  /** Manter ref da view atual para uso em handleOpenProject (evitar sobrescrever se usuário já navegou) */
+  useEffect(() => {
+    currentViewRef.current = currentView
+  }, [currentView])
+
   /* Refs para acessar o estado interno dos views */
   const viewOrcRef = useRef<ViewOrcamentoHandle>(null)
   const viewOrcFinalRef = useRef<ViewOrcFinalHandle>(null)
   const viewFechamentoRef = useRef<ViewFechamentoHandle>(null)
+  /** Ref da view atual (para não sobrescrever no final de handleOpenProject se o usuário já mudou) */
+  const currentViewRef = useRef<ViewId>('home')
+  /** ID do projeto que está sendo aberto (evita aplicar resultado de abertura anterior em race) */
+  const openingProjectIdRef = useRef<string | null>(null)
 
   /* Criar novo projeto (modal NOVO) */
   const handleNewProject = useCallback(async (data: { nome: string; agencia: string; cliente: string; duracao: string; duracaoUnit: 'segundos' | 'minutos' }) => {
@@ -121,6 +135,42 @@ export default function Home() {
   /* Snapshots para cascata: Inicial → Final → Fechamento */
   const [initialSnapshot, setInitialSnapshot] = useState<BudgetSnapshot | null>(null)
   const [finalSnapshot, setFinalSnapshot] = useState<BudgetSnapshot | null>(null)
+
+  /** Limpa todo o estado do projeto (ao logout ou no início de "Abrir projeto").
+   * skipViewReset: true = não força currentView para home (usado ao abrir outro projeto; view será ajustada ao final). */
+  const resetProjectState = useCallback((opts?: { skipViewReset?: boolean }) => {
+    setProjectData({ ...EMPTY_PROJECT })
+    setProjectDbId(null)
+    setProjectStatus({ initial: 'open', final: 'open', closing: 'open' })
+    setInitialSnapshot(null)
+    setFinalSnapshot(null)
+    if (!opts?.skipViewReset) setCurrentView('home')
+    viewOrcRef.current?.loadState({
+      budgetLines: getInitialLinesByPhase(),
+      verbaLines: { pre: {}, prod: {}, pos: {} },
+      miniTables: { contingencia: 0, crt: 0, bvagencia: 0 },
+      phaseDefaults: INITIAL_PHASE_DEFAULTS,
+      jobValue: 0,
+      taxRate: 12.5,
+      notes: { pre: '', prod: '', pos: '' },
+    })
+    viewOrcFinalRef.current?.loadState({
+      budgetLines: { pre: {}, prod: {}, pos: {} },
+      verbaLines: { pre: {}, prod: {}, pos: {} },
+      miniTables: { contingencia: 0, crt: 0, bvagencia: 0 },
+      notes: { pre: '', prod: '', pos: '' },
+    })
+    viewFechamentoRef.current?.loadState({ closingLines: [], expenses: [] })
+  }, [])
+
+  /** Ao sair (logout ou timeout): limpar estado do projeto para que, ao logar de novo, abra sem projeto */
+  const prevUserRef = useRef<typeof user>(undefined)
+  useEffect(() => {
+    const hadUser = prevUserRef.current != null
+    const hasUser = user != null
+    prevUserRef.current = user
+    if (hadUser && !hasUser) resetProjectState()
+  }, [user, resetProjectState])
 
   /** Referência para o handleSave (usada nas funções de lock para auto-save) */
   const handleSaveRef = useRef<() => Promise<void>>()
@@ -180,6 +230,25 @@ export default function Home() {
       const orcFinalState = viewOrcFinalRef.current?.getState()
       const fechamentoState = viewFechamentoRef.current?.getState()
 
+      // Ao atualizar projeto existente: se o estado do view não está disponível (ref não pronta), usar dados já salvos para não zerar
+      let budgetLinesInitial = (orcState?.budgetLines ?? {}) as unknown as Record<string, unknown>
+      let verbaLinesInitial = (orcState?.verbaLines ?? {}) as unknown as Record<string, unknown>
+      let budgetLinesFinal = (orcFinalState?.budgetLines ?? {}) as unknown as Record<string, unknown>
+      let verbaLinesFinal = (orcFinalState?.verbaLines ?? {}) as unknown as Record<string, unknown>
+      if (projectDbId) {
+        const existing = await getProject(projectDbId)
+        if (existing) {
+          if (orcState === undefined || orcState === null) {
+            budgetLinesInitial = (existing.budget_lines_initial ?? {}) as Record<string, unknown>
+            verbaLinesInitial = (existing.verba_lines_initial ?? {}) as Record<string, unknown>
+          }
+          if (orcFinalState === undefined || orcFinalState === null) {
+            budgetLinesFinal = (existing.budget_lines_final ?? {}) as Record<string, unknown>
+            verbaLinesFinal = (existing.verba_lines_final ?? {}) as Record<string, unknown>
+          }
+        }
+      }
+
       const payload = {
         job_id: projectData.jobId,
         nome: projectData.nome,
@@ -191,16 +260,16 @@ export default function Home() {
         // Status
         status: projectStatus as unknown as Record<string, string>,
         // Orçamento Inicial
-        budget_lines_initial: (orcState?.budgetLines ?? {}) as unknown as Record<string, unknown>,
-        verba_lines_initial: (orcState?.verbaLines ?? {}) as unknown as Record<string, unknown>,
+        budget_lines_initial: budgetLinesInitial,
+        verba_lines_initial: verbaLinesInitial,
         mini_tables: (orcState?.miniTables ?? { contingencia: 0, crt: 0, bvagencia: 0 }) as unknown as Record<string, number>,
         phase_defaults_initial: (orcState?.phaseDefaults ?? INITIAL_PHASE_DEFAULTS) as unknown as Record<string, unknown>,
         job_value: orcState?.jobValue ?? 0,
         tax_rate: orcState?.taxRate ?? 12.5,
         notes_initial: (orcState?.notes ?? { pre: '', prod: '', pos: '' }) as unknown as Record<string, string>,
         // Orçamento Final
-        budget_lines_final: (orcFinalState?.budgetLines ?? {}) as unknown as Record<string, unknown>,
-        verba_lines_final: (orcFinalState?.verbaLines ?? {}) as unknown as Record<string, unknown>,
+        budget_lines_final: budgetLinesFinal,
+        verba_lines_final: verbaLinesFinal,
         mini_tables_final: (orcFinalState?.miniTables ?? { contingencia: 0, crt: 0, bvagencia: 0 }) as unknown as Record<string, number>,
         phase_defaults_final: (orcFinalState?.phaseDefaults ?? INITIAL_PHASE_DEFAULTS) as unknown as Record<string, unknown>,
         job_value_final: orcState?.jobValue ?? 0,
@@ -306,8 +375,14 @@ export default function Home() {
    * ABRIR PROJETO
    * ══════════════════════════════════════════════════════ */
   const handleOpenProject = useCallback(async (id: string) => {
+    openingProjectIdRef.current = id
+    resetProjectState({ skipViewReset: true })
+    setLoadingOpen(true)
     const project = await getProject(id)
+    if (openingProjectIdRef.current !== id) return
     if (!project) {
+      setLoadingOpen(false)
+      openingProjectIdRef.current = null
       if (typeof window !== 'undefined') window.alert('Erro ao carregar projeto.')
       return
     }
@@ -393,8 +468,10 @@ export default function Home() {
       entityName: project.nome,
       details: { job_id: project.job_id },
     })
-    setCurrentView('filme')
-  }, [])
+    setLoadingOpen(false)
+    openingProjectIdRef.current = null
+    if (currentViewRef.current === 'home') setCurrentView('filme')
+  }, [resetProjectState])
 
   /* Dados da equipe: lê do orçamento mais avançado disponível */
   const getTeamBudgetData = useCallback(() => {
@@ -442,6 +519,25 @@ export default function Home() {
     }
   }, [initialSnapshot])
 
+  const handleGenerateLink = useCallback(async (projectId: string, deptSlug: string): Promise<{ url: string } | { error: string }> => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) return { error: 'Faça login para gerar o link.' }
+      const res = await fetch('/api/prestacao-contas/gerar-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ projectId, deptSlug }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) return { error: (data as { error?: string }).error ?? 'Erro ao gerar link.' }
+      return { url: (data as { url: string }).url ?? '' }
+    } catch (e) {
+      console.error('handleGenerateLink:', e)
+      return { error: 'Erro ao gerar link.' }
+    }
+  }, [])
+
   const disabledViews = useMemo<ViewId[]>(() => {
     const disabled: ViewId[] = []
     // FILME, ORÇAMENTO, DASHBOARD e EQUIPE bloqueados até criar/abrir um projeto (apenas HOME liberada no primeiro acesso)
@@ -461,7 +557,25 @@ export default function Home() {
     }
   }, [projectData.nome, currentView])
 
-  if (loading) {
+  const isLoading = loading && !skipLoading
+  const handleForceContinue = useCallback(() => {
+    setSkipLoading(true)
+    forceFinishLoading()
+  }, [forceFinishLoading])
+
+  /** Logout: salva o projeto aberto e em seguida faz logout; evita reabrir último projeto ao logar de novo (reset é feito no effect quando user vira null) */
+  const [loggingOut, setLoggingOut] = useState(false)
+  const handleLogout = useCallback(async () => {
+    setLoggingOut(true)
+    try {
+      await handleSaveRef.current?.()
+    } finally {
+      await logout()
+      setLoggingOut(false)
+    }
+  }, [logout])
+
+  if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-5 p-4" style={{ backgroundColor: '#0d0d0f', color: '#8e8e93' }}>
         <span className="text-sm">Carregando...</span>
@@ -470,8 +584,8 @@ export default function Home() {
         </p>
         <button
           type="button"
-          onClick={forceFinishLoading}
-          className="text-sm px-4 py-2.5 rounded border font-medium transition-colors hover:opacity-90"
+          onClick={handleForceContinue}
+          className="text-sm px-4 py-2.5 rounded border font-medium transition-colors hover:opacity-90 cursor-pointer"
           style={{ borderColor: '#5c7c99', color: '#5c7c99', backgroundColor: 'rgba(92, 124, 153, 0.1)' }}
         >
           Travou? Clique para continuar
@@ -488,12 +602,14 @@ export default function Home() {
       <Header
         projectData={projectData}
         logoUrl={companyLogoUrl}
+        loadingOpen={loadingOpen}
         onNewProject={handleNewProject}
         onSave={handleSave}
         onSaveCopy={handleSaveCopy}
         onOpenProject={handleOpenProject}
         saving={saving}
-        onLogout={logout}
+        onLogout={handleLogout}
+        loggingOut={loggingOut}
         onOpenConfig={() => setCurrentView('config')}
       />
       <main
@@ -532,6 +648,8 @@ export default function Home() {
             isLocked={projectStatus.closing === 'locked'}
             onToggleLock={handleToggleLockClosing}
             getPhaseDefaults={() => viewOrcFinalRef.current?.getState()?.phaseDefaults}
+            projectDbId={projectDbId}
+            onGenerateLink={handleGenerateLink}
           />
         </div>
         <div style={{ display: currentView === 'dashboard' ? 'block' : 'none' }}>

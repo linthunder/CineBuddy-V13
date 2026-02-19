@@ -148,8 +148,8 @@ export default function ViewTeam({ getBudgetData }: ViewTeamProps) {
         <button
           type="button"
           onClick={refresh}
-          className="h-7 px-3 text-[11px] font-medium uppercase rounded transition-colors"
-          style={{ backgroundColor: resolve.accent, color: resolve.bg }}
+          className="btn-resolve-hover h-7 px-3 text-[11px] font-medium uppercase rounded transition-colors border"
+          style={{ backgroundColor: resolve.accent, color: resolve.bg, borderColor: resolve.accent }}
         >
           Atualizar
         </button>
@@ -161,7 +161,7 @@ export default function ViewTeam({ getBudgetData }: ViewTeamProps) {
           className="rounded border mb-4 px-4 py-3 flex items-center justify-between"
           style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}
         >
-          <span className="text-sm font-medium" style={{ color: resolve.text }}>Total Mão de Obra (Equipe)</span>
+          <span className="text-sm font-medium" style={{ color: resolve.text }}>Total de Equipe</span>
           <span className="text-sm font-mono font-semibold" style={{ color: cinema.success }}>{formatCurrency(grandTotal)}</span>
         </div>
       )}

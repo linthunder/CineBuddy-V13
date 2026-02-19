@@ -29,10 +29,15 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'CineBuddy - Orçamento Audiovisual',
   description: 'Sistema de orçamento e gestão de projetos audiovisuais',
+  manifest: '/manifest.webmanifest',
+  icons: { icon: '/icon.svg' },
   appleWebApp: {
     capable: true,
     title: 'CineBuddy',
     statusBarStyle: 'black-translucent',
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
   },
 }
 

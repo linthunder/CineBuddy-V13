@@ -25,16 +25,18 @@ interface ProjectSummary {
 interface HeaderProps {
   projectData: ProjectData
   logoUrl?: string
+  loadingOpen?: boolean
   onNewProject: (data: { nome: string; agencia: string; cliente: string; duracao: string; duracaoUnit: 'segundos' | 'minutos' }) => void | Promise<void>
   onSave: () => void
   onSaveCopy: (data: { nome: string; agencia: string; cliente: string; duracao: string; duracaoUnit: 'segundos' | 'minutos' }) => Promise<void>
   onOpenProject: (id: string) => void
   saving?: boolean
   onLogout?: () => void
+  loggingOut?: boolean
   onOpenConfig?: () => void
 }
 
-export default function Header({ projectData, logoUrl, onNewProject, onSave, onSaveCopy, onOpenProject, saving = false, onLogout, onOpenConfig }: HeaderProps) {
+export default function Header({ projectData, logoUrl, loadingOpen = false, onNewProject, onSave, onSaveCopy, onOpenProject, saving = false, onLogout, loggingOut = false, onOpenConfig }: HeaderProps) {
   const [modalOpen, setModalOpen] = useState<'novo' | 'abrir' | 'copia' | null>(null)
 
   /* NOVO */
@@ -69,23 +71,21 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
     closeModal()
   }
 
-  const openAbrir = async () => {
+  const openAbrir = () => {
     setSearchTerm('')
-    setModalOpen('abrir')
     setLoadingProjects(true)
-    const list = await listProjects()
-    setProjectsList(list as ProjectSummary[])
-    setLoadingProjects(false)
+    setModalOpen('abrir')
   }
 
   useEffect(() => {
     if (modalOpen !== 'abrir') return
+    const delayMs = searchTerm === '' ? 0 : 300
+    setLoadingProjects(true)
     const timer = setTimeout(async () => {
-      setLoadingProjects(true)
-      const list = searchTerm ? await searchProjects(searchTerm) : await listProjects()
+      const list = searchTerm.trim() ? await searchProjects(searchTerm.trim()) : await listProjects()
       setProjectsList(list as ProjectSummary[])
       setLoadingProjects(false)
-    }, 300)
+    }, delayMs)
     return () => clearTimeout(timer)
   }, [searchTerm, modalOpen])
 
@@ -117,10 +117,10 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
 
   const hasProject = !!projectData.nome
   const jobIdDisplay = `JOB #${projectData.jobId || 'BZ0000'}`
-  const displayName = hasProject ? projectData.nome.toUpperCase() : 'NOME DO PROJETO'
-  const displaySubline = hasProject
+  const displayName = loadingOpen ? 'Carregando projeto...' : (hasProject ? projectData.nome.toUpperCase() : 'NOME DO PROJETO')
+  const displaySubline = loadingOpen ? '' : (hasProject
     ? `${projectData.agencia || '—'} • ${projectData.cliente || '—'}`
-    : 'AGÊNCIA • CLIENTE'
+    : 'AGÊNCIA • CLIENTE')
 
   return (
     <header
@@ -145,7 +145,7 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
           <button type="button" onClick={openAbrir} className={`${btnBaseClsMobile} flex items-center gap-1`} style={btnBaseStyle}><FolderOpen size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Abrir</button>
           <button type="button" onClick={openCopy} className={`${btnBaseClsMobile} flex items-center gap-1`} style={btnBaseStyle}><Copy size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar cópia</button>
           <button type="button" onClick={onSave} disabled={saving} className={`btn-resolve-hover h-7 px-2 text-xs font-medium uppercase rounded flex items-center gap-1`} style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{saving ? '...' : 'Salvar'}</button>
-          {onLogout && <button type="button" onClick={onLogout} className={`${btnBaseClsMobile} flex items-center gap-1`} style={btnBaseStyle}><LogOut size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Sair</button>}
+          {onLogout && <button type="button" onClick={onLogout} disabled={loggingOut} className={`${btnBaseClsMobile} flex items-center gap-1`} style={btnBaseStyle}><LogOut size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{loggingOut ? 'Saindo...' : 'Sair'}</button>}
           {onOpenConfig && (
             <div className="flex items-center pl-2 ml-1 border-l" style={{ borderColor: resolve.border }}>
               <button type="button" onClick={onOpenConfig} aria-label="Configurações" className="flex items-center justify-center w-8 h-8 rounded transition-colors" style={{ color: resolve.muted }} onMouseEnter={(e) => { e.currentTarget.style.color = resolve.yellow }} onMouseLeave={(e) => { e.currentTarget.style.color = resolve.muted }}>
@@ -176,7 +176,7 @@ export default function Header({ projectData, logoUrl, onNewProject, onSave, onS
         <button type="button" onClick={openCopy} className={`${btnBaseCls} flex items-center gap-1.5`} style={btnBaseStyle}><Copy size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar cópia</button>
         <button type="button" onClick={onSave} disabled={saving} className="btn-resolve-hover h-7 px-3 text-xs font-medium uppercase tracking-wide rounded flex items-center gap-1.5" style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{saving ? 'Salvando...' : 'Salvar'}</button>
         {onLogout && (
-          <button type="button" onClick={onLogout} className="btn-resolve-hover h-7 px-3 text-xs font-medium uppercase tracking-wide rounded ml-1 flex items-center gap-1.5" style={{ backgroundColor: 'transparent', color: resolve.muted, borderColor: resolve.border }}><LogOut size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Sair</button>
+          <button type="button" onClick={onLogout} disabled={loggingOut} className="btn-resolve-hover h-7 px-3 text-xs font-medium uppercase tracking-wide rounded ml-1 flex items-center gap-1.5" style={{ backgroundColor: 'transparent', color: resolve.muted, borderColor: resolve.border }}><LogOut size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{loggingOut ? 'Saindo...' : 'Sair'}</button>
         )}
         {onOpenConfig && (
           <div className="flex items-center pl-3 ml-2 border-l" style={{ borderColor: resolve.border }}>

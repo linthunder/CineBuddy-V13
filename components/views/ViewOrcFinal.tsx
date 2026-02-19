@@ -417,9 +417,9 @@ const ViewOrcFinal = forwardRef<ViewOrcFinalHandle, ViewOrcFinalProps>(function 
 
   if (!initialSnapshot) {
     return (
-      <PageLayout title="Orçamento Final">
+      <PageLayout title="Orçamento Realizado">
         <div className="text-center py-12" style={{ color: resolve.muted }}>
-          <p className="text-sm">Finalize o Orçamento inicial para acessar o Orçamento Final.</p>
+          <p className="text-sm">Finalize o Orçamento Previsto para acessar o Orçamento Realizado.</p>
         </div>
       </PageLayout>
     )
@@ -431,15 +431,15 @@ const ViewOrcFinal = forwardRef<ViewOrcFinalHandle, ViewOrcFinalProps>(function 
       style={{ backgroundColor: resolve.panel, borderColor: resolve.purple, borderRadius: 3 }}
     >
       <div className="p-3 border-b lg:border-b-0 lg:border-r flex flex-col items-center justify-center min-w-0" style={{ borderColor: resolve.border }}>
-        <label className="text-[11px] uppercase tracking-wider font-medium mb-0.5" style={{ color: resolve.muted }}>Valor Job</label>
+        <label className="text-[11px] uppercase tracking-wider font-medium mb-0.5" style={{ color: resolve.muted }}>Valor total</label>
         <div className="text-base sm:text-lg font-semibold font-mono" style={{ color: resolve.text }}>{formatCurrency(initialJobValue)}</div>
       </div>
       <div className="p-3 border-b lg:border-b-0 lg:border-r flex flex-col items-center justify-center min-w-0" style={{ borderColor: resolve.border }}>
-        <label className="text-[11px] uppercase tracking-wider font-medium mb-0.5" style={{ color: resolve.muted }}>Custo Real</label>
+        <label className="text-[11px] uppercase tracking-wider font-medium mb-0.5" style={{ color: resolve.muted }}>Custo</label>
         <div className="text-sm sm:text-base font-semibold font-mono" style={{ color: resolve.text }}>{formatCurrency(totalCostReal)}</div>
       </div>
       <div className="p-3 border-b lg:border-b-0 lg:border-r flex flex-col items-center justify-center min-w-0" style={{ borderColor: resolve.border }}>
-        <label className="text-[11px] uppercase tracking-wider font-medium mb-0.5" style={{ color: resolve.muted }}>Lucro Real</label>
+        <label className="text-[11px] uppercase tracking-wider font-medium mb-0.5" style={{ color: resolve.muted }}>Lucro líquido</label>
         <div className="text-sm sm:text-base font-semibold font-mono" style={{ color: profitFinal >= 0 ? cinema.success : cinema.danger }}>{formatCurrency(profitFinal)}</div>
       </div>
       <div className="p-3 border-b lg:border-b-0 lg:border-r flex flex-col items-center justify-center min-w-0" style={{ borderColor: resolve.border }}>
@@ -457,7 +457,7 @@ const ViewOrcFinal = forwardRef<ViewOrcFinalHandle, ViewOrcFinalProps>(function 
 
   return (
     <PageLayout
-      title="Orçamento Final"
+      title="Orçamento Realizado"
       strip={financeStrip}
       tabs={
         <BudgetTabs

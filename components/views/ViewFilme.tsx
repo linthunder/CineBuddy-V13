@@ -17,7 +17,7 @@ export default function ViewFilme({ projectData }: ViewFilmeProps) {
     { id: 'cronograma', label: 'CRONOGRAMA', Icon: CalendarClock },
     { id: 'moodboard', label: 'MOODBOARD', Icon: Palette },
     { id: 'storyboard', label: 'STORYBOARD', Icon: Image },
-    { id: 'orcamento', label: 'ORÇAMENTO', Icon: DollarSign },
+    { id: 'orcamento', label: 'ORÇ. PREVISTO', Icon: DollarSign },
     { id: 'apresentacao', label: 'APRESENTAÇÃO', Icon: Presentation },
   ]
 

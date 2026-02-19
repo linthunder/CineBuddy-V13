@@ -1,4 +1,5 @@
 import type { BudgetRow, BudgetRowLabor, BudgetRowCost, BudgetRowPeople, VerbaRow, PhaseDefaults, ComplementaryLine } from './types'
+import type { BudgetLinesByPhase, VerbaLinesByPhase } from './types'
 import { LABOR_DEPTS, PEOPLE_DEPTS } from './constants'
 
 export function computeRowTotal(row: BudgetRow): number {
@@ -77,4 +78,20 @@ export function createEmptyVerbaRow(): VerbaRow {
 export function createEmptyComplementaryLine(): ComplementaryLine {
   const id = crypto.randomUUID?.() ?? `compl-${Date.now()}-${Math.random().toString(36).slice(2)}`
   return { id, lineType: 'OUTROS', description: '', value: 0 }
+}
+
+/** Verba total destinada ao departamento no orçamento (budget + verba) por fase. */
+export function getDeptBudget(
+  budgetLines: BudgetLinesByPhase,
+  verbaLines: VerbaLinesByPhase,
+  dept: string
+): number {
+  let total = 0
+  ;(['pre', 'prod', 'pos'] as const).forEach((phase) => {
+    const rows = budgetLines[phase]?.[dept] ?? []
+    total += sumDeptTotal(rows)
+    const verbaRows = verbaLines[phase]?.[dept] ?? []
+    total += verbaRows.reduce((s, r) => s + computeVerbaRowTotal(r), 0)
+  })
+  return total
 }

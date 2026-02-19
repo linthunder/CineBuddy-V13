@@ -407,7 +407,7 @@ const ViewOrcamento = forwardRef<ViewOrcamentoHandle, ViewOrcamentoProps>(functi
 
   return (
     <PageLayout
-      title="Orçamento"
+      title="Orçamento Previsto"
       strip={
         <FinanceStrip
           jobValue={jobValue}

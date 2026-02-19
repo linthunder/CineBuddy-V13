@@ -15,8 +15,8 @@ interface NavItem {
 const ITEMS: NavItem[] = [
   { id: 'home', label: 'HOME', Icon: Home },
   { id: 'filme', label: 'FILME', Icon: Film },
-  { id: 'orcamento', label: 'ORÇAMENTO', Icon: CircleDollarSign },
-  { id: 'orc-final', label: 'ORÇ. FINAL', Icon: BadgeDollarSign },
+  { id: 'orcamento', label: 'ORÇ. PREVISTO', Icon: CircleDollarSign },
+  { id: 'orc-final', label: 'ORÇ. REALIZADO', Icon: BadgeDollarSign },
   { id: 'fechamento', label: 'FECHAMENTO', Icon: CreditCard },
   { id: 'team', label: 'EQUIPE', Icon: Users },
   { id: 'dashboard', label: 'DASHBOARD', Icon: BarChart3 },

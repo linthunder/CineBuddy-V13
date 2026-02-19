@@ -43,24 +43,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
-    /** Fallback: se getSession demorar ou travar (rede/Supabase/navegador), para de carregar após 500ms */
-    const fallback = setTimeout(() => {
+    /** Fallback curto: se getSession demorar, mostra o botao "Travou? Clique para continuar" apos 500ms */
+    const fallbackShort = setTimeout(() => {
       if (cancelled) return
       setLoading(false)
     }, 500)
 
-    supabase.auth.getSession()
+    /** Fallback máximo: garante que nunca ficamos travados mais que 3s (rede/Supabase lento) */
+    const fallbackMax = setTimeout(() => {
+      if (cancelled) return
+      setLoading(false)
+    }, 3000)
+
+    const sessionPromise = supabase.auth.getSession()
+    const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) =>
+      setTimeout(() => resolve({ data: { session: null } }), 4000)
+    )
+    Promise.race([sessionPromise, timeoutPromise])
       .then(({ data: { session: s } }) => {
         if (cancelled) return
-        clearTimeout(fallback)
-        setSession(s)
+        clearTimeout(fallbackShort)
+        clearTimeout(fallbackMax)
+        setSession(s ?? null)
         if (s) getMyProfile().then((p) => !cancelled && setProfile(p))
         setLoading(false)
       })
-      .catch((err) => {
+      .catch(async (err) => {
         if (cancelled) return
-        clearTimeout(fallback)
-        console.error('Auth getSession:', err)
+        clearTimeout(fallbackShort)
+        clearTimeout(fallbackMax)
+        const msg = err?.message ?? ''
+        const isInvalidRefresh = /refresh token|invalid.*token|token.*not found/i.test(msg)
+        if (isInvalidRefresh) {
+          await supabase.auth.signOut()
+          setSession(null)
+          setProfile(null)
+        }
+        if (!isInvalidRefresh) console.error('Auth getSession:', err)
         setLoading(false)
       })
 
@@ -73,7 +92,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       cancelled = true
-      clearTimeout(fallback)
+      clearTimeout(fallbackShort)
+      clearTimeout(fallbackMax)
       subscription.unsubscribe()
     }
   }, [])
@@ -105,7 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     await supabase.auth.signOut()
     setProfile(null)
-    // Não zera hasUsers: uma vez que existem usuários, a tela inicial deve ser sempre login
+    // Nao zera hasUsers: uma vez que existem usuarios, a tela inicial deve ser sempre login
   }, [])
 
   const setHasUsersTrue = useCallback(() => {
@@ -121,7 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
     const data = await res.json()
     if (!res.ok) {
-      if (data.error && (data.error.includes('Já existem') || data.error.includes('tela de login'))) setHasUsersTrue()
+      if (data.error && (data.error.includes('J\u00e1 existem') || data.error.includes('tela de login'))) setHasUsersTrue()
       return { error: data.error || 'Falha no cadastro.' }
     }
     const result = await login(email, password)
