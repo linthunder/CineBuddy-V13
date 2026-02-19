@@ -33,15 +33,23 @@ export async function listProfiles(): Promise<Profile[]> {
   return (data ?? []) as Profile[]
 }
 
-/** Busca o perfil do usuário logado. */
+/** Busca o perfil do usuário logado. Usa getSession() para evitar chamada extra a /auth/v1/user (que pode retornar 403 sem sessão). */
 export async function getMyProfile(): Promise<Profile | null> {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
+  let session: { user: { id: string } } | null = null
+  try {
+    const res = await supabase.auth.getSession()
+    session = res.data?.session ?? null
+    if (res.error?.message && /403|forbidden/i.test(String(res.error.message))) return null
+  } catch {
+    return null
+  }
+  if (!session?.user) return null
+  const userId = session.user.id
 
   const { data, error } = await supabase
     .from('profiles')
     .select('id, role, name, surname, email, created_at, updated_at')
-    .eq('id', user.id)
+    .eq('id', userId)
     .single()
 
   if (error) {
