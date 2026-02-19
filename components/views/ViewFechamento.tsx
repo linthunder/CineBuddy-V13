@@ -999,18 +999,20 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                           type="button"
                           className="btn-resolve-hover text-[10px] font-medium uppercase px-2 py-0.5 rounded border shrink-0"
                           style={{ borderColor: resolve.border, color: resolve.muted }}
-                          onClick={async () => {
+                          onClick={() => {
                             setLinkModalLoadingDept(dept)
                             setLinkModal(null)
-                            try {
-                              const result = await onGenerateLink(projectDbId, getSlugByDept(dept))
-                              if ('url' in result) setLinkModal({ url: result.url, department: dept })
-                              else setLinkModal({ error: result.error })
-                            } catch (e) {
-                              setLinkModal({ error: 'Erro ao gerar link.' })
-                            } finally {
-                              setLinkModalLoadingDept(null)
-                            }
+                            void (async () => {
+                              try {
+                                const result = await onGenerateLink(projectDbId, getSlugByDept(dept))
+                                if ('url' in result) setLinkModal({ url: result.url, department: dept })
+                                else setLinkModal({ error: result.error })
+                              } catch (e) {
+                                setLinkModal({ error: 'Erro ao gerar link.' })
+                              } finally {
+                                setLinkModalLoadingDept(null)
+                              }
+                            })()
                           }}
                           disabled={linkModalLoadingDept !== null}
                         >
