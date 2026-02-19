@@ -4,10 +4,13 @@ import { getDeptBySlug, type ExpenseDepartment, type ExpenseLine } from '@/lib/p
 import { getDeptBudget } from '@/lib/budgetUtils'
 import type { BudgetLinesByPhase, VerbaLinesByPhase } from '@/lib/types'
 
+/** Rota usa dados da requisição (query); não pode ser estática no build. */
+export const dynamic = 'force-dynamic'
+
 /** GET: retorna dados apenas do departamento (verba, despesas, responsáveis). Público; não exige login. */
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
+    const searchParams = request.nextUrl.searchParams
     const projectId = searchParams.get('projectId')
     const deptSlug = searchParams.get('deptSlug')
 
