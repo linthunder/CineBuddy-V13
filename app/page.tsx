@@ -608,16 +608,19 @@ export default function Home() {
     forceFinishLoading()
   }, [forceFinishLoading])
 
-  /** Logout: salva o projeto aberto e em seguida faz logout; evita reabrir último projeto ao logar de novo (reset é feito no effect quando user vira null) */
+  /** Logout: salva o projeto aberto e em seguida faz logout; evita reabrir último projeto ao logar de novo (reset é feito no effect quando user vira null).
+   *  Executado fora do handler para não bloquear a UI (evita NP / "blocked UI updates" no console). */
   const [loggingOut, setLoggingOut] = useState(false)
-  const handleLogout = useCallback(async () => {
+  const handleLogout = useCallback(() => {
     setLoggingOut(true)
-    try {
-      await handleSaveRef.current?.()
-    } finally {
-      await logout()
-      setLoggingOut(false)
-    }
+    void (async () => {
+      try {
+        await handleSaveRef.current?.()
+      } finally {
+        await logout()
+        setLoggingOut(false)
+      }
+    })()
   }, [logout])
 
   if (isLoading) {
