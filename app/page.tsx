@@ -566,6 +566,8 @@ export default function Home() {
 
   const handleGenerateLink = useCallback(async (projectId: string, deptSlug: string): Promise<{ url: string } | { error: string }> => {
     try {
+      // Salvar projeto antes de gerar o link para que responsáveis e demais dados do fechamento estejam na página do link
+      await handleSaveRef.current?.({ silent: true })
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
       if (!token) return { error: 'Faça login para gerar o link.' }

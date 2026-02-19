@@ -142,8 +142,8 @@ interface ProcessedData {
  * CONSTANTS
  * ══════════════════════════════════════════════════════════ */
 const STAGE_LABELS: Record<StageId, string> = {
-  initial: 'Orçamento Inicial',
-  final: 'Orçamento Final',
+  initial: 'Orçamento Previsto',
+  final: 'Orçamento Realizado',
   closing: 'Fechamento',
 }
 
@@ -905,7 +905,7 @@ export default function ViewDashboard({ getData, projectStatus }: ViewDashboardP
       <PageLayout title="Dashboard">
         <div className="rounded border p-8 text-center" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
           <p className="text-sm mb-1" style={{ color: resolve.muted }}>Nenhum dado disponível para exibir.</p>
-          <p className="text-xs" style={{ color: resolve.muted }}>Preencha o Orçamento Inicial e finalize-o para visualizar o dashboard.</p>
+          <p className="text-xs" style={{ color: resolve.muted }}>Preencha o Orçamento Previsto e finalize-o para visualizar o dashboard.</p>
         </div>
       </PageLayout>
     )
@@ -973,8 +973,8 @@ export default function ViewDashboard({ getData, projectStatus }: ViewDashboardP
             <div className="rounded border p-8 text-center" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
               <p className="text-sm" style={{ color: resolve.muted }}>
                 Dados de <strong>{STAGE_LABELS[selectedStage]}</strong> não disponíveis.
-                {selectedStage === 'final' && ' Finalize o Orçamento Inicial primeiro.'}
-                {selectedStage === 'closing' && ' Finalize o Orçamento Final primeiro.'}
+                {selectedStage === 'final' && ' Finalize o Orçamento Previsto primeiro.'}
+                {selectedStage === 'closing' && ' Finalize o Orçamento Realizado primeiro.'}
               </p>
             </div>
           )}

@@ -575,7 +575,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
     return (
       <PageLayout title="Fechamento">
         <div className="text-center py-12" style={{ color: resolve.muted }}>
-          <p className="text-sm">Finalize o Orçamento Final para acessar o Fechamento.</p>
+          <p className="text-sm">Finalize o Orçamento Realizado para acessar o Fechamento.</p>
         </div>
       </PageLayout>
     )
@@ -653,7 +653,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
         >
           <option value="">Responsável</option>
           {laborLinesForSaving.map((l) => (
-            <option key={l.id} value={l.id}>{l.name || l.role || '—'} ({l.department})</option>
+            <option key={l.id} value={l.id}>{l.name || l.role || '—'} ({l.role || l.department})</option>
           ))}
         </select>
       </div>

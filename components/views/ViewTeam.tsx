@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import PageLayout from '@/components/PageLayout'
-import { resolve, cinema } from '@/lib/theme'
-import { formatCurrency } from '@/lib/utils'
+import { resolve } from '@/lib/theme'
 import type { BudgetLinesByPhase, VerbaLinesByPhase, BudgetRow } from '@/lib/types'
 import { listCollaborators, type Collaborator } from '@/lib/services/collaborators'
 import { Info, DollarSign, PenLine, Receipt } from 'lucide-react'
@@ -125,7 +124,6 @@ export default function ViewTeam({ getBudgetData }: ViewTeamProps) {
     listCollaborators().then(setCollaborators).catch(() => setCollaborators([]))
   }, [])
 
-  const grandTotal = useMemo(() => teamData.reduce((sum, d) => sum + d.deptTotal, 0), [teamData])
   const totalMembers = useMemo(() => teamData.reduce((sum, d) => sum + d.members.length, 0), [teamData])
 
   return (
@@ -155,17 +153,6 @@ export default function ViewTeam({ getBudgetData }: ViewTeamProps) {
         </button>
       </div>
 
-      {/* Resumo total */}
-      {teamData.length > 0 && (
-        <div
-          className="rounded border mb-4 px-4 py-3 flex items-center justify-between"
-          style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}
-        >
-          <span className="text-sm font-medium" style={{ color: resolve.text }}>Total de Equipe</span>
-          <span className="text-sm font-mono font-semibold" style={{ color: cinema.success }}>{formatCurrency(grandTotal)}</span>
-        </div>
-      )}
-
       {/* Sem dados */}
       {teamData.length === 0 && (
         <div className="rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
@@ -187,27 +174,24 @@ export default function ViewTeam({ getBudgetData }: ViewTeamProps) {
           style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}
         >
           <div
-            className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between"
+            className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider"
             style={{ borderColor: resolve.border, color: resolve.muted, backgroundColor: 'rgba(255,255,255,0.03)' }}
           >
-            <span>{dept.department}</span>
-            <span className="font-mono text-[13px] font-medium" style={{ color: resolve.yellow }}>{formatCurrency(dept.deptTotal)}</span>
+            {dept.department}
           </div>
 
           <div className="p-2 sm:p-3 overflow-x-auto min-w-0">
             <table className="team-equipe-table w-full text-[11px] border-collapse table-fixed" style={{ color: resolve.text }}>
               <colgroup>
-                <col style={{ width: '28%' }} />
-                <col style={{ width: '22%' }} />
-                <col style={{ width: '22%' }} />
-                <col style={{ width: '28%' }} />
+                <col style={{ width: '38%' }} />
+                <col style={{ width: '32%' }} />
+                <col style={{ width: '30%' }} />
               </colgroup>
               <thead>
                 <tr>
                   <th className="text-left text-[11px] uppercase pb-2 pr-3" style={{ color: resolve.muted }}>Nome</th>
                   <th className="text-left text-[11px] uppercase pb-2 pr-3" style={{ color: resolve.muted }}>Função</th>
                   <th className="text-center text-[11px] uppercase pb-2 pr-2" style={{ color: resolve.muted }}>Informações</th>
-                  <th className="text-right text-[11px] uppercase pb-2 pl-3" style={{ color: resolve.muted }}>Cachê Total</th>
                 </tr>
               </thead>
               <tbody>
@@ -268,9 +252,6 @@ export default function ViewTeam({ getBudgetData }: ViewTeamProps) {
                             <Receipt size={17} strokeWidth={1.5} aria-hidden />
                           </button>
                         </div>
-                      </td>
-                      <td className="py-1.5 pl-3 border-b text-right font-mono text-[11px]" style={{ borderColor: resolve.border }}>
-                        {formatCurrency(member.totalCost)}
                       </td>
                     </tr>
                   )
