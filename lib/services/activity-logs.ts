@@ -36,9 +36,10 @@ export interface AddLogParams {
   details?: Record<string, unknown>
 }
 
-/** Registra uma entrada no log de atividades. */
+/** Registra uma entrada no log de atividades. Falha em silêncio quando não há sessão ou RLS bloqueia (ex.: uso local sem login). */
 export async function addLog(params: AddLogParams): Promise<ActivityLog | null> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user ?? null
   const userProfile = user ? await import('@/lib/services/profiles').then((m) => m.getMyProfile()) : null
   const userName = userProfile ? `${userProfile.name} ${userProfile.surname}`.trim() || userProfile.email : user?.email ?? null
 
@@ -59,7 +60,9 @@ export async function addLog(params: AddLogParams): Promise<ActivityLog | null> 
     .single()
 
   if (error) {
-    console.error('Erro ao registrar log:', error)
+    // RLS (42501) ou não autorizado = esperado sem login; não poluir console
+    const isExpected = error.code === '42501' || /row-level security|unauthorized|401/i.test(String(error.message))
+    if (!isExpected) console.error('Erro ao registrar log:', error)
     return null
   }
   return data as ActivityLog
