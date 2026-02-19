@@ -745,11 +745,19 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
     if (typeof window !== 'undefined') window.alert('Projeto atualizado!')
   }
 
-  const removeProject = async (id: string, nome: string) => {
+  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null)
+  const removeProject = (id: string, nome: string) => {
     if (typeof window !== 'undefined' && !window.confirm(`Excluir o projeto "${nome}"? Esta ação não pode ser desfeita.`)) return
-    await deleteProject(id)
-    await addLog({ action: 'delete', entityType: 'project', entityId: id, entityName: nome })
-    loadProjects()
+    setDeletingProjectId(id)
+    void (async () => {
+      try {
+        await deleteProject(id)
+        await addLog({ action: 'delete', entityType: 'project', entityId: id, entityName: nome })
+        loadProjects()
+      } finally {
+        setDeletingProjectId(null)
+      }
+    })()
   }
 
   const filteredProjects = projectSearch
@@ -1310,7 +1318,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                       <td className={tdCls} style={{ borderColor: resolve.border, color: resolve.muted }}>{new Date(p.updated_at).toLocaleDateString('pt-BR')}</td>
                       <td className={`${tdCls} text-right whitespace-nowrap`} style={{ borderColor: resolve.border }}>
                         <button type="button" className="btn-resolve-hover inline-flex items-center justify-center p-1.5 rounded mr-1 transition-colors border border-transparent" style={{ color: resolve.accent }} onClick={() => openProjectModal(p)} aria-label="Editar"><Pencil size={16} strokeWidth={2} /></button>
-                        <button type="button" className="btn-danger-hover inline-flex items-center justify-center p-1.5 rounded transition-colors border border-transparent" style={{ color: cinema.danger }} onClick={() => removeProject(p.id, p.nome)} aria-label="Excluir"><X size={16} strokeWidth={2} /></button>
+                        <button type="button" className="btn-danger-hover inline-flex items-center justify-center p-1.5 rounded transition-colors border border-transparent" style={{ color: cinema.danger }} onClick={() => removeProject(p.id, p.nome)} disabled={deletingProjectId === p.id} aria-label={deletingProjectId === p.id ? 'Excluindo...' : 'Excluir'} title={deletingProjectId === p.id ? 'Excluindo...' : 'Excluir'}><X size={16} strokeWidth={2} /></button>
                       </td>
                     </tr>
                   ))}
