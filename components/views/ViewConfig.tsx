@@ -1031,10 +1031,10 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
 
       {/* ── Modal Colaborador ── */}
       {collabModal !== null && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && setCollabModal(null)}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && setCollabModal(null)} role="dialog" aria-modal="true" aria-labelledby="modal-title-collab">
           <div className="rounded border p-0 w-full max-w-lg shadow-lg overflow-hidden max-h-[90vh] overflow-y-auto" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
-              <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: resolve.text }}>{collabModal === 'new' ? '➕ NOVO COLABORADOR' : '✏️ EDITAR COLABORADOR'}</h3>
+              <h3 id="modal-title-collab" className="text-sm font-semibold uppercase tracking-wide" style={{ color: resolve.text }}>{collabModal === 'new' ? '➕ NOVO COLABORADOR' : '✏️ EDITAR COLABORADOR'}</h3>
               <button type="button" onClick={() => setCollabModal(null)} className="btn-resolve-hover p-1 rounded border border-transparent transition-colors" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
             </div>
             <div className="p-4 space-y-3">
@@ -1109,10 +1109,10 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
 
       {/* ── Modal Nova/Editar Tabela de Cachê ── */}
       {cacheTableModal !== null && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && setCacheTableModal(null)}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && setCacheTableModal(null)} role="dialog" aria-modal="true" aria-labelledby="modal-title-cache-table">
           <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
-              <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: resolve.text }}>{cacheTableModal === 'new' ? '➕ NOVA TABELA' : '✏️ EDITAR TABELA'}</h3>
+              <h3 id="modal-title-cache-table" className="text-sm font-semibold uppercase tracking-wide" style={{ color: resolve.text }}>{cacheTableModal === 'new' ? '➕ NOVA TABELA' : '✏️ EDITAR TABELA'}</h3>
               <button type="button" onClick={() => setCacheTableModal(null)} className="btn-resolve-hover p-1 rounded border border-transparent transition-colors" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
             </div>
             <div className="p-4 space-y-3">
@@ -1251,10 +1251,10 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
 
       {/* ── Modal Função/Cachê ── */}
       {roleModal !== null && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && setRoleModal(null)}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && setRoleModal(null)} role="dialog" aria-modal="true" aria-labelledby="modal-title-role">
           <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
-              <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: resolve.text }}>{roleModal === 'new' ? '➕ NOVA FUNÇÃO' : '✏️ EDITAR FUNÇÃO'}</h3>
+              <h3 id="modal-title-role" className="text-sm font-semibold uppercase tracking-wide" style={{ color: resolve.text }}>{roleModal === 'new' ? '➕ NOVA FUNÇÃO' : '✏️ EDITAR FUNÇÃO'}</h3>
               <button type="button" onClick={() => setRoleModal(null)} className="btn-resolve-hover p-1 rounded border border-transparent transition-colors" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
             </div>
             <div className="p-4 space-y-3">
@@ -1323,10 +1323,10 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
 
       {/* ── Modal Editar Projeto ── */}
       {projectModal !== null && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && setProjectModal(null)}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && setProjectModal(null)} role="dialog" aria-modal="true" aria-labelledby="modal-title-edit-project">
           <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
-              <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: resolve.text }}>✏️ EDITAR PROJETO</h3>
+              <h3 id="modal-title-edit-project" className="text-sm font-semibold uppercase tracking-wide" style={{ color: resolve.text }}>✏️ EDITAR PROJETO</h3>
               <button type="button" onClick={() => setProjectModal(null)} className="btn-resolve-hover p-1 rounded border border-transparent transition-colors" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
             </div>
             <div className="p-4 space-y-3">
