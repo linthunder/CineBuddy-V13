@@ -46,6 +46,41 @@ async function getNextJobId(): Promise<string> {
   return jobId ?? ''
 }
 
+/** Estrutura de linhas por fase e departamento (orçamento ou verbas). */
+type LinesByPhase = Record<string, Record<string, unknown[]>>
+
+/**
+ * Merge por departamento: para cada fase e cada depto, usa "nosso" array se tiver linhas, senão mantém o que está no banco.
+ * Assim dois usuários editando departamentos diferentes não zeram o trabalho um do outro.
+ */
+function mergeLinesByDepartment(
+  existing: Record<string, unknown> | null | undefined,
+  ours: Record<string, unknown> | null | undefined
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+  const phases = ['pre', 'prod', 'pos'] as const
+  const existingByPhase = (existing ?? {}) as LinesByPhase
+  const oursByPhase = (ours ?? {}) as LinesByPhase
+  for (const phase of phases) {
+    const existingDepts = existingByPhase[phase] ?? {}
+    const oursDepts = oursByPhase[phase] ?? {}
+    const allDepts = new Set([...Object.keys(existingDepts), ...Object.keys(oursDepts)])
+    const merged: Record<string, unknown> = {}
+    for (const dept of allDepts) {
+      const ourArr = oursDepts[dept]
+      const isArray = Array.isArray(ourArr)
+      if (isArray && ourArr.length > 0) {
+        merged[dept] = ourArr
+      } else {
+        const existingArr = existingDepts[dept]
+        merged[dept] = Array.isArray(existingArr) ? existingArr : []
+      }
+    }
+    result[phase] = merged
+  }
+  return result
+}
+
 const EMPTY_PROJECT: ProjectData = {
   jobId: '',
   nome: '',
@@ -230,7 +265,7 @@ export default function Home() {
       const orcFinalState = viewOrcFinalRef.current?.getState()
       const fechamentoState = viewFechamentoRef.current?.getState()
 
-      // Ao atualizar projeto existente: se o estado do view não está disponível (ref não pronta), usar dados já salvos para não zerar
+      // Ao atualizar projeto existente: merge por departamento (evita que um usuário zere o que outro preencheu) e fallback quando ref não está pronta
       let budgetLinesInitial = (orcState?.budgetLines ?? {}) as unknown as Record<string, unknown>
       let verbaLinesInitial = (orcState?.verbaLines ?? {}) as unknown as Record<string, unknown>
       let budgetLinesFinal = (orcFinalState?.budgetLines ?? {}) as unknown as Record<string, unknown>
@@ -238,13 +273,23 @@ export default function Home() {
       if (projectDbId) {
         const existing = await getProject(projectDbId)
         if (existing) {
+          const existingInitial = (existing.budget_lines_initial ?? {}) as Record<string, unknown>
+          const existingFinal = (existing.budget_lines_final ?? {}) as Record<string, unknown>
+          const existingVerbaInitial = (existing.verba_lines_initial ?? {}) as Record<string, unknown>
+          const existingVerbaFinal = (existing.verba_lines_final ?? {}) as Record<string, unknown>
           if (orcState === undefined || orcState === null) {
-            budgetLinesInitial = (existing.budget_lines_initial ?? {}) as Record<string, unknown>
-            verbaLinesInitial = (existing.verba_lines_initial ?? {}) as Record<string, unknown>
+            budgetLinesInitial = existingInitial
+            verbaLinesInitial = existingVerbaInitial
+          } else {
+            budgetLinesInitial = mergeLinesByDepartment(existingInitial, orcState.budgetLines as unknown as Record<string, unknown>)
+            verbaLinesInitial = mergeLinesByDepartment(existingVerbaInitial, orcState.verbaLines as unknown as Record<string, unknown>)
           }
           if (orcFinalState === undefined || orcFinalState === null) {
-            budgetLinesFinal = (existing.budget_lines_final ?? {}) as Record<string, unknown>
-            verbaLinesFinal = (existing.verba_lines_final ?? {}) as Record<string, unknown>
+            budgetLinesFinal = existingFinal
+            verbaLinesFinal = existingVerbaFinal
+          } else {
+            budgetLinesFinal = mergeLinesByDepartment(existingFinal, orcFinalState.budgetLines as unknown as Record<string, unknown>)
+            verbaLinesFinal = mergeLinesByDepartment(existingVerbaFinal, orcFinalState.verbaLines as unknown as Record<string, unknown>)
           }
         }
       }

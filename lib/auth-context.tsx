@@ -74,12 +74,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(fallbackMax)
         const msg = err?.message ?? ''
         const isInvalidRefresh = /refresh token|invalid.*token|token.*not found/i.test(msg)
+        const is403 = err?.status === 403 || /403|forbidden/i.test(msg)
         if (isInvalidRefresh) {
           await supabase.auth.signOut()
           setSession(null)
           setProfile(null)
         }
-        if (!isInvalidRefresh) console.error('Auth getSession:', err)
+        // 403 = sem sessão ou auth desabilitado para anônimo; não logar para não poluir o console
+        if (!isInvalidRefresh && !is403) console.error('Auth getSession:', err)
         setLoading(false)
       })
 
