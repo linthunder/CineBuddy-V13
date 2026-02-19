@@ -208,7 +208,7 @@ export default function Home() {
   }, [user, resetProjectState])
 
   /** Referência para o handleSave (usada nas funções de lock para auto-save) */
-  const handleSaveRef = useRef<() => Promise<void>>()
+  const handleSaveRef = useRef<((opts?: { silent?: boolean }) => Promise<void>)>()
 
   const handleToggleLockInitial = useCallback((snapshot: BudgetSnapshot) => {
     setProjectStatus((prev) => {
