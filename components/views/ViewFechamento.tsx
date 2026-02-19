@@ -264,6 +264,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
   )
   const [expenseResponsibleModalDept, setExpenseResponsibleModalDept] = useState<ExpenseDepartment | null>(null)
   const [linkModal, setLinkModal] = useState<{ url: string; department: string } | { error: string } | null>(null)
+  const [linkCopied, setLinkCopied] = useState(false)
   /** Loading por departamento: só o dept em que clicou mostra "…"; os outros continuam "Gerar link". */
   const [linkModalLoadingDept, setLinkModalLoadingDept] = useState<ExpenseDepartment | null>(null)
   const [editingExpenseValueId, setEditingExpenseValueId] = useState<string | null>(null)
@@ -1005,7 +1006,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                             void (async () => {
                               try {
                                 const result = await onGenerateLink(projectDbId, getSlugByDept(dept))
-                                if ('url' in result) setLinkModal({ url: result.url, department: dept })
+                                if ('url' in result) { setLinkCopied(false); setLinkModal({ url: result.url, department: dept }) }
                                 else setLinkModal({ error: result.error })
                               } catch (e) {
                                 setLinkModal({ error: 'Erro ao gerar link.' })
@@ -1180,9 +1181,15 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                     type="button"
                     className="btn-resolve-hover shrink-0 px-3 py-1.5 border text-[11px] font-medium uppercase rounded"
                     style={{ borderColor: resolve.border, color: resolve.text }}
-                    onClick={() => { navigator.clipboard.writeText(linkModal.url).then(() => window.alert('Link copiado!')).catch(() => {}) }}
+                    onClick={() => {
+                      setLinkCopied(false)
+                      void navigator.clipboard.writeText(linkModal.url).then(() => {
+                        setLinkCopied(true)
+                        setTimeout(() => setLinkCopied(false), 2000)
+                      }).catch(() => {})
+                    }}
                   >
-                    Copiar
+                    {linkCopied ? 'Copiado!' : 'Copiar'}
                   </button>
                 </div>
               </>
