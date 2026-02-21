@@ -4,13 +4,13 @@ import { getOrCreatePath } from '@/lib/google-drive'
 
 export const dynamic = 'force-dynamic'
 
-/** GET: retorna URL do Drive para uma pasta do projeto. Query: projectId, path (path relativo à raiz do projeto). */
+/** GET: retorna URL do Drive para uma pasta do projeto. Query: projectId, path (path relativo à raiz; vazio = pasta raiz). */
 export async function GET(request: NextRequest) {
   try {
     const projectId = request.nextUrl.searchParams.get('projectId')?.trim()
-    const path = request.nextUrl.searchParams.get('path')?.trim()
-    if (!projectId || !path) {
-      return NextResponse.json({ error: 'projectId e path são obrigatórios.' }, { status: 400 })
+    const path = request.nextUrl.searchParams.get('path')?.trim() ?? ''
+    if (!projectId) {
+      return NextResponse.json({ error: 'projectId é obrigatório.' }, { status: 400 })
     }
 
     const supabase = createServerClient()
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const folderId = await getOrCreatePath(project.drive_root_folder_id, path)
+    const folderId = path ? await getOrCreatePath(project.drive_root_folder_id, path) : project.drive_root_folder_id
     const url = `https://drive.google.com/drive/folders/${folderId}`
     return NextResponse.json({ url })
   } catch (err) {

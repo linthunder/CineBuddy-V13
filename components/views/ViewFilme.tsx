@@ -1,15 +1,39 @@
 'use client'
 
-import { ScrollText, ClipboardList, Image, CalendarDays, DollarSign, Presentation, CalendarClock, Palette } from 'lucide-react'
+import { useState, useCallback } from 'react'
+import { ScrollText, ClipboardList, Image, CalendarDays, DollarSign, Presentation, CalendarClock, Palette, FolderOpen } from 'lucide-react'
 import PageLayout from '@/components/PageLayout'
 import { resolve } from '@/lib/theme'
 import type { ProjectData } from '@/lib/types'
 
 interface ViewFilmeProps {
   projectData: ProjectData
+  projectDbId?: string | null
 }
 
-export default function ViewFilme({ projectData }: ViewFilmeProps) {
+export default function ViewFilme({ projectData, projectDbId }: ViewFilmeProps) {
+  const [driveLoading, setDriveLoading] = useState(false)
+
+  const openDriveRoot = useCallback(async () => {
+    if (!projectDbId?.trim()) {
+      if (typeof window !== 'undefined') window.alert('Salve o projeto primeiro para abrir a pasta no Drive.')
+      return
+    }
+    setDriveLoading(true)
+    try {
+      const params = new URLSearchParams({ projectId: projectDbId, path: '' })
+      const res = await fetch(`/api/drive/folder-url?${params}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao abrir pasta.')
+      if (data.url) window.open(data.url, '_blank')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro ao abrir.'
+      if (typeof window !== 'undefined') window.alert(msg)
+    } finally {
+      setDriveLoading(false)
+    }
+  }, [projectDbId])
+
   const actions = [
     { id: 'roteiro', label: 'ROTEIRO', Icon: ScrollText },
     { id: 'decupagem', label: 'DECUPAGEM', Icon: ClipboardList },
@@ -20,6 +44,7 @@ export default function ViewFilme({ projectData }: ViewFilmeProps) {
     { id: 'orcamento', label: 'ORÇ. PREVISTO', Icon: DollarSign },
     { id: 'apresentacao', label: 'APRESENTAÇÃO', Icon: Presentation },
   ]
+  const driveAction = { id: 'drive', label: 'DRIVE', Icon: FolderOpen }
 
   const projectName = projectData.nome || 'Projeto sem nome'
   const clientName = projectData.cliente || 'Cliente não informado'
@@ -87,6 +112,39 @@ export default function ViewFilme({ projectData }: ViewFilmeProps) {
             <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-wider text-center leading-tight px-0.5">{a.label}</span>
           </button>
         ))}
+        {/* Botão DRIVE: abre pasta raiz do projeto */}
+        <button
+          key={driveAction.id}
+          type="button"
+          className="streaming-tile flex flex-col items-center justify-center gap-2 min-h-[100px] sm:min-h-[120px] rounded-lg border transition-all duration-300 ease-out cursor-pointer"
+          style={{
+            backgroundColor: resolve.panel,
+            borderColor: resolve.border,
+            color: resolve.muted,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          }}
+          onClick={openDriveRoot}
+          disabled={driveLoading}
+          onMouseEnter={(e) => {
+            const el = e.currentTarget
+            el.style.transform = 'scale(1.03)'
+            el.style.zIndex = '10'
+            el.style.borderColor = resolve.yellow
+            el.style.color = resolve.yellow
+            el.style.boxShadow = `0 8px 24px rgba(0,0,0,0.5), 0 0 0 1px ${resolve.yellow}`
+          }}
+          onMouseLeave={(e) => {
+            const el = e.currentTarget
+            el.style.transform = 'scale(1)'
+            el.style.zIndex = '1'
+            el.style.borderColor = resolve.border
+            el.style.color = resolve.muted
+            el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)'
+          }}
+        >
+          <driveAction.Icon size={32} strokeWidth={1.5} className="flex-shrink-0 transition-colors duration-300" style={{ color: 'currentColor' }} />
+          <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-wider text-center leading-tight px-0.5">{driveLoading ? '…' : driveAction.label}</span>
+        </button>
       </div>
     </PageLayout>
   )

@@ -776,7 +776,7 @@ function HomeContent() {
           <ViewHome />
         </div>
         <div style={{ display: currentView === 'filme' ? 'block' : 'none' }}>
-          <ViewFilme projectData={projectData} />
+          <ViewFilme projectData={projectData} projectDbId={projectDbId} />
         </div>
         <div style={{ display: currentView === 'orcamento' ? 'block' : 'none' }}>
           <ViewOrcamento
