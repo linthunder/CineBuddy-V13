@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useEffect, useCallback, forwardRef, useImperativeHandle, useRef, Fragment } from 'react'
+import { useMemo, useState, useEffect, useCallback, forwardRef, useImperativeHandle, useRef, Fragment, startTransition } from 'react'
 import PageLayout from '@/components/PageLayout'
 import { CUSTOM_HEADERS, DEPARTMENTS, LABOR_DEPTS } from '@/lib/constants'
 import type { PhaseKey } from '@/lib/constants'
@@ -791,7 +791,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
             <button
               key={key}
               type="button"
-              onClick={() => setActivePhase(key)}
+              onClick={() => startTransition(() => setActivePhase(key))}
               className="btn-resolve-hover h-8 flex-1 sm:flex-none min-w-0 px-2 sm:px-3 md:px-4 rounded text-[10px] sm:text-xs font-medium uppercase tracking-wide transition-colors border whitespace-nowrap"
               style={{
                 backgroundColor: isActive ? resolve.yellowDark : resolve.panel,
