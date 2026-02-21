@@ -1,0 +1,18 @@
+---
+description: Quando o usuário aprovar uma implementação, fazer commit e push automático para o GitHub.
+globs:
+alwaysApply: true
+---
+
+# Deploy após aprovação
+
+Quando o usuário disser **"Implementação Aprovada"** (ou equivalente, ex.: "aprovado", "implementação aprovada"):
+
+1. Executar `git status` para ver o que mudou.
+2. Adicionar os arquivos alterados: `git add .` (ou apenas os arquivos do projeto, excluindo o que não deve ir para o repositório).
+3. Fazer commit com mensagem clara: `git commit -m "Implementação aprovada - [breve descrição ou data]"`.
+4. Enviar para o repositório: `git push origin main`.
+
+Não incluir no commit: `.env.local`, `node_modules`, `.next`, ou outros arquivos listados no `.gitignore`.
+
+Se houver conflitos ou erro no push, informar o usuário e sugerir a correção.

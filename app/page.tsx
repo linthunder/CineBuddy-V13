@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
+import { useState, useCallback, useMemo, useRef, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import LoginScreen from '@/components/LoginScreen'
 import Header from '@/components/Header'
@@ -90,11 +91,13 @@ const EMPTY_PROJECT: ProjectData = {
   duracaoUnit: 'segundos',
 }
 
-export default function Home() {
+function HomeContent() {
   const { user, loading, logout, profile, forceFinishLoading } = useAuth()
+  const searchParams = useSearchParams()
   /** Escape local: se o usuário clicar em "Travou?", sair da tela de carregamento mesmo que o contexto não atualize */
   const [skipLoading, setSkipLoading] = useState(false)
   const [currentView, setCurrentView] = useState<ViewId>('home')
+  const [driveCallbackMessage, setDriveCallbackMessage] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
   const [projectStatus, setProjectStatus] = useState<ProjectStatus>({
     initial: 'open',
     final: 'open',
@@ -117,6 +120,25 @@ export default function Home() {
       if (data?.logo_url) setCompanyLogoUrl(data.logo_url)
     })
   }, [])
+
+  /** Abrir Config quando voltar do OAuth do Drive (view=config) e mostrar mensagem se houver */
+  useEffect(() => {
+    const view = searchParams?.get?.('view')
+    const driveConnected = searchParams?.get?.('drive_connected')
+    const driveError = searchParams?.get?.('drive_error')
+    const email = searchParams?.get?.('email')
+    if (view === 'config') {
+      setCurrentView('config')
+    }
+    if (driveConnected === '1') {
+      setDriveCallbackMessage({
+        type: 'success',
+        msg: email ? `Drive conectado: ${email}` : 'Google Drive conectado com sucesso.',
+      })
+    } else if (driveError) {
+      setDriveCallbackMessage({ type: 'error', msg: decodeURIComponent(driveError) })
+    }
+  }, [searchParams])
 
   /** Manter ref da view atual para uso em handleOpenProject (evitar sobrescrever se usuário já navegou) */
   useEffect(() => {
@@ -259,90 +281,142 @@ export default function Home() {
     }
 
     setSaving(true)
+    const SAVE_TIMEOUT_MS = 20_000
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('SAVE_TIMEOUT')), SAVE_TIMEOUT_MS)
+    )
     try {
-      // Coletar estado de todos os views
-      const orcState = viewOrcRef.current?.getState()
-      const orcFinalState = viewOrcFinalRef.current?.getState()
-      const fechamentoState = viewFechamentoRef.current?.getState()
+      await Promise.race([
+        (async () => {
+          // Coletar estado de todos os views
+          const orcState = viewOrcRef.current?.getState()
+          const orcFinalState = viewOrcFinalRef.current?.getState()
+          const fechamentoState = viewFechamentoRef.current?.getState()
 
-      // Ao atualizar projeto existente: merge por departamento (evita que um usuário zere o que outro preencheu) e fallback quando ref não está pronta
-      let budgetLinesInitial = (orcState?.budgetLines ?? {}) as unknown as Record<string, unknown>
-      let verbaLinesInitial = (orcState?.verbaLines ?? {}) as unknown as Record<string, unknown>
-      let budgetLinesFinal = (orcFinalState?.budgetLines ?? {}) as unknown as Record<string, unknown>
-      let verbaLinesFinal = (orcFinalState?.verbaLines ?? {}) as unknown as Record<string, unknown>
-      if (projectDbId) {
-        const existing = await getProject(projectDbId)
-        if (existing) {
-          const existingInitial = (existing.budget_lines_initial ?? {}) as Record<string, unknown>
-          const existingFinal = (existing.budget_lines_final ?? {}) as Record<string, unknown>
-          const existingVerbaInitial = (existing.verba_lines_initial ?? {}) as Record<string, unknown>
-          const existingVerbaFinal = (existing.verba_lines_final ?? {}) as Record<string, unknown>
-          if (orcState === undefined || orcState === null) {
-            budgetLinesInitial = existingInitial
-            verbaLinesInitial = existingVerbaInitial
-          } else {
-            budgetLinesInitial = mergeLinesByDepartment(existingInitial, orcState.budgetLines as unknown as Record<string, unknown>)
-            verbaLinesInitial = mergeLinesByDepartment(existingVerbaInitial, orcState.verbaLines as unknown as Record<string, unknown>)
+          // Ao atualizar projeto existente: merge por departamento (evita que um usuário zere o que outro preencheu) e fallback quando ref não está pronta
+          let budgetLinesInitial = (orcState?.budgetLines ?? {}) as unknown as Record<string, unknown>
+          let verbaLinesInitial = (orcState?.verbaLines ?? {}) as unknown as Record<string, unknown>
+          let budgetLinesFinal = (orcFinalState?.budgetLines ?? {}) as unknown as Record<string, unknown>
+          let verbaLinesFinal = (orcFinalState?.verbaLines ?? {}) as unknown as Record<string, unknown>
+          if (projectDbId) {
+            const existing = await getProject(projectDbId)
+            if (existing) {
+              const existingInitial = (existing.budget_lines_initial ?? {}) as Record<string, unknown>
+              const existingFinal = (existing.budget_lines_final ?? {}) as Record<string, unknown>
+              const existingVerbaInitial = (existing.verba_lines_initial ?? {}) as Record<string, unknown>
+              const existingVerbaFinal = (existing.verba_lines_final ?? {}) as Record<string, unknown>
+              if (orcState === undefined || orcState === null) {
+                budgetLinesInitial = existingInitial
+                verbaLinesInitial = existingVerbaInitial
+              } else {
+                budgetLinesInitial = mergeLinesByDepartment(existingInitial, orcState.budgetLines as unknown as Record<string, unknown>)
+                verbaLinesInitial = mergeLinesByDepartment(existingVerbaInitial, orcState.verbaLines as unknown as Record<string, unknown>)
+              }
+              if (orcFinalState === undefined || orcFinalState === null) {
+                budgetLinesFinal = existingFinal
+                verbaLinesFinal = existingVerbaFinal
+              } else {
+                budgetLinesFinal = mergeLinesByDepartment(existingFinal, orcFinalState.budgetLines as unknown as Record<string, unknown>)
+                verbaLinesFinal = mergeLinesByDepartment(existingVerbaFinal, orcFinalState.verbaLines as unknown as Record<string, unknown>)
+              }
+            }
           }
-          if (orcFinalState === undefined || orcFinalState === null) {
-            budgetLinesFinal = existingFinal
-            verbaLinesFinal = existingVerbaFinal
-          } else {
-            budgetLinesFinal = mergeLinesByDepartment(existingFinal, orcFinalState.budgetLines as unknown as Record<string, unknown>)
-            verbaLinesFinal = mergeLinesByDepartment(existingVerbaFinal, orcFinalState.verbaLines as unknown as Record<string, unknown>)
+
+          const payload = {
+            job_id: projectData.jobId,
+            nome: projectData.nome,
+            agencia: projectData.agencia,
+            cliente: projectData.cliente,
+            duracao: projectData.duracao,
+            duracao_unit: projectData.duracaoUnit,
+            cache_table_id: orcFinalState?.cacheTableId ?? orcState?.cacheTableId ?? null,
+            status: projectStatus as unknown as Record<string, string>,
+            budget_lines_initial: budgetLinesInitial,
+            verba_lines_initial: verbaLinesInitial,
+            mini_tables: (orcState?.miniTables ?? { contingencia: 0, crt: 0, bvagencia: 0 }) as unknown as Record<string, number>,
+            phase_defaults_initial: (orcState?.phaseDefaults ?? INITIAL_PHASE_DEFAULTS) as unknown as Record<string, unknown>,
+            job_value: orcState?.jobValue ?? 0,
+            tax_rate: orcState?.taxRate ?? 12.5,
+            notes_initial: (orcState?.notes ?? { pre: '', prod: '', pos: '' }) as unknown as Record<string, string>,
+            budget_lines_final: budgetLinesFinal,
+            verba_lines_final: verbaLinesFinal,
+            mini_tables_final: (orcFinalState?.miniTables ?? { contingencia: 0, crt: 0, bvagencia: 0 }) as unknown as Record<string, number>,
+            phase_defaults_final: (orcFinalState?.phaseDefaults ?? INITIAL_PHASE_DEFAULTS) as unknown as Record<string, unknown>,
+            job_value_final: orcState?.jobValue ?? 0,
+            tax_rate_final: orcState?.taxRate ?? 12.5,
+            notes_final: (orcFinalState?.notes ?? { pre: '', prod: '', pos: '' }) as unknown as Record<string, string>,
+            closing_lines: (fechamentoState ? [fechamentoState.closingLines, fechamentoState.expenses, fechamentoState.saving ?? null, fechamentoState.expenseDepartmentConfig ?? null] : []) as unknown[],
           }
+
+          let result: ProjectRecord | null
+          if (projectDbId) {
+            result = await updateProject(projectDbId, payload)
+          } else {
+            result = await createProject(payload)
+          }
+
+          if (result) {
+            setProjectDbId(result.id)
+            try {
+              await addLog({
+                action: projectDbId ? 'update' : 'create',
+                entityType: 'project',
+                entityId: result.id,
+                entityName: result.nome,
+                details: { job_id: result.job_id },
+              })
+            } catch {
+              // Log falhou (ex.: sessão inválida); não bloqueia sucesso do save
+            }
+            // Sync com o Drive em segundo plano (não bloqueia o popup de sucesso)
+            // Se falhar, tenta recriar a pasta (caso tenha sido excluída no Drive)
+            const doSync = (forceRecreate = false) =>
+              fetch('/api/drive/sync-project', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projectId: result.id, forceRecreate }),
+              })
+            doSync()
+              .then(async (res) => {
+                const data = await res.json().catch(() => ({}))
+                if (!res.ok) {
+                  const retry = await doSync(true)
+                  const retryData = await retry.json().catch(() => ({}))
+                  if (!retry.ok && typeof window !== 'undefined') {
+                    window.alert(`Drive: ${retryData.error || data.error || 'Erro ao sincronizar. Verifique o console.'}`)
+                  }
+                }
+              })
+              .catch((err) => {
+                if (typeof window !== 'undefined') window.alert(`Drive: ${err?.message || 'Erro ao sincronizar.'}`)
+              })
+            if (typeof window !== 'undefined') {
+              window.alert(
+                'Projeto salvo com sucesso! As pastas no Google Drive podem levar alguns segundos para aparecer.'
+              )
+            }
+          } else {
+            if (typeof window !== 'undefined') window.alert('Erro ao salvar. Verifique o console.')
+          }
+        })(),
+        timeoutPromise,
+      ])
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : ''
+      const isTimeout = msg === 'SAVE_TIMEOUT'
+      const isAuth = /refresh token|invalid.*token|token.*not found|401|auth/i.test(msg)
+      if (typeof window !== 'undefined') {
+        if (isTimeout) {
+          window.alert(
+            'Salvando demorou muito (possível problema de sessão ou conexão). Tente em uma janela anônima ou limpe o armazenamento do site (F12 → Application → Local Storage → Clear) e tente de novo.'
+          )
+        } else if (isAuth) {
+          window.alert(
+            'Erro de sessão. Faça logout e login novamente (ou limpe o armazenamento do site) e tente salvar de novo.'
+          )
+        } else {
+          window.alert('Erro ao salvar. Verifique o console.')
         }
-      }
-
-      const payload = {
-        job_id: projectData.jobId,
-        nome: projectData.nome,
-        agencia: projectData.agencia,
-        cliente: projectData.cliente,
-        duracao: projectData.duracao,
-        duracao_unit: projectData.duracaoUnit,
-        cache_table_id: orcFinalState?.cacheTableId ?? orcState?.cacheTableId ?? null,
-        // Status
-        status: projectStatus as unknown as Record<string, string>,
-        // Orçamento Inicial
-        budget_lines_initial: budgetLinesInitial,
-        verba_lines_initial: verbaLinesInitial,
-        mini_tables: (orcState?.miniTables ?? { contingencia: 0, crt: 0, bvagencia: 0 }) as unknown as Record<string, number>,
-        phase_defaults_initial: (orcState?.phaseDefaults ?? INITIAL_PHASE_DEFAULTS) as unknown as Record<string, unknown>,
-        job_value: orcState?.jobValue ?? 0,
-        tax_rate: orcState?.taxRate ?? 12.5,
-        notes_initial: (orcState?.notes ?? { pre: '', prod: '', pos: '' }) as unknown as Record<string, string>,
-        // Orçamento Final
-        budget_lines_final: budgetLinesFinal,
-        verba_lines_final: verbaLinesFinal,
-        mini_tables_final: (orcFinalState?.miniTables ?? { contingencia: 0, crt: 0, bvagencia: 0 }) as unknown as Record<string, number>,
-        phase_defaults_final: (orcFinalState?.phaseDefaults ?? INITIAL_PHASE_DEFAULTS) as unknown as Record<string, unknown>,
-        job_value_final: orcState?.jobValue ?? 0,
-        tax_rate_final: orcState?.taxRate ?? 12.5,
-        notes_final: (orcFinalState?.notes ?? { pre: '', prod: '', pos: '' }) as unknown as Record<string, string>,
-        // Fechamento
-        closing_lines: (fechamentoState ? [fechamentoState.closingLines, fechamentoState.expenses, fechamentoState.saving ?? null, fechamentoState.expenseDepartmentConfig ?? null] : []) as unknown[],
-      }
-
-      let result: ProjectRecord | null
-      if (projectDbId) {
-        result = await updateProject(projectDbId, payload)
-      } else {
-        result = await createProject(payload)
-      }
-
-      if (result) {
-        setProjectDbId(result.id)
-        await addLog({
-          action: projectDbId ? 'update' : 'create',
-          entityType: 'project',
-          entityId: result.id,
-          entityName: result.nome,
-          details: { job_id: result.job_id },
-        })
-        if (typeof window !== 'undefined') window.alert('Projeto salvo com sucesso!')
-      } else {
-        if (typeof window !== 'undefined') window.alert('Erro ao salvar. Verifique o console.')
       }
     } finally {
       setSaving(false)
@@ -351,6 +425,25 @@ export default function Home() {
 
   // Manter ref atualizada para o auto-save nos toggleLock
   handleSaveRef.current = handleSave
+
+  const handleRecriarPastaDrive = useCallback(async (projectId: string) => {
+    try {
+      const res = await fetch('/api/drive/sync-project', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, forceRecreate: true }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        if (typeof window !== 'undefined') window.alert('Pasta recriada no Drive com sucesso!')
+      } else {
+        if (typeof window !== 'undefined') window.alert(data.error || 'Erro ao recriar pasta.')
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro ao recriar pasta.'
+      if (typeof window !== 'undefined') window.alert(msg)
+    }
+  }, [])
 
   /* ══════════════════════════════════════════════════════
    * SALVAR CÓPIA
@@ -400,7 +493,6 @@ export default function Home() {
         entityName: copyData.nome,
         details: { job_id: newJobId },
       })
-      // Atualizar o projeto ativo para a cópia criada
       setProjectDbId(result.id)
       setProjectData({
         jobId: newJobId,
@@ -410,7 +502,22 @@ export default function Home() {
         duracao: copyData.duracao,
         duracaoUnit: copyData.duracaoUnit,
       })
-      if (typeof window !== 'undefined') window.alert('Cópia salva com sucesso! Você agora está trabalhando na cópia.')
+      const doSync = (forceRecreate = false) =>
+        fetch('/api/drive/sync-project', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId: result.id, forceRecreate }),
+        })
+      doSync()
+        .then(async (res) => {
+          if (!res.ok) await doSync(true)
+        })
+        .catch(() => {})
+      if (typeof window !== 'undefined') {
+        window.alert(
+          'Cópia salva com sucesso! Você agora está trabalhando na cópia. As pastas no Google Drive podem levar alguns segundos para aparecer.'
+        )
+      }
     } else {
       if (typeof window !== 'undefined') window.alert('Erro ao criar cópia. Verifique o console.')
     }
@@ -705,13 +812,32 @@ export default function Home() {
           <ViewDashboard getData={getDashboardData} projectStatus={projectStatus} />
         </div>
         <div style={{ display: currentView === 'team' ? 'block' : 'none' }}>
-          <ViewTeam getBudgetData={getTeamBudgetData} />
+          <ViewTeam getBudgetData={getTeamBudgetData} projectDbId={projectDbId} />
         </div>
         <div style={{ display: currentView === 'config' ? 'block' : 'none' }}>
-          <ViewConfig onLogoChange={setCompanyLogoUrl} currentProfile={profile} isAdmin={profile?.role === 'admin'} />
+          <ViewConfig
+            onLogoChange={setCompanyLogoUrl}
+            currentProfile={profile}
+            isAdmin={profile?.role === 'admin'}
+            onRecriarPastaDrive={handleRecriarPastaDrive}
+            driveCallbackMessage={driveCallbackMessage}
+            onDismissDriveMessage={() => setDriveCallbackMessage(null)}
+          />
         </div>
       </main>
       <BottomNav currentView={currentView} onViewChange={setCurrentView} disabledViews={disabledViews} />
     </>
+  )
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col items-center justify-center p-4" style={{ backgroundColor: '#0d0d0f', color: '#8e8e93' }}>
+        <span className="text-sm">Carregando...</span>
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   )
 }

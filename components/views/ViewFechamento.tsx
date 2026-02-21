@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect, useCallback, forwardRef, useImperativeHandle, useRef, Fragment } from 'react'
 import PageLayout from '@/components/PageLayout'
-import { DEPARTMENTS, LABOR_DEPTS } from '@/lib/constants'
+import { CUSTOM_HEADERS, DEPARTMENTS, LABOR_DEPTS } from '@/lib/constants'
 import type { PhaseKey } from '@/lib/constants'
 import { resolve, cinema } from '@/lib/theme'
 import { formatCurrency, parseCurrencyInput } from '@/lib/utils'
@@ -10,7 +10,9 @@ import { getSlugByDept } from '@/lib/prestacao-contas'
 import type { BudgetLinesByPhase, VerbaLinesByPhase, MiniTablesData, BudgetRow, BudgetRowLabor, PhaseDefaultsByPhase } from '@/lib/types'
 import { computeRowTotal, computeVerbaRowTotal, sumDeptTotal, getDeptBudget } from '@/lib/budgetUtils'
 import { listCollaborators, type Collaborator } from '@/lib/services/collaborators'
-import { X, Plus, Lock, LockOpen } from 'lucide-react'
+import { memberFolderName, costItemFolderName, EQUIPE_DRIVE_PATH, CASTING_DRIVE_PATH } from '@/lib/drive-folder-structure'
+import DriveLinkButton from '@/components/DriveLinkButton'
+import { X, Plus, Lock, LockOpen, Info, DollarSign, PenLine, Receipt, FolderOpen } from 'lucide-react'
 
 /* ── Tipos internos ── */
 /** Uma diária de gravação: horas da diária, adicional % e horas extras nesse dia */
@@ -43,7 +45,14 @@ interface ClosingLine {
   overtimeHours?: number
   invoiceNumber: string
   payStatus: 'pendente' | 'pago'
+  /** Linha de despesa extra adicionada via botão +EXTRA (não vem do orçamento) */
+  isExtra?: boolean
+  /** Para extras em CASTING: id da linha do profissional ao qual esta extra pertence (adicionada via "+") */
+  parentLineId?: string
 }
+
+/** Departamentos que possuem botão +EXTRA para adicionar linha de despesa extra */
+const COST_DEPTS_WITH_EXTRA = ['CASTING', 'EQUIPAMENTOS', 'LOCAÇÕES', 'TRANSPORTE', 'CATERING', 'DESPESAS GERAIS'] as const
 
 /** Departamentos da prestação de contas */
 const EXPENSE_DEPARTMENTS = ['PRODUÇÃO', 'ARTE E CENOGRAFIA', 'FIGURINO E MAQUIAGEM', 'FOTOGRAFIA E TÉCNICA'] as const
@@ -59,7 +68,7 @@ export interface ExpenseDeptConfig {
 const EXPENSE_FIXED_ROLES = ['Produtor Executivo', 'Diretor de produção', 'Diretor de Cena'] as const
 
 /** Opções do campo TIPO na prestação de contas */
-const EXPENSE_TYPE_OPTIONS = ['Alimentação', 'Combustível', 'Estacionamento', 'outros'] as const
+const EXPENSE_TYPE_OPTIONS = ['Alimentação', 'Combustível', 'Estacionamento', 'Outros'] as const
 export type ExpenseTypeOption = (typeof EXPENSE_TYPE_OPTIONS)[number]
 
 interface ExpenseLine {
@@ -74,7 +83,7 @@ interface ExpenseLine {
   date: string
   /** Fornecedor */
   supplier: string
-  /** Tipo: Alimentação, Combustível, Estacionamento, outros */
+  /** Tipo: Alimentação, Combustível, Estacionamento, Outros */
   expenseType: string
 }
 
@@ -99,6 +108,21 @@ function normalizeDiarias(line: ClosingLine): DiariaEntry[] {
     additionalPct: line.additionalPct ?? 0,
     overtimeHours: line.overtimeHours ?? 0,
   }]
+}
+
+/** Path da pasta no Drive para uma linha do fechamento (labor, casting ou custo). */
+function getLineFolderPath(line: ClosingLine): string {
+  if (line.isLabor) return `${EQUIPE_DRIVE_PATH}/${memberFolderName({ name: line.name, role: line.role })}`
+  if (line.department === 'CASTING') return `${CASTING_DRIVE_PATH}/${memberFolderName({ name: line.name, role: line.role })}`
+  return `_PRODUÇÃO/PRESTAÇÃO DE CONTAS/PRODUÇÃO/${line.department}/${costItemFolderName({ name: line.name, role: line.role })}`
+}
+
+function getLineContractPath(line: ClosingLine): string {
+  return `${line.department === 'CASTING' ? CASTING_DRIVE_PATH : EQUIPE_DRIVE_PATH}/${memberFolderName({ name: line.name, role: line.role })}/CONTRATO`
+}
+
+function getLineInvoicePath(line: ClosingLine): string {
+  return `${line.department === 'CASTING' ? CASTING_DRIVE_PATH : EQUIPE_DRIVE_PATH}/${memberFolderName({ name: line.name, role: line.role })}/NOTA FISCAL`
 }
 
 /** Valor da diária de referência (para exibição e cálculo de HE: semana = semanal/5) */
@@ -130,7 +154,11 @@ function findCollaboratorByName(collaborators: Collaborator[], name: string): Co
 }
 
 function calcTotalNF(line: ClosingLine): number {
-  return line.finalValue + calcOvertime(line)
+  /* Labor type dia: total = valor/diária × quantidade de diárias (ao adicionar diária, recalcula) */
+  const base = line.isLabor && line.type === 'dia'
+    ? (line.finalUnitCost ?? 0) * Math.max(1, normalizeDiarias(line).length)
+    : line.finalValue
+  return base + calcOvertime(line)
 }
 
 const inputStyle: React.CSSProperties = {
@@ -269,6 +297,9 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
   const [linkModalLoadingDept, setLinkModalLoadingDept] = useState<ExpenseDepartment | null>(null)
   const [editingExpenseValueId, setEditingExpenseValueId] = useState<string | null>(null)
   const [editingExpenseValueRaw, setEditingExpenseValueRaw] = useState('')
+  /** Estado de edição do campo Valor nas linhas extra (evita "1000,00" virar "1,00" ao digitar) */
+  const [editingExtraValorId, setEditingExtraValorId] = useState<string | null>(null)
+  const [editingExtraValorRaw, setEditingExtraValorRaw] = useState('')
   const loadedFromDB = useRef(false)
 
   const toEditValue = (n: number): string => (n <= 0 ? '' : n.toFixed(2).replace('.', ','))
@@ -298,7 +329,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
         department: (e.department && EXPENSE_DEPARTMENTS.includes(e.department as ExpenseDepartment)) ? e.department as ExpenseDepartment : 'PRODUÇÃO',
         date: e.date ?? '',
         supplier: e.supplier ?? '',
-        expenseType: e.expenseType ?? 'outros',
+        expenseType: e.expenseType ?? 'Outros',
       }))
       setExpenses(expenseList)
       if (state.expenseDepartmentConfig && typeof state.expenseDepartmentConfig === 'object') {
@@ -429,11 +460,42 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
     }))
   }, [activePhase, getPhaseDefaults])
 
-  /* Agrupar por fase e depois por departamento (pré → produção → pós) */
+  const addExtraLine = useCallback((dept: string, parentLineId?: string) => {
+    if (isLocked) return
+    const id = `extra-${dept}-${Date.now()}`
+    const newLine: ClosingLine = {
+      id,
+      department: dept,
+      phase: activePhase,
+      name: '',
+      role: '',
+      type: 'cache',
+      isLabor: false,
+      isVerba: false,
+      finalValue: 0,
+      finalUnitCost: 0,
+      finalExtraCost: 0,
+      finalQuantity: 1,
+      diarias: [],
+      invoiceNumber: '',
+      payStatus: 'pendente',
+      isExtra: true,
+      parentLineId,
+    }
+    setClosingLines((prev) => [...prev, newLine])
+  }, [activePhase, isLocked])
+
+  const removeLine = useCallback((lineId: string) => {
+    if (isLocked) return
+    setClosingLines((prev) => prev.filter((l) => l.id !== lineId))
+  }, [isLocked])
+
+  /* Agrupar por fase e depois por departamento (pré → produção → pós). Exclui linhas de verba (tabelas dedicadas em Prestação de contas). */
   const linesByPhaseAndDept = useMemo(() => {
     const byPhase: Record<string, Record<string, ClosingLine[]>> = { pre: {}, prod: {}, pos: {} }
     const deptOrder: Record<string, string[]> = { pre: [], prod: [], pos: [] }
     closingLines.forEach((l) => {
+      if (l.isVerba) return
       const phase = l.phase in byPhase ? l.phase : 'prod'
       if (!byPhase[phase][l.department]) {
         byPhase[phase][l.department] = []
@@ -543,7 +605,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
   /* Prestação de contas */
   const addExpense = useCallback((department: ExpenseDepartment = 'PRODUÇÃO') => {
     if (isLocked) return
-    setExpenses((prev) => [...prev, { id: `exp-${Date.now()}`, department, name: '', description: '', value: 0, invoiceNumber: '', payStatus: 'pendente', date: '', supplier: '', expenseType: 'outros' }])
+    setExpenses((prev) => [...prev, { id: `exp-${Date.now()}`, department, name: '', description: '', value: 0, invoiceNumber: '', payStatus: 'pendente', date: '', supplier: '', expenseType: 'Outros' }])
   }, [isLocked])
   const updateExpense = useCallback((id: string, updates: Partial<ExpenseLine>) => {
     if (isLocked) return
@@ -756,63 +818,163 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                 <div key={`${activePhase}-${dept}`} className="overflow-hidden border rounded mb-6" style={{ borderColor: resolve.border, borderRadius: 3 }}>
                   <div className="px-3 py-2 flex justify-between items-center border-b" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
                     <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: resolve.muted }}>{dept}</span>
-                    <span className="font-mono text-[13px] font-medium" style={{ color: resolve.text }}>{formatCurrency(deptTotal)}</span>
+                    <div className="flex items-center gap-2">
+                      {!isLocked && COST_DEPTS_WITH_EXTRA.includes(dept as (typeof COST_DEPTS_WITH_EXTRA)[number]) && (
+                        <button
+                          type="button"
+                          onClick={() => addExtraLine(dept)}
+                          className="btn-resolve-hover h-7 px-2 flex items-center justify-center gap-1 rounded border text-[10px] font-medium uppercase"
+                          style={{ borderColor: resolve.border, color: resolve.text }}
+                          title="Adicionar despesa extra"
+                        >
+                          <Plus size={12} strokeWidth={2} style={{ color: 'currentColor' }} />Extra
+                        </button>
+                      )}
+                      <span className="font-mono text-[13px] font-medium" style={{ color: resolve.text }}>{formatCurrency(deptTotal)}</span>
+                    </div>
                   </div>
 
                   <div className="overflow-x-auto" style={{ backgroundColor: resolve.panel }}>
-                    {lines.map((line, lineIdx) => {
-                      const overtime = calcOvertime(line)
-                      const totalNF = calcTotalNF(line)
-                      const diarias = normalizeDiarias(line)
-                      const collab = line.name ? findCollaboratorByName(collaborators, line.name) : undefined
-                      return (
+                    {(() => {
+                      /* CASTING: agrupa extras por profissional (parentLineId) e renderiza profissionais + extras abaixo de cada um */
+                      const itemsToRender: { line: ClosingLine; lineIdx: number }[] = dept === 'CASTING'
+                        ? (() => {
+                            const professionals = lines.filter((l) => !l.isExtra)
+                            const extrasWithParent = lines.filter((l) => l.isExtra && l.parentLineId)
+                            const standaloneExtras = lines.filter((l) => l.isExtra && !l.parentLineId)
+                            const nestedByParent = new Map<string, ClosingLine[]>()
+                            extrasWithParent.forEach((ext) => {
+                              const arr = nestedByParent.get(ext.parentLineId!) || []
+                              arr.push(ext)
+                              nestedByParent.set(ext.parentLineId!, arr)
+                            })
+                            const out: { line: ClosingLine; lineIdx: number }[] = []
+                            let idx = 0
+                            professionals.forEach((pro) => {
+                              out.push({ line: pro, lineIdx: idx++ })
+                              ;(nestedByParent.get(pro.id) || []).forEach((ext) => { out.push({ line: ext, lineIdx: idx++ }) })
+                            })
+                            standaloneExtras.forEach((ext) => { out.push({ line: ext, lineIdx: idx++ }) })
+                            return out
+                          })()
+                        : lines.map((line, i) => ({ line, lineIdx: i }))
+
+                      return itemsToRender.map(({ line, lineIdx }) => {
+                        const overtime = calcOvertime(line)
+                        const totalNF = calcTotalNF(line)
+                        const diarias = normalizeDiarias(line)
+                        const collab = line.name ? findCollaboratorByName(collaborators, line.name) : undefined
+                        const isCastProfessional = dept === 'CASTING' && !line.isExtra && (line.name || line.role)
+                        return (
                         <div
                           key={line.id}
                           className="border-b last:border-b-0"
                           style={{
                             borderColor: resolve.border,
-                            borderBottomWidth: lineIdx < lines.length - 1 ? 2 : undefined,
-                            marginBottom: lineIdx < lines.length - 1 ? 0 : undefined,
+                            borderBottomWidth: lineIdx < itemsToRender.length - 1 ? 2 : undefined,
+                            marginBottom: lineIdx < itemsToRender.length - 1 ? 0 : undefined,
                           }}
                         >
-                          {/* Linha principal: nome, função, jornada (diária/semana), botão FECHAR (sem+expandido) e botões de informação */}
-                          <div className="flex items-center gap-2 px-3 py-2.5 flex-wrap" style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}>
-                            <div className="min-w-0 flex items-center gap-2 flex-wrap flex-1">
-                              <span className="text-xs font-medium" style={{ color: resolve.text }}>{line.name || '—'}</span>
-                              {line.role && line.role !== line.name && (
-                                <span className="text-[11px]" style={{ color: resolve.muted }}>{line.role}</span>
-                              )}
-                              {line.isLabor && line.type && (
-                                <span
-                                  className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded"
-                                  style={{ backgroundColor: resolve.border, color: resolve.muted }}
-                                  title="Jornada de pagamento"
-                                >
-                                  {JORNADA_LABEL[line.type] ?? line.type}
-                                </span>
-                              )}
-                              {line.isLabor && line.type === 'sem' && showOvertimeForLineId[line.id] && (
-                                <button
-                                  type="button"
-                                  onClick={() => setShowOvertimeForLineId((prev) => ({ ...prev, [line.id]: false }))}
-                                  className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded border transition-colors"
-                                  style={{ borderColor: resolve.border, color: resolve.muted }}
-                                >
-                                  Fechar
-                                </button>
-                              )}
+                          {line.isExtra ? (
+                            /* Linha extra: Item, Descrição, Tipo, Valor, Qtd, Total, Remover (como tabela de orçamento) */
+                            <div className="px-3 py-2 border-t overflow-x-auto" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.01)' }}>
+                              <table className="budget-table-main w-full border-collapse text-[11px] table-fixed min-w-0">
+                                <colgroup>
+                                  <col style={{ width: '24%' }} />
+                                  <col style={{ width: '24%' }} />
+                                  <col style={{ width: '12%' }} />
+                                  <col style={{ width: '12%' }} />
+                                  <col style={{ width: '8%' }} />
+                                  <col style={{ width: '12%' }} />
+                                  <col style={{ width: '40px' }} />
+                                </colgroup>
+                                <tbody>
+                                  <tr className="border-b-0" style={{ borderColor: resolve.border }}>
+                                    {(() => {
+                                      const custom = CUSTOM_HEADERS[line.department]
+                                      const itemLabel = custom?.item ?? 'Item'
+                                      const supplierLabel = custom?.supplier ?? 'Descrição'
+                                      const extraTotal = (line.finalUnitCost ?? 0) * (line.finalQuantity ?? 1)
+                                      const isEditingValor = editingExtraValorId === line.id
+                                      const valorDisplay = isEditingValor ? editingExtraValorRaw : (line.finalUnitCost && line.finalUnitCost > 0 ? toEditValue(line.finalUnitCost) : '')
+                                      return (
+                                        <>
+                                          <td data-label={itemLabel} className="p-1.5 align-middle"><input className={inputClassName} style={inputStyle} value={line.name} onChange={(e) => updateLine(line.id, { name: e.target.value })} placeholder={itemLabel} /></td>
+                                          <td data-label={supplierLabel} className="p-1.5 align-middle"><input className={inputClassName} style={inputStyle} value={line.role} onChange={(e) => updateLine(line.id, { role: e.target.value })} placeholder={supplierLabel} /></td>
+                                          <td data-label="Tipo" className="p-1.5 align-middle">
+                                            <select className={inputClassName} style={inputStyle} value={line.type || 'cache'} onChange={(e) => updateLine(line.id, { type: e.target.value })}>
+                                              <option value="cache">Cachê</option>
+                                              <option value="verba">Verba</option>
+                                              <option value="extra">Extra</option>
+                                            </select>
+                                          </td>
+                                          <td data-label="Valor" className="p-1.5 align-middle">
+                                            <input className={inputClassName} style={inputStyle} value={valorDisplay} placeholder="R$ 0,00"
+                                              onFocus={() => { setEditingExtraValorId(line.id); setEditingExtraValorRaw(line.finalUnitCost && line.finalUnitCost > 0 ? toEditValue(line.finalUnitCost) : '') }}
+                                              onChange={(e) => { const raw = e.target.value; setEditingExtraValorRaw(raw); const v = parseCurrencyInput(raw); const qty = line.finalQuantity ?? 1; updateLine(line.id, { finalUnitCost: v, finalValue: v * qty }) }}
+                                              onBlur={() => { setEditingExtraValorId(null); setEditingExtraValorRaw('') }}
+                                            />
+                                          </td>
+                                          <td data-label="Qtd" className="p-1.5 align-middle budget-cell-qty"><input type="number" className={`${inputClassName} text-center`} style={inputStyle} value={line.finalQuantity ?? ''} onChange={(e) => { const qty = parseFloat(e.target.value) || 0; const unit = line.finalUnitCost ?? 0; updateLine(line.id, { finalQuantity: qty, finalValue: unit * qty }) }} min={0} step="any" /></td>
+                                          <td data-label="Total" className="p-1.5 align-middle font-mono text-[11px] text-right font-medium budget-cell-total" style={{ color: resolve.text }}>{formatCurrency(extraTotal)}</td>
+                                          <td className="budget-row-remove p-1.5 align-middle"><button type="button" onClick={() => removeLine(line.id)} className="btn-danger-hover inline-flex h-7 w-7 items-center justify-center rounded border transition-colors" style={{ borderColor: resolve.border, color: resolve.muted }} title="Excluir linha" aria-label="Excluir linha"><X size={14} strokeWidth={2} /></button></td>
+                                        </>
+                                      )
+                                    })()}
+                                  </tr>
+                                </tbody>
+                              </table>
                             </div>
-                            {line.isLabor && (line.name || line.role) && (
-                              <div className="flex items-center justify-center gap-0.5 flex-wrap">
-                                <button type="button" title="Telefone, e-mail e endereço" className={iconBtnCls} style={{ borderColor: resolve.border, color: resolve.text }} onClick={() => setModalContact(collab ?? 'no-data')}><span className="font-serif font-bold">i</span></button>
-                                <button type="button" title="Dados bancários e PIX" className={iconBtnCls} style={{ borderColor: resolve.border, color: resolve.text }} onClick={() => setModalBank(collab ?? 'no-data')}>$</button>
-                                <button type="button" title="Contrato (Drive) — em breve" className={`${iconBtnCls} opacity-70`} style={{ borderColor: resolve.border, color: resolve.text }} onClick={() => window.alert('Abertura do contrato (Google Drive) será implementada em breve.')}>✎</button>
-                                <button type="button" title="Nota fiscal (Drive) — em breve" className={`${iconBtnCls} opacity-70`} style={{ borderColor: resolve.border, color: resolve.text }} onClick={() => window.alert('Abertura da nota fiscal (Google Drive) será implementada em breve.')}>📄</button>
+                          ) : (
+                            <>
+                              {/* Linha principal: nome, função, jornada (diária/semana), botão FECHAR (sem+expandido) e botões de informação */}
+                              <div className="flex items-center gap-2 px-3 py-2.5 flex-wrap" style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}>
+                                <div className="min-w-0 flex items-center gap-2 flex-wrap flex-1">
+                                  <span className="text-xs font-medium" style={{ color: resolve.text }}>{line.name || '—'}</span>
+                                  {line.role && line.role !== line.name && (
+                                    <span className="text-[11px]" style={{ color: resolve.muted }}>{line.role}</span>
+                                  )}
+                                  {line.isLabor && line.type && (
+                                    <span
+                                      className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded"
+                                      style={{ backgroundColor: resolve.border, color: resolve.muted }}
+                                      title="Jornada de pagamento"
+                                    >
+                                      {JORNADA_LABEL[line.type] ?? line.type}
+                                    </span>
+                                  )}
+                                  {line.isLabor && line.type === 'sem' && showOvertimeForLineId[line.id] && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowOvertimeForLineId((prev) => ({ ...prev, [line.id]: false }))}
+                                      className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded border transition-colors"
+                                      style={{ borderColor: resolve.border, color: resolve.muted }}
+                                    >
+                                      Fechar
+                                    </button>
+                                  )}
+                                </div>
+                                {(line.name || line.role) || line.isExtra ? (
+                                  <div className="flex items-center justify-center gap-0.5 flex-wrap">
+                                    {isCastProfessional && (
+                                      <button type="button" onClick={() => addExtraLine('CASTING', line.id)} className={iconBtnCls} style={{ borderColor: resolve.border, color: resolve.text }} title="Adicionar linha extra abaixo"><Plus size={17} strokeWidth={1.5} /></button>
+                                    )}
+                                    {(line.isLabor || isCastProfessional) && (line.name || line.role) && (
+                                      <>
+                                        <button type="button" title="Telefone, e-mail e endereço" className={iconBtnCls} style={{ borderColor: resolve.border, color: resolve.text }} onClick={() => setModalContact(collab ?? 'no-data')}><Info size={17} strokeWidth={1.5} /></button>
+                                        <button type="button" title="Dados bancários e PIX" className={iconBtnCls} style={{ borderColor: resolve.border, color: resolve.text }} onClick={() => setModalBank(collab ?? 'no-data')}><DollarSign size={17} strokeWidth={1.5} /></button>
+                                        <DriveLinkButton projectId={projectDbId ?? null} drivePath={getLineContractPath(line)} variant="contract" className={`${iconBtnCls} w-7 h-7 flex items-center justify-center rounded border transition-colors`} style={{ borderColor: resolve.border, color: resolve.text }}><PenLine size={17} strokeWidth={1.5} /></DriveLinkButton>
+                                        <DriveLinkButton projectId={projectDbId ?? null} drivePath={getLineInvoicePath(line)} variant="invoice" className={`${iconBtnCls} w-7 h-7 flex items-center justify-center rounded border transition-colors`} style={{ borderColor: resolve.border, color: resolve.text }}><Receipt size={17} strokeWidth={1.5} /></DriveLinkButton>
+                                      </>
+                                    )}
+                                    {(line.name || line.role) && (
+                                      <DriveLinkButton projectId={projectDbId ?? null} drivePath={getLineFolderPath(line)} variant="folder" title="Abrir pasta no Drive" className={`${iconBtnCls} w-7 h-7 flex items-center justify-center rounded border transition-colors`} style={{ borderColor: resolve.border, color: resolve.text }}><FolderOpen size={17} strokeWidth={1.5} /></DriveLinkButton>
+                                    )}
+                                  </div>
+                                ) : null}
                               </div>
-                            )}
-                          </div>
 
-                          {/* Uma linha de diária por dia (labor). Por semana: oculto até clicar em "Calcular hora extra das diárias" */}
+                              {/* Uma linha de diária por dia (labor). Por semana: oculto até clicar em "Calcular hora extra das diárias" */}
                           {line.isLabor && line.type === 'sem' && !showOvertimeForLineId[line.id] && (
                             <div className="px-3 py-2 border-t flex items-center" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.01)' }}>
                               <button
@@ -868,8 +1030,10 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                               ))}
                             </div>
                           )}
+                            </>
+                          )}
 
-                          {/* Linha de resumo: CACHÊ TOTAL | CACHÊ DIA 1… (ou REF. CACHÊ/DIA para sem) | DESL. | HE | Saving | NF (tudo maiúsculo, separadores verticais) */}
+                          {/* Linha de resumo: CACHÊ TOTAL | CACHÊ DIA 1… (ou REF. CACHÊ/DIA para sem) | DESL. | HE | Saving */}
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-1.5 border-t text-[10px] uppercase tracking-wider" style={{ borderColor: resolve.border, color: resolve.muted }}>
                             {line.isLabor ? (
                               <>
@@ -925,11 +1089,6 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                                 {line.isVerba && <span>Verba</span>}
                               </>
                             )}
-                            {sepVertical()}
-                            <div className="flex items-center gap-1">
-                              <span>NF</span>
-                              <input className="py-0.5 px-1.5 text-[10px] uppercase focus:outline-none w-20" style={inputStyle} value={line.invoiceNumber} onChange={(e) => updateLine(line.id, { invoiceNumber: e.target.value })} placeholder="NF" />
-                            </div>
                             <div className="ml-auto flex items-center gap-2 flex-shrink-0">
                               <span className="font-mono text-[11px] font-medium whitespace-nowrap" style={{ color: resolve.yellow }}>
                                 {formatCurrency(saving.responsibleId === line.id && valueToPay > 0 ? totalNF + valueToPay : totalNF)}
@@ -946,7 +1105,8 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                           </div>
                 </div>
               )
-            })}
+                      })
+                    })()}
                   </div>
                 </div>
               )
@@ -1034,12 +1194,12 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
               </div>
               <table className="budget-table-cards w-full border-collapse text-[11px] min-w-[500px] table-fixed">
                 <colgroup>
-                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '16%' }} />
                   <col style={{ width: '14%' }} />
                   <col style={{ width: '26%' }} />
                   <col style={{ width: '14%' }} />
                   <col style={{ width: '10%' }} />
-                  <col style={{ width: '6%' }} />
+                  <col style={{ width: '40px' }} />
                   <col style={{ width: '16%' }} />
                   <col style={{ width: '40px' }} />
                 </colgroup>
@@ -1059,7 +1219,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                   {expenses.filter((e) => e.department === dept).map((exp) => (
                     <tr key={exp.id} className="border-b" style={{ borderColor: resolve.border }}>
                       <td className="p-1.5">
-                        <input type="date" className={inputClassName} style={inputStyle} value={exp.date} onChange={(e) => updateExpense(exp.id, { date: e.target.value })} />
+                        <input type="date" className={`${inputClassName} input-date-yellow-calendar`} style={inputStyle} value={exp.date} onChange={(e) => updateExpense(exp.id, { date: e.target.value })} />
                       </td>
                       <td className="p-1.5"><input className={inputClassName} style={inputStyle} value={exp.supplier} onChange={(e) => updateExpense(exp.id, { supplier: e.target.value })} placeholder="Fornecedor" /></td>
                       <td className="p-1.5"><input className={inputClassName} style={inputStyle} value={exp.description} onChange={(e) => updateExpense(exp.id, { description: e.target.value })} placeholder="Descrição" /></td>
@@ -1081,7 +1241,11 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                           placeholder="R$ 0,00"
                         />
                       </td>
-                      <td className="p-1.5"><input className={inputClassName} style={inputStyle} value={exp.invoiceNumber} onChange={(e) => updateExpense(exp.id, { invoiceNumber: e.target.value })} placeholder="NF" /></td>
+                      <td className="p-1.5">
+                        <DriveLinkButton projectId={projectDbId ?? null} drivePath={`_PRODUÇÃO/PRESTAÇÃO DE CONTAS/${exp.department}`} variant="folder" title="Abrir pasta da nota fiscal" className={`${iconBtnCls} w-7 h-7 flex items-center justify-center rounded border transition-colors`} style={{ borderColor: resolve.border, color: resolve.text }} disabled={isLocked}>
+                          <FolderOpen size={16} strokeWidth={1.5} />
+                        </DriveLinkButton>
+                      </td>
                       <td className="p-1.5 text-center">
                         <button
                           type="button"

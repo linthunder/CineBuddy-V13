@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useCallback, Fragment } from 'react'
-import { X, Plus } from 'lucide-react'
+import { X, Plus, FolderOpen } from 'lucide-react'
+import DriveLinkButton from '@/components/DriveLinkButton'
 import { resolve, cinema } from '@/lib/theme'
 import { formatCurrency, parseCurrencyInput } from '@/lib/utils'
 import type { ExpenseLine } from '@/lib/prestacao-contas'
@@ -27,6 +28,7 @@ function sepVertical(key?: string) {
 }
 
 export interface PrestacaoContasDeptViewProps {
+  projectId?: string | null
   projectName: string
   department: string
   responsible1?: string
@@ -45,6 +47,7 @@ export interface PrestacaoContasDeptViewProps {
 }
 
 export default function PrestacaoContasDeptView({
+  projectId = null,
   projectName,
   department,
   responsible1 = '',
@@ -145,12 +148,12 @@ export default function PrestacaoContasDeptView({
       <div className="overflow-x-auto rounded border" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
         <table className="budget-table-cards w-full border-collapse text-[11px] min-w-[500px] table-fixed">
           <colgroup>
-            <col style={{ width: '10%' }} />
+            <col style={{ width: '16%' }} />
             <col style={{ width: '14%' }} />
             <col style={{ width: '26%' }} />
             <col style={{ width: '14%' }} />
             <col style={{ width: '10%' }} />
-            <col style={{ width: '6%' }} />
+            <col style={{ width: '40px' }} />
             <col style={{ width: '16%' }} />
             <col style={{ width: '40px' }} />
           </colgroup>
@@ -186,7 +189,7 @@ export default function PrestacaoContasDeptView({
                 <td className="p-1.5">
                   <input
                     type="date"
-                    className={inputClassName}
+                    className={`${inputClassName} input-date-yellow-calendar`}
                     style={inputStyle}
                     value={exp.date}
                     onChange={(e) => onUpdate(exp.id, { date: e.target.value })}
@@ -245,15 +248,23 @@ export default function PrestacaoContasDeptView({
                   />
                 </td>
                 <td className="p-1.5">
-                  <input
-                    className={inputClassName}
-                    style={inputStyle}
-                    value={exp.invoiceNumber}
-                    onChange={(e) => onUpdate(exp.id, { invoiceNumber: e.target.value })}
-                    placeholder="NF"
-                    disabled={!canEdit}
-                    readOnly={!canEdit}
-                  />
+                  {projectId && canEdit ? (
+                    <DriveLinkButton
+                      projectId={projectId}
+                      drivePath={`_PRODUÇÃO/PRESTAÇÃO DE CONTAS/${department}`}
+                      variant="folder"
+                      title="Abrir pasta da nota fiscal"
+                      className="team-info-btn w-7 h-7 flex items-center justify-center rounded border transition-colors"
+                      style={{ borderColor: resolve.border, color: resolve.text }}
+                      disabled={!canEdit}
+                    >
+                      <FolderOpen size={16} strokeWidth={1.5} />
+                    </DriveLinkButton>
+                  ) : (
+                    <span className="text-[11px]" style={{ color: resolve.muted }}>
+                      {exp.invoiceNumber || '—'}
+                    </span>
+                  )}
                 </td>
                 <td className="p-1.5 text-center">
                   {canEdit ? (

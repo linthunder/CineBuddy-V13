@@ -69,6 +69,15 @@ input[type='number'] {
   appearance: none;
 }
 
+/* Input date: ícone do calendário no amarelo padrão do sistema (#f5c518) */
+.input-date-yellow-calendar {
+  accent-color: var(--resolve-yellow);
+}
+.input-date-yellow-calendar::-webkit-calendar-picker-indicator {
+  filter: invert(88%) sepia(55%) saturate(1234%) hue-rotate(1deg);
+  cursor: pointer;
+}
+
 /* Budget table: sempre layout de tabela horizontal; overflow no container do bloco */
 .budget-table-cards {
   min-width: 0;

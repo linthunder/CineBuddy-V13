@@ -24,7 +24,7 @@ const SLUG_TO_DEPT: Record<string, ExpenseDepartment> = Object.fromEntries(
   (Object.entries(DEPT_SLUGS) as [ExpenseDepartment, string][]).map(([dept, slug]) => [slug, dept])
 )
 
-export const EXPENSE_TYPE_OPTIONS = ['Alimentação', 'Combustível', 'Estacionamento', 'outros'] as const
+export const EXPENSE_TYPE_OPTIONS = ['Alimentação', 'Combustível', 'Estacionamento', 'Outros'] as const
 export type ExpenseTypeOption = (typeof EXPENSE_TYPE_OPTIONS)[number]
 
 /** Linha de despesa da prestação de contas (compatível com ViewFechamento). */

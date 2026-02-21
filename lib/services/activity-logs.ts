@@ -38,10 +38,22 @@ export interface AddLogParams {
 
 /** Registra uma entrada no log de atividades. Falha em silêncio quando não há sessão ou RLS bloqueia (ex.: uso local sem login). */
 export async function addLog(params: AddLogParams): Promise<ActivityLog | null> {
-  const { data: { session } } = await supabase.auth.getSession()
-  const user = session?.user ?? null
-  const userProfile = user ? await import('@/lib/services/profiles').then((m) => m.getMyProfile()) : null
-  const userName = userProfile ? `${userProfile.name} ${userProfile.surname}`.trim() || userProfile.email : user?.email ?? null
+  let user: { id: string; email?: string } | null = null
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    user = session?.user ?? null
+  } catch {
+    // Refresh token inválido/expirado: não bloquear o fluxo; registra sem user
+  }
+  let userName: string | null = null
+  if (user) {
+    try {
+      const userProfile = await import('@/lib/services/profiles').then((m) => m.getMyProfile())
+      userName = userProfile ? `${userProfile.name} ${userProfile.surname}`.trim() || userProfile.email : user?.email ?? null
+    } catch {
+      userName = user?.email ?? null
+    }
+  }
 
   const row: ActivityLogInsert = {
     user_id: user?.id ?? null,

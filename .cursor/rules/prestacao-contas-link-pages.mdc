@@ -1,0 +1,24 @@
+---
+description: Diretriz para páginas de prestação de contas via link (Gerar link)
+globs: components/prestacao-contas/**/*,app/prestacao-contas/**/*
+alwaysApply: false
+---
+
+# Páginas de Prestação de Contas via Link (Gerar link)
+
+## Contexto
+As páginas acessadas via **Gerar link** (ex.: `/prestacao-contas/[projectId]/[deptSlug]?token=...`) funcionam como **espelho** das tabelas de departamento na seção PRESTAÇÃO DE CONTAS do ViewFechamento.
+
+## Diretriz obrigatória
+**Toda implementação feita em PRESTAÇÃO DE CONTAS (ViewFechamento) deve ser replicada nas páginas de link** e garantir a comunicação entre elas.
+
+## O que isso implica
+- **UI:** Mesma estrutura de tabela, colunas, botões e comportamentos.
+- **Drive:** Botões de upload/abrir pasta devem existir em ambos (PrestacaoContasDeptView e ViewFechamento).
+- **Dados:** As despesas salvas pelo link aparecem no Fechamento e vice-versa (já via `closing_lines` no banco).
+- **Props:** PrestacaoContasDeptView deve receber `projectId` quando usado em contexto com Drive.
+
+## Arquivos principais
+- `components/prestacao-contas/PrestacaoContasDeptView.tsx` — UI da prestação por departamento
+- `app/prestacao-contas/[projectId]/[deptSlug]/page.tsx` — Página do link
+- `components/views/ViewFechamento.tsx` — Seção Prestação de contas (referência)

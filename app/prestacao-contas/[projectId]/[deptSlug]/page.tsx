@@ -17,7 +17,7 @@ function normalizeExpense(e: Partial<ExpenseLine> & { id: string; department: Ex
     payStatus: e.payStatus === 'pago' ? 'pago' : 'pendente',
     date: e.date ?? '',
     supplier: e.supplier ?? '',
-    expenseType: e.expenseType ?? 'outros',
+    expenseType: (e.expenseType === 'outros' ? 'Outros' : e.expenseType) ?? 'Outros',
   }
 }
 
@@ -95,7 +95,7 @@ function PrestacaoContasContent() {
         payStatus: 'pendente',
         date: '',
         supplier: '',
-        expenseType: 'outros',
+        expenseType: 'Outros',
       }),
     ])
   }, [dept])
@@ -159,6 +159,7 @@ function PrestacaoContasContent() {
 
   return (
     <PrestacaoContasDeptView
+      projectId={projectId}
       projectName={projectName}
       department={department}
       responsible1={responsible1}

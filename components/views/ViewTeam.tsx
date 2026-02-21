@@ -5,7 +5,9 @@ import PageLayout from '@/components/PageLayout'
 import { resolve } from '@/lib/theme'
 import type { BudgetLinesByPhase, VerbaLinesByPhase, BudgetRow } from '@/lib/types'
 import { listCollaborators, type Collaborator } from '@/lib/services/collaborators'
-import { Info, DollarSign, PenLine, Receipt } from 'lucide-react'
+import { Info, DollarSign, PenLine, Receipt, FolderOpen } from 'lucide-react'
+import DriveLinkButton from '@/components/DriveLinkButton'
+import { memberFolderName, EQUIPE_DRIVE_PATH, CASTING_DRIVE_PATH } from '@/lib/drive-folder-structure'
 
 interface TeamMember {
   name: string
@@ -24,6 +26,7 @@ export interface ViewTeamProps {
     budgetLines: BudgetLinesByPhase
     verbaLines: VerbaLinesByPhase
   } | null
+  projectDbId?: string | null
 }
 
 function extractTeamByDept(budgetLines: BudgetLinesByPhase): DeptTeam[] {
@@ -34,20 +37,23 @@ function extractTeamByDept(budgetLines: BudgetLinesByPhase): DeptTeam[] {
     if (!depts) continue
     for (const [dept, rows] of Object.entries(depts)) {
       for (const row of rows as BudgetRow[]) {
-        if (row.type !== 'labor') continue
-        if (!row.itemName?.trim()) continue
+        const isLabor = row.type === 'labor'
+        const isCasting = dept === 'CASTING' && (row.itemName?.trim() || row.roleFunction?.trim())
+        if (!isLabor && !isCasting) continue
+        if (!row.itemName?.trim() && !row.roleFunction?.trim()) continue
 
         if (!deptMap.has(dept)) deptMap.set(dept, new Map())
         const membersMap = deptMap.get(dept)!
-        const key = `${row.itemName.trim().toLowerCase()}__${row.roleFunction?.trim().toLowerCase() ?? ''}`
+        const key = `${(row.itemName ?? '').trim().toLowerCase()}__${(row.roleFunction ?? '').trim().toLowerCase()}`
         const existing = membersMap.get(key)
+        const cost = 'totalCost' in row ? (row.totalCost ?? 0) : 0
         if (existing) {
-          existing.totalCost += row.totalCost ?? 0
+          existing.totalCost += cost
         } else {
           membersMap.set(key, {
-            name: row.itemName.trim(),
-            role: row.roleFunction?.trim() ?? '',
-            totalCost: row.totalCost ?? 0,
+            name: (row.itemName ?? '').trim() || 'Sem nome',
+            role: (row.roleFunction ?? '').trim() ?? '',
+            totalCost: cost,
           })
         }
       }
@@ -62,7 +68,12 @@ function extractTeamByDept(budgetLines: BudgetLinesByPhase): DeptTeam[] {
       result.push({ department: dept, members, deptTotal })
     }
   }
-  return result
+  const castingFirst = (a: DeptTeam, b: DeptTeam) => {
+    if (a.department === 'CASTING') return -1
+    if (b.department === 'CASTING') return 1
+    return 0
+  }
+  return result.sort(castingFirst)
 }
 
 /** Encontra colaborador pelo nome (case-insensitive). */
@@ -98,7 +109,7 @@ function CopyableLine({ label, value }: { label: string; value: string }) {
   )
 }
 
-export default function ViewTeam({ getBudgetData }: ViewTeamProps) {
+export default function ViewTeam({ getBudgetData, projectDbId }: ViewTeamProps) {
   const [teamData, setTeamData] = useState<DeptTeam[]>([])
   const [lastUpdate, setLastUpdate] = useState<string>('')
   const [collaborators, setCollaborators] = useState<Collaborator[]>([])
@@ -160,8 +171,8 @@ export default function ViewTeam({ getBudgetData }: ViewTeamProps) {
             <span>EQUIPE</span>
           </div>
           <div className="p-8 text-center" style={{ color: resolve.muted }}>
-            <p className="text-sm">Nenhum profissional encontrado no orçamento.</p>
-            <p className="text-[11px] mt-2">Adicione linhas de mão de obra nas páginas de Orçamento para ver a equipe aqui.</p>
+            <p className="text-sm">Nenhum profissional ou elenco encontrado no orçamento.</p>
+            <p className="text-[11px] mt-2">Adicione linhas de mão de obra ou casting nas páginas de Orçamento para ver a equipe aqui.</p>
           </div>
         </div>
       )}
@@ -229,28 +240,36 @@ export default function ViewTeam({ getBudgetData }: ViewTeamProps) {
                           >
                             <DollarSign size={17} strokeWidth={1.5} aria-hidden />
                           </button>
-                          <button
-                            type="button"
-                            title="Contrato (Drive) — em breve"
-                            className={`${iconBtnCls} opacity-70`}
-                            onClick={() => window.alert('Abertura do contrato (Google Drive) será implementada em breve.')}
+                          <DriveLinkButton
+                            projectId={projectDbId ?? null}
+                            drivePath={`${dept.department === 'CASTING' ? CASTING_DRIVE_PATH : EQUIPE_DRIVE_PATH}/${memberFolderName({ name: member.name, role: member.role })}/CONTRATO`}
+                            variant="contract"
+                            title="Contrato"
+                            className={iconBtnCls}
                             style={{ width: 26, height: 26, minWidth: 26, minHeight: 26, color: resolve.muted }}
-                            onMouseEnter={(e) => { e.currentTarget.style.color = resolve.yellow }}
-                            onMouseLeave={(e) => { e.currentTarget.style.color = resolve.muted }}
                           >
                             <PenLine size={17} strokeWidth={1.5} aria-hidden />
-                          </button>
-                          <button
-                            type="button"
-                            title="Nota fiscal (Drive) — em breve"
-                            className={`${iconBtnCls} opacity-70`}
-                            onClick={() => window.alert('Abertura da nota fiscal (Google Drive) será implementada em breve.')}
+                          </DriveLinkButton>
+                          <DriveLinkButton
+                            projectId={projectDbId ?? null}
+                            drivePath={`${dept.department === 'CASTING' ? CASTING_DRIVE_PATH : EQUIPE_DRIVE_PATH}/${memberFolderName({ name: member.name, role: member.role })}/NOTA FISCAL`}
+                            variant="invoice"
+                            title="Nota fiscal"
+                            className={iconBtnCls}
                             style={{ width: 26, height: 26, minWidth: 26, minHeight: 26, color: resolve.muted }}
-                            onMouseEnter={(e) => { e.currentTarget.style.color = resolve.yellow }}
-                            onMouseLeave={(e) => { e.currentTarget.style.color = resolve.muted }}
                           >
                             <Receipt size={17} strokeWidth={1.5} aria-hidden />
-                          </button>
+                          </DriveLinkButton>
+                          <DriveLinkButton
+                            projectId={projectDbId ?? null}
+                            drivePath={`${dept.department === 'CASTING' ? CASTING_DRIVE_PATH : EQUIPE_DRIVE_PATH}/${memberFolderName({ name: member.name, role: member.role })}`}
+                            variant="folder"
+                            title="Abrir pasta no Drive"
+                            className={iconBtnCls}
+                            style={{ width: 26, height: 26, minWidth: 26, minHeight: 26, color: resolve.muted }}
+                          >
+                            <FolderOpen size={17} strokeWidth={1.5} aria-hidden />
+                          </DriveLinkButton>
                         </div>
                       </td>
                     </tr>

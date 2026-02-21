@@ -24,6 +24,7 @@ export interface ProjectRecord {
   notes_final: Record<string, string>
   status: Record<string, string>
   company_data: Record<string, unknown>
+  drive_root_folder_id: string | null
   created_at: string
   updated_at: string
 }

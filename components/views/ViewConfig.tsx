@@ -26,12 +26,13 @@ import {
 import { addLog, listLogs, type ActivityLog } from '@/lib/services/activity-logs'
 import { listProfiles, updateProfile, type Profile, type ProfileRole } from '@/lib/services/profiles'
 import { supabase } from '@/lib/supabase'
-import { X, Copy, Pencil, Save, Plus } from 'lucide-react'
+import { X, Copy, Pencil, Save, Plus, RefreshCw, HardDrive } from 'lucide-react'
 
-type ConfigTab = 'company' | 'users' | 'collaborators' | 'cache_tables' | 'roles' | 'projects' | 'icons' | 'logs'
+type ConfigTab = 'company' | 'drive' | 'users' | 'collaborators' | 'cache_tables' | 'roles' | 'projects' | 'icons' | 'logs'
 
 const TABS: { id: ConfigTab; label: string }[] = [
   { id: 'company', label: 'MINHA PRODUTORA' },
+  { id: 'drive', label: 'DRIVE' },
   { id: 'users', label: 'USUÁRIOS' },
   { id: 'collaborators', label: 'COLABORADORES' },
   { id: 'cache_tables', label: 'TABELAS DE CACHÊ' },
@@ -135,9 +136,19 @@ export interface ViewConfigProps {
   onLogoChange?: (url: string) => void
   currentProfile?: Profile | null
   isAdmin?: boolean
+  onRecriarPastaDrive?: (projectId: string) => void | Promise<void>
+  driveCallbackMessage?: { type: 'success' | 'error'; msg: string } | null
+  onDismissDriveMessage?: () => void
 }
 
-export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: ViewConfigProps) {
+export default function ViewConfig({
+  onLogoChange,
+  currentProfile,
+  isAdmin,
+  onRecriarPastaDrive,
+  driveCallbackMessage,
+  onDismissDriveMessage,
+}: ViewConfigProps) {
   const [activeTab, setActiveTab] = useState<ConfigTab>('company')
   const [iconsSearch, setIconsSearch] = useState('')
 
@@ -167,6 +178,14 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
   const [userSaving, setUserSaving] = useState(false)
   const [userError, setUserError] = useState('')
 
+  /* ── Google Drive (OAuth) ── */
+  const [driveStatus, setDriveStatus] = useState<{ connected: boolean; email?: string; rootFolderId?: string | null } | null>(null)
+  const [driveRootFolderIdInput, setDriveRootFolderIdInput] = useState('')
+  const [driveSavingFolder, setDriveSavingFolder] = useState(false)
+  const [driveLoading, setDriveLoading] = useState(false)
+  const [driveConnecting, setDriveConnecting] = useState(false)
+  const [driveDisconnecting, setDriveDisconnecting] = useState(false)
+
   useEffect(() => {
     if (activeTab === 'users') {
       setProfilesLoading(true)
@@ -176,6 +195,33 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
       })
     }
   }, [activeTab])
+
+  useEffect(() => {
+    if (activeTab !== 'drive') {
+      setDriveLoading(false)
+      return
+    }
+    if (!isAdmin) {
+      setDriveLoading(false)
+      setDriveStatus({ connected: false })
+      return
+    }
+    setDriveLoading(true)
+    const timeout = setTimeout(() => setDriveLoading(false), 8000)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const token = session?.access_token
+      return fetch('/api/drive/connection', { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    }).then((r) => r.json().catch(() => ({}))).then((data) => {
+      const status = { connected: !!data?.connected, email: data?.email, rootFolderId: data?.rootFolderId }
+      setDriveStatus(status)
+      setDriveRootFolderIdInput(data?.rootFolderId ?? '')
+    }).catch(() => {
+      setDriveStatus({ connected: false })
+    }).finally(() => {
+      clearTimeout(timeout)
+      setDriveLoading(false)
+    })
+  }, [activeTab, isAdmin])
 
   const openUserModal = (p: null | 'new' | Profile) => {
     if (p && p !== 'new' && !isAdmin && currentProfile && p.id !== currentProfile.id) return
@@ -702,6 +748,7 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
   const [projectsLoading, setProjectsLoading] = useState(false)
   const [projectSearch, setProjectSearch] = useState('')
   const [projectModal, setProjectModal] = useState<ConfigProjectSummary | null>(null)
+  const [recriarPastaProjectId, setRecriarPastaProjectId] = useState<string | null>(null)
 
   // Form fields para edição de projeto
   const [pNome, setPNome] = useState('')
@@ -742,6 +789,11 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
     await addLog({ action: 'update', entityType: 'project', entityId: projectModal.id, entityName: pNome.trim(), details: { job_id: projectModal.job_id } })
     setProjectModal(null)
     loadProjects()
+    fetch('/api/drive/sync-project', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId: projectModal.id }),
+    }).catch(() => {})
     if (typeof window !== 'undefined') window.alert('Projeto atualizado!')
   }
 
@@ -924,6 +976,153 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
               <div><label className={labelCls} style={{ color: resolve.muted }}>Site</label><input type="text" className={inputCls} style={inputStyle} value={companySite} onChange={(e) => setCompanySite(e.target.value)} /></div>
             </div>
             <div><label className={labelCls} style={{ color: resolve.muted }}>Endereço Completo</label><input type="text" className={inputCls} style={inputStyle} value={companyAddr} onChange={(e) => setCompanyAddr(e.target.value)} /></div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ GOOGLE DRIVE ═══ */}
+      {activeTab === 'drive' && (
+        <div className="rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
+          <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center gap-2" style={{ borderColor: resolve.border, color: resolve.muted }}>
+            <HardDrive size={14} strokeWidth={2} style={{ color: 'currentColor' }} />
+            <span>GOOGLE DRIVE</span>
+          </div>
+          <div className="p-3 sm:p-4 space-y-4">
+            {driveCallbackMessage && (
+              <div
+                className="p-3 rounded text-[11px] flex items-center justify-between gap-2"
+                style={{
+                  backgroundColor: driveCallbackMessage.type === 'success' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(201, 74, 74, 0.15)',
+                  border: `1px solid ${driveCallbackMessage.type === 'success' ? 'rgb(34, 197, 94)' : cinema.danger}`,
+                }}
+              >
+                <span>{driveCallbackMessage.msg}</span>
+                {onDismissDriveMessage && (
+                  <button type="button" onClick={onDismissDriveMessage} className="text-[10px] uppercase font-medium opacity-70 hover:opacity-100">
+                    Fechar
+                  </button>
+                )}
+              </div>
+            )}
+            <p className="text-[11px]" style={{ color: resolve.muted }}>
+              Conecte sua conta Google para criar pastas e enviar arquivos (notas fiscais, contratos) no Drive. Defina a pasta onde os projetos serão salvos (crie uma pasta no Drive, abra-a e copie o ID da URL).
+            </p>
+            {!isAdmin ? (
+              <p className="text-[11px]" style={{ color: resolve.muted }}>Apenas administradores podem conectar o Drive.</p>
+            ) : driveLoading ? (
+              <p className="text-[11px]" style={{ color: resolve.muted }}>Verificando…</p>
+            ) : driveStatus?.connected ? (
+              <div className="space-y-3">
+                <p className="text-[11px] font-medium" style={{ color: resolve.text }}>
+                  Conectado como: {driveStatus.email || 'Conta Google'}
+                </p>
+                <div>
+                  <label className={labelCls} style={{ color: resolve.muted }}>ID da pasta raiz (onde os projetos serão salvos)</label>
+                  <p className="text-[10px] mb-1" style={{ color: resolve.muted }}>Abra a pasta no Drive, copie o ID da URL: drive.google.com/.../folders/<strong>ESTE_ID</strong></p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      className={inputCls}
+                      style={inputStyle}
+                      placeholder="Ex.: 1ABC123xyz..."
+                      value={driveRootFolderIdInput}
+                      onChange={(e) => setDriveRootFolderIdInput(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className={`${btnSmall} btn-resolve-hover flex-shrink-0`}
+                      style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }}
+                      disabled={driveSavingFolder || !driveRootFolderIdInput.trim()}
+                      onClick={async () => {
+                        const id = driveRootFolderIdInput.trim()
+                        if (!id) return
+                        setDriveSavingFolder(true)
+                        try {
+                          const { data: { session } } = await supabase.auth.getSession()
+                          const res = await fetch('/api/drive/connection', {
+                            method: 'PATCH',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+                            },
+                            body: JSON.stringify({ rootFolderId: id }),
+                          })
+                          const d = await res.json()
+                          if (res.ok) {
+                            setDriveStatus((s) => s ? { ...s, rootFolderId: id } : null)
+                            window.alert('Pasta salva.')
+                          } else {
+                            window.alert(d.error || 'Erro ao salvar pasta.')
+                          }
+                        } finally {
+                          setDriveSavingFolder(false)
+                        }
+                      }}
+                    >
+                      {driveSavingFolder ? '…' : 'Salvar pasta'}
+                    </button>
+                  </div>
+                  {driveStatus?.rootFolderId && (
+                    <p className="text-[10px] mt-1" style={{ color: resolve.muted }}>Pasta atual: {driveStatus.rootFolderId}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className={`${btnSmall} transition-colors`}
+                  style={{ backgroundColor: 'transparent', color: cinema.danger, border: `1px solid ${resolve.border}` }}
+                  disabled={driveDisconnecting}
+                  onClick={async () => {
+                    setDriveDisconnecting(true)
+                    try {
+                      const { data: { session } } = await supabase.auth.getSession()
+                      const res = await fetch('/api/drive/connection', {
+                        method: 'DELETE',
+                        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+                      })
+                      if (res.ok) setDriveStatus({ connected: false })
+                      else {
+                        const d = await res.json()
+                        window.alert(d.error || 'Erro ao desconectar.')
+                      }
+                    } finally {
+                      setDriveDisconnecting(false)
+                    }
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = cinema.danger; e.currentTarget.style.backgroundColor = 'rgba(201, 74, 74, 0.1)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = resolve.border; e.currentTarget.style.backgroundColor = 'transparent' }}
+                >
+                  {driveDisconnecting ? 'Desconectando…' : 'Desconectar'}
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className={`${btnSmall} btn-resolve-hover flex items-center gap-2`}
+                style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }}
+                disabled={driveConnecting}
+                onClick={async () => {
+                  setDriveConnecting(true)
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession()
+                    const res = await fetch('/api/auth/google-drive/connect', {
+                      method: 'POST',
+                      headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+                    })
+                    const data = await res.json()
+                    if (res.ok && data.url) {
+                      window.location.href = data.url
+                    } else {
+                      window.alert(data.error || 'Erro ao obter URL.')
+                    }
+                  } finally {
+                    setDriveConnecting(false)
+                  }
+                }}
+              >
+                <HardDrive size={14} strokeWidth={2} style={{ color: 'currentColor' }} />
+                {driveConnecting ? 'Abrindo…' : 'Conectar Google Drive'}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -1317,7 +1516,10 @@ export default function ViewConfig({ onLogoChange, currentProfile, isAdmin }: Vi
                       <td className={tdCls} style={{ borderColor: resolve.border }}>{p.cliente || '—'}</td>
                       <td className={tdCls} style={{ borderColor: resolve.border, color: resolve.muted }}>{new Date(p.updated_at).toLocaleDateString('pt-BR')}</td>
                       <td className={`${tdCls} text-right whitespace-nowrap`} style={{ borderColor: resolve.border }}>
-                        <button type="button" className="btn-resolve-hover inline-flex items-center justify-center p-1.5 rounded mr-1 transition-colors border border-transparent" style={{ color: resolve.accent }} onClick={() => openProjectModal(p)} aria-label="Editar"><Pencil size={16} strokeWidth={2} /></button>
+                        <button type="button" className="btn-resolve-hover inline-flex items-center justify-center p-1.5 rounded mr-1 transition-colors border border-transparent" style={{ color: resolve.accent }} onClick={() => openProjectModal(p)} aria-label="Editar" title="Editar"><Pencil size={16} strokeWidth={2} /></button>
+                        {onRecriarPastaDrive && (
+                          <button type="button" disabled={recriarPastaProjectId === p.id} className="btn-resolve-hover inline-flex items-center justify-center p-1.5 rounded mr-1 transition-colors border border-transparent" style={{ color: resolve.accent }} onClick={async () => { setRecriarPastaProjectId(p.id); try { await onRecriarPastaDrive(p.id); } finally { setRecriarPastaProjectId(null); } }} aria-label={recriarPastaProjectId === p.id ? 'Recriando...' : 'Recriar pasta no Drive'} title="Recriar pasta no Drive (use se a pasta foi excluída)">{recriarPastaProjectId === p.id ? '…' : <RefreshCw size={16} strokeWidth={2} />}</button>
+                        )}
                         <button type="button" className="btn-danger-hover inline-flex items-center justify-center p-1.5 rounded transition-colors border border-transparent" style={{ color: cinema.danger }} onClick={() => removeProject(p.id, p.nome)} disabled={deletingProjectId === p.id} aria-label={deletingProjectId === p.id ? 'Excluindo...' : 'Excluir'} title={deletingProjectId === p.id ? 'Excluindo...' : 'Excluir'}><X size={16} strokeWidth={2} /></button>
                       </td>
                     </tr>

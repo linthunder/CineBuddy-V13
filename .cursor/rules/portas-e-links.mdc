@@ -1,0 +1,37 @@
+---
+description: Portas do servidor e checagem de links (prestação de contas, etc.) – garantir porta funcional e link correto
+alwaysApply: true
+---
+
+# Portas e links funcionais
+
+## Objetivo
+
+- O app CineBuddy deve rodar numa **porta conhecida e estável** (por padrão **3000**).
+- Links gerados (ex.: prestação de contas) devem apontar para a **mesma porta** em que o usuário está acessando o app.
+- Antes de enviar ou validar um link para o usuário, fazer **dupla checagem** de que a porta está correta e o link funciona.
+
+## Regras
+
+1. **Porta padrão**
+   - O script `npm run dev` está configurado para a porta **3000** (`next dev -p 3000`).
+   - O `.env.local` deve ter `NEXT_PUBLIC_APP_URL=http://localhost:3000` (ou a URL de produção) como **fallback** quando o link é gerado sem header `Origin`.
+
+2. **Geração de links**
+   - A API de gerar link (prestação de contas) usa **primeiro** o header `Origin` da requisição e só depois `NEXT_PUBLIC_APP_URL`. Assim o link fica sempre na mesma porta em que o usuário está.
+
+3. **Quando for necessário reiniciar o servidor ou garantir porta livre**
+   - Executar `npm run dev` (ou `npm run dev:force` se existir).
+   - Se o usuário reportar 404 em link ou “porta em uso”, considerar:
+     - Reiniciar o servidor: parar o processo atual e rodar `npm run dev` de novo.
+     - Se a porta 3000 estiver ocupada: executar `npm run dev:force` (libera a porta 3000 e inicia o app) ou instruir o usuário a fechar o processo que está na porta.
+   - **Sempre** executar essa ação automaticamente quando o contexto indicar que o link ou a porta está incorreta.
+
+4. **Dupla checagem antes de enviar link funcional ao usuário**
+   - Confirmar em qual porta o servidor está rodando (saída do terminal: "Local: http://localhost:XXXX").
+   - Se for enviar um link (ex.: de prestação de contas), o link deve usar **essa mesma porta** (o uso de `Origin` na API já garante isso quando o usuário gera o link pelo app).
+   - Se você reiniciou o servidor, informar ao usuário a URL base correta (ex.: `http://localhost:3000`) e que ele deve abrir o app nessa URL antes de gerar novos links.
+
+5. **Resumo para o agente**
+   - Ao sugerir ou validar links do CineBuddy: verificar porta do servidor e consistência do link.
+   - Ao detectar 404 em link ou problema de porta: reiniciar servidor ou liberar porta e rodar `dev`/`dev:force` conforme acima; em seguida fazer a dupla checagem e só então enviar o link ou a URL base ao usuário.
