@@ -4,7 +4,9 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import { Session, User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { getMyProfile } from '@/lib/services/profiles'
+import { getProfileRestrictions } from '@/lib/services/profile-restrictions'
 import type { Profile } from '@/lib/services/profiles'
+import type { ProfileRestriction } from '@/lib/services/profile-restrictions'
 
 const STORAGE_HAS_USERS = 'cinebuddy_has_users'
 
@@ -20,12 +22,14 @@ interface AuthContextValue {
   profile: Profile | null
   loading: boolean
   hasUsers: boolean | null
+  restrictions: ProfileRestriction[]
   /** Para ambientes onde getSession trava (ex: navegador embutido do Cursor) */
   forceFinishLoading: () => void
   login: (email: string, password: string) => Promise<{ error?: string }>
   logout: () => Promise<void>
   initSignup: (name: string, surname: string, email: string, password: string) => Promise<{ error?: string }>
   refreshProfile: () => Promise<void>
+  refreshRestrictions: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -33,8 +37,14 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [restrictions, setRestrictions] = useState<ProfileRestriction[]>([])
   const [loading, setLoading] = useState(true)
   const [hasUsers, setHasUsers] = useState<boolean | null>(readHasUsersFromStorage)
+
+  const refreshRestrictions = useCallback(async () => {
+    const r = await getProfileRestrictions()
+    setRestrictions(r)
+  }, [])
 
   const refreshProfile = useCallback(async () => {
     const p = await getMyProfile()
@@ -65,7 +75,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(fallbackShort)
         clearTimeout(fallbackMax)
         setSession(s ?? null)
-        if (s) getMyProfile().then((p) => !cancelled && setProfile(p))
+        if (s) {
+          getMyProfile().then((p) => !cancelled && setProfile(p))
+          getProfileRestrictions().then((r) => !cancelled && setRestrictions(r))
+        } else setRestrictions([])
         setLoading(false)
       })
       .catch(async (err) => {
@@ -88,8 +101,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       if (cancelled) return
       setSession(s)
-      if (s) getMyProfile().then(setProfile)
-      else setProfile(null)
+      if (s) {
+        getMyProfile().then(setProfile)
+        getProfileRestrictions().then(setRestrictions)
+      } else {
+        setProfile(null)
+        setRestrictions([])
+      }
     })
 
     return () => {
@@ -132,6 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setSession(null)
     setProfile(null)
+    setRestrictions([])
     // Nao zera hasUsers: uma vez que existem usuarios, a tela inicial deve ser sempre login
   }, [])
 
@@ -164,11 +183,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profile,
     loading,
     hasUsers,
+    restrictions,
     forceFinishLoading,
     login,
     logout,
     initSignup,
     refreshProfile,
+    refreshRestrictions,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

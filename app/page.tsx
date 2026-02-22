@@ -15,9 +15,10 @@ import ViewDashboard, { type DashboardAllData } from '@/components/views/ViewDas
 import ViewTeam from '@/components/views/ViewTeam'
 import ViewConfig from '@/components/views/ViewConfig'
 import type { ProjectStatus, ProjectData, BudgetLinesByPhase, VerbaLinesByPhase, MiniTablesData, PhaseDefaultsByPhase } from '@/lib/types'
-import { createProject, updateProject, getProject, type ProjectRecord } from '@/lib/services/projects'
+import { createProject, updateProject, getProject, setProjectMembers, type ProjectRecord } from '@/lib/services/projects'
 import { getCompany } from '@/lib/services/company'
 import { addLog } from '@/lib/services/activity-logs'
+import { getRoleDisabledViews, shouldRestrictHeaderToLogoutOnly, getRestrictedHeaderButtons } from '@/lib/permissions'
 import { supabase } from '@/lib/supabase'
 
 const INITIAL_PHASE_DEFAULTS: PhaseDefaultsByPhase = {
@@ -92,7 +93,7 @@ const EMPTY_PROJECT: ProjectData = {
 }
 
 function HomeContent() {
-  const { user, loading, logout, profile, forceFinishLoading } = useAuth()
+  const { user, loading, logout, profile, restrictions, forceFinishLoading, refreshRestrictions } = useAuth()
   const searchParams = useSearchParams()
   /** Escape local: se o usuário clicar em "Travou?", sair da tela de carregamento mesmo que o contexto não atualize */
   const [skipLoading, setSkipLoading] = useState(false)
@@ -108,6 +109,8 @@ function HomeContent() {
   const [projectData, setProjectData] = useState<ProjectData>({ ...EMPTY_PROJECT })
   /** ID do registro no Supabase (null = projeto ainda não salvo) */
   const [projectDbId, setProjectDbId] = useState<string | null>(null)
+  /** Membros selecionados ao criar projeto (aplicados no primeiro save) */
+  const [pendingProjectMemberIds, setPendingProjectMemberIds] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   /** True enquanto um projeto está sendo carregado (Abrir) — evita mostrar dados do projeto anterior */
   const [loadingOpen, setLoadingOpen] = useState(false)
@@ -155,7 +158,7 @@ function HomeContent() {
   const openingProjectIdRef = useRef<string | null>(null)
 
   /* Criar novo projeto (modal NOVO) */
-  const handleNewProject = useCallback(async (data: { nome: string; agencia: string; cliente: string; duracao: string; duracaoUnit: 'segundos' | 'minutos' }) => {
+  const handleNewProject = useCallback(async (data: { nome: string; agencia: string; cliente: string; duracao: string; duracaoUnit: 'segundos' | 'minutos'; memberIds?: string[] }) => {
     const jobId = await getNextJobId()
     setProjectData({
       jobId,
@@ -186,6 +189,7 @@ function HomeContent() {
       notes: { pre: '', prod: '', pos: '' },
     })
     viewFechamentoRef.current?.loadState({ closingLines: [], expenses: [] })
+    setPendingProjectMemberIds(data.memberIds ?? [])
     setCurrentView('filme')
   }, [])
 
@@ -357,6 +361,10 @@ function HomeContent() {
 
           if (result) {
             setProjectDbId(result.id)
+            if (!projectDbId && pendingProjectMemberIds.length > 0) {
+              await setProjectMembers(result.id, pendingProjectMemberIds)
+              setPendingProjectMemberIds([])
+            }
             try {
               await addLog({
                 action: projectDbId ? 'update' : 'create',
@@ -421,7 +429,7 @@ function HomeContent() {
     } finally {
       setSaving(false)
     }
-  }, [projectData, projectStatus, projectDbId])
+  }, [projectData, projectStatus, projectDbId, pendingProjectMemberIds])
 
   // Manter ref atualizada para o auto-save nos toggleLock
   handleSaveRef.current = handleSave
@@ -448,7 +456,7 @@ function HomeContent() {
   /* ══════════════════════════════════════════════════════
    * SALVAR CÓPIA
    * ══════════════════════════════════════════════════════ */
-  const handleSaveCopy = useCallback(async (copyData: { nome: string; agencia: string; cliente: string; duracao: string; duracaoUnit: 'segundos' | 'minutos' }) => {
+  const handleSaveCopy = useCallback(async (copyData: { nome: string; agencia: string; cliente: string; duracao: string; duracaoUnit: 'segundos' | 'minutos'; memberIds?: string[] }) => {
     // Coletar estado de todos os views (igual ao save normal)
     const orcState = viewOrcRef.current?.getState()
     const orcFinalState = viewOrcFinalRef.current?.getState()
@@ -486,6 +494,7 @@ function HomeContent() {
     const result = await createProject(payload)
 
     if (result) {
+      await setProjectMembers(result.id, copyData.memberIds ?? [])
       await addLog({
         action: 'copy',
         entityType: 'project',
@@ -693,23 +702,25 @@ function HomeContent() {
   }, [])
 
   const disabledViews = useMemo<ViewId[]>(() => {
-    const disabled: ViewId[] = []
+    const disabled = new Set<ViewId>(getRoleDisabledViews(profile?.role, restrictions))
     // FILME, ORÇAMENTO, DASHBOARD e EQUIPE bloqueados até criar/abrir um projeto (apenas HOME liberada no primeiro acesso)
-    if (!projectData.nome) disabled.push('filme', 'orcamento', 'dashboard', 'team')
+    if (!projectData.nome) disabled.add('filme'), disabled.add('orcamento'), disabled.add('dashboard'), disabled.add('team')
     // Cascata de liberação: Orçamento Final só após finalizar Inicial; Fechamento só após finalizar Final
-    if (projectStatus.initial !== 'locked') disabled.push('orc-final')
-    if (projectStatus.final !== 'locked') disabled.push('fechamento')
+    if (projectStatus.initial !== 'locked') disabled.add('orc-final')
+    if (projectStatus.final !== 'locked') disabled.add('fechamento')
     // Apenas CONCLUIR FECHAMENTO bloqueia acesso às páginas de orçamento
-    if (projectStatus.closing === 'locked') disabled.push('orcamento', 'orc-final')
-    return disabled
-  }, [projectStatus, projectData.nome])
+    if (projectStatus.closing === 'locked') disabled.add('orcamento'), disabled.add('orc-final')
+    return Array.from(disabled)
+  }, [profile?.role, restrictions, projectStatus, projectData.nome])
 
-  /* Redireciona para HOME se estiver em view bloqueada por falta de projeto */
+  /* Redireciona para view permitida quando estiver em view bloqueada (projeto ou perfil) */
   useEffect(() => {
-    if (!projectData.nome && ['filme', 'orcamento', 'dashboard', 'team'].includes(currentView)) {
-      setCurrentView('home')
-    }
-  }, [projectData.nome, currentView])
+    const isConfigBlocked = shouldRestrictHeaderToLogoutOnly(profile?.role) && currentView === 'config'
+    if (!disabledViews.includes(currentView) && !isConfigBlocked) return
+    const order: ViewId[] = ['home', 'filme', 'orcamento', 'orc-final', 'fechamento', 'team', 'dashboard']
+    const fallback = order.find((v) => !disabledViews.includes(v)) ?? 'filme'
+    setCurrentView(fallback)
+  }, [profile?.role, disabledViews, currentView])
 
   const isLoading = loading && !skipLoading
   const handleForceContinue = useCallback(() => {
@@ -767,6 +778,10 @@ function HomeContent() {
         onLogout={handleLogout}
         loggingOut={loggingOut}
         onOpenConfig={() => setCurrentView('config')}
+        showOnlyLogout={shouldRestrictHeaderToLogoutOnly(profile?.role, restrictions)}
+        restrictedHeaderButtons={getRestrictedHeaderButtons(profile?.role, restrictions)}
+        currentUserId={user?.id}
+        projectDbId={projectDbId}
       />
       <main
         className="pt-[88px] sm:pt-[88px] pb-20 sm:pb-24 w-full min-h-0 min-w-0"
@@ -776,7 +791,7 @@ function HomeContent() {
           <ViewHome />
         </div>
         <div style={{ display: currentView === 'filme' ? 'block' : 'none' }}>
-          <ViewFilme projectData={projectData} projectDbId={projectDbId} />
+          <ViewFilme projectData={projectData} projectDbId={projectDbId} profileRole={profile?.role} restrictions={restrictions} />
         </div>
         <div style={{ display: currentView === 'orcamento' ? 'block' : 'none' }}>
           <ViewOrcamento
@@ -819,6 +834,8 @@ function HomeContent() {
             onLogoChange={setCompanyLogoUrl}
             currentProfile={profile}
             isAdmin={profile?.role === 'admin'}
+            restrictions={restrictions}
+            onRefreshRestrictions={refreshRestrictions}
             onRecriarPastaDrive={handleRecriarPastaDrive}
             driveCallbackMessage={driveCallbackMessage}
             onDismissDriveMessage={() => setDriveCallbackMessage(null)}

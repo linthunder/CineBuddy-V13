@@ -1,18 +1,27 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { ScrollText, ClipboardList, Image, CalendarDays, DollarSign, Presentation, CalendarClock, Palette, FolderOpen } from 'lucide-react'
 import PageLayout from '@/components/PageLayout'
 import { resolve } from '@/lib/theme'
 import type { ProjectData } from '@/lib/types'
+import type { ProfileRole } from '@/lib/permissions'
+import { getRoleDisabledFilmeButtons } from '@/lib/permissions'
+import type { ProfileRestriction } from '@/lib/services/profile-restrictions'
 
 interface ViewFilmeProps {
   projectData: ProjectData
   projectDbId?: string | null
+  profileRole?: ProfileRole | null
+  restrictions?: ProfileRestriction[] | null
 }
 
-export default function ViewFilme({ projectData, projectDbId }: ViewFilmeProps) {
+export default function ViewFilme({ projectData, projectDbId, profileRole, restrictions }: ViewFilmeProps) {
   const [driveLoading, setDriveLoading] = useState(false)
+  const disabledButtons = useMemo(
+    () => new Set(getRoleDisabledFilmeButtons(profileRole, restrictions)),
+    [profileRole, restrictions]
+  )
 
   const openDriveRoot = useCallback(async () => {
     if (!projectDbId?.trim()) {
@@ -79,19 +88,23 @@ export default function ViewFilme({ projectData, projectDbId }: ViewFilmeProps) 
 
       {/* Botões em uma única linha ocupando toda a largura */}
       <div className="grid grid-cols-8 gap-2 sm:gap-3 w-full min-w-0">
-        {actions.map((a) => (
+        {actions.map((a) => {
+          const isDisabled = disabledButtons.has(a.id)
+          return (
           <button
             key={a.id}
             type="button"
-            className="streaming-tile flex flex-col items-center justify-center gap-2 min-h-[100px] sm:min-h-[120px] rounded-lg border transition-all duration-300 ease-out cursor-pointer"
+            disabled={isDisabled}
+            className={`streaming-tile flex flex-col items-center justify-center gap-2 min-h-[100px] sm:min-h-[120px] rounded-lg border transition-all duration-300 ease-out ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
             style={{
               backgroundColor: resolve.panel,
               borderColor: resolve.border,
               color: resolve.muted,
               boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
             }}
-            onClick={() => { if (typeof window !== 'undefined') window.alert(`Em breve: ${a.label.toLowerCase()}`) }}
+            onClick={() => { if (!isDisabled && typeof window !== 'undefined') window.alert(`Em breve: ${a.label.toLowerCase()}`) }}
             onMouseEnter={(e) => {
+              if (isDisabled) return
               const el = e.currentTarget
               el.style.transform = 'scale(1.03)'
               el.style.zIndex = '10'
@@ -111,21 +124,22 @@ export default function ViewFilme({ projectData, projectDbId }: ViewFilmeProps) 
             <a.Icon size={32} strokeWidth={1.5} className="flex-shrink-0 transition-colors duration-300" style={{ color: 'currentColor' }} />
             <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-wider text-center leading-tight px-0.5">{a.label}</span>
           </button>
-        ))}
+        )})}
         {/* Botão DRIVE: abre pasta raiz do projeto */}
         <button
           key={driveAction.id}
           type="button"
-          className="streaming-tile flex flex-col items-center justify-center gap-2 min-h-[100px] sm:min-h-[120px] rounded-lg border transition-all duration-300 ease-out cursor-pointer"
+          disabled={driveLoading || disabledButtons.has('drive')}
+          className={`streaming-tile flex flex-col items-center justify-center gap-2 min-h-[100px] sm:min-h-[120px] rounded-lg border transition-all duration-300 ease-out ${disabledButtons.has('drive') ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
           style={{
             backgroundColor: resolve.panel,
             borderColor: resolve.border,
             color: resolve.muted,
             boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
           }}
-          onClick={openDriveRoot}
-          disabled={driveLoading}
+          onClick={() => !disabledButtons.has('drive') && openDriveRoot()}
           onMouseEnter={(e) => {
+            if (disabledButtons.has('drive')) return
             const el = e.currentTarget
             el.style.transform = 'scale(1.03)'
             el.style.zIndex = '10'

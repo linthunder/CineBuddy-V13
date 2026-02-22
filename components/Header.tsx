@@ -4,7 +4,9 @@ import { useState, useCallback, useEffect } from 'react'
 import { Settings, Plus, FolderOpen, Copy, Save, LogOut, X } from 'lucide-react'
 import { resolve, cinema } from '@/lib/theme'
 import type { ProjectData } from '@/lib/types'
-import { listProjects, searchProjects } from '@/lib/services/projects'
+import { listAccessibleProjects, getProjectMembers } from '@/lib/services/projects'
+import { listProfiles } from '@/lib/services/profiles'
+import { PROFILE_LABELS, PROJECT_AUTO_INCLUDE_ROLES } from '@/lib/permissions'
 
 /* ── Estilos reutilizáveis ── */
 const modalInputStyle = { backgroundColor: resolve.bg, borderColor: resolve.border, color: resolve.text }
@@ -26,17 +28,25 @@ interface HeaderProps {
   projectData: ProjectData
   logoUrl?: string
   loadingOpen?: boolean
-  onNewProject: (data: { nome: string; agencia: string; cliente: string; duracao: string; duracaoUnit: 'segundos' | 'minutos' }) => void | Promise<void>
+  onNewProject: (data: { nome: string; agencia: string; cliente: string; duracao: string; duracaoUnit: 'segundos' | 'minutos'; memberIds?: string[] }) => void | Promise<void>
   onSave: () => void
-  onSaveCopy: (data: { nome: string; agencia: string; cliente: string; duracao: string; duracaoUnit: 'segundos' | 'minutos' }) => Promise<void>
+  onSaveCopy: (data: { nome: string; agencia: string; cliente: string; duracao: string; duracaoUnit: 'segundos' | 'minutos'; memberIds?: string[] }) => Promise<void>
   onOpenProject: (id: string) => void
   saving?: boolean
   onLogout?: () => void
   loggingOut?: boolean
   onOpenConfig?: () => void
+  /** Quando true, mostra apenas o botão SAIR. Se restrictedHeaderButtons for passado, usa-o para controle fino. */
+  showOnlyLogout?: boolean
+  /** Botões do header restritos (novo, abrir, salvarCopia, salvar, config). Oculta cada um que estiver na lista. */
+  restrictedHeaderButtons?: string[]
+  /** ID do usuário atual (para seleção de membros) */
+  currentUserId?: string | null
+  /** ID do projeto no banco (para copiar membros ao Salvar cópia) */
+  projectDbId?: string | null
 }
 
-export default function Header({ projectData, logoUrl, loadingOpen = false, onNewProject, onSave, onSaveCopy, onOpenProject, saving = false, onLogout, loggingOut = false, onOpenConfig }: HeaderProps) {
+export default function Header({ projectData, logoUrl, loadingOpen = false, onNewProject, onSave, onSaveCopy, onOpenProject, saving = false, onLogout, loggingOut = false, onOpenConfig, showOnlyLogout = false, restrictedHeaderButtons = [], currentUserId, projectDbId }: HeaderProps) {
   const [modalOpen, setModalOpen] = useState<'novo' | 'abrir' | 'copia' | null>(null)
 
   /* NOVO */
@@ -58,16 +68,28 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
   const [projectsList, setProjectsList] = useState<ProjectSummary[]>([])
   const [loadingProjects, setLoadingProjects] = useState(false)
 
+  /* Membros (usuários com acesso ao projeto) */
+  const [profiles, setProfiles] = useState<{ id: string; name: string; surname: string; email: string; role: string }[]>([])
+  const [profilesLoading, setProfilesLoading] = useState(false)
+  const [selectedMemberIds, setSelectedMemberIds] = useState<Set<string>>(new Set())
+
   const closeModal = useCallback(() => setModalOpen(null), [])
 
-  const openNew = () => {
+  const openNew = async () => {
     setNewNome(''); setNewAgencia(''); setNewCliente(''); setNewDuracao(''); setNewDuracaoUnit('segundos')
     setModalOpen('novo')
+    setProfilesLoading(true)
+    const list = await listProfiles()
+    setProfiles(list as { id: string; name: string; surname: string; email: string; role: string }[])
+    const defaults = new Set(list.filter((p) => PROJECT_AUTO_INCLUDE_ROLES.includes(p.role as 'admin' | 'atendimento' | 'crew')).map((p) => p.id))
+    if (currentUserId) defaults.add(currentUserId)
+    setSelectedMemberIds(defaults)
+    setProfilesLoading(false)
   }
 
   const handleCreateNew = async () => {
     if (!newNome.trim()) return
-    await onNewProject({ nome: newNome.trim(), agencia: newAgencia.trim(), cliente: newCliente.trim(), duracao: newDuracao.trim(), duracaoUnit: newDuracaoUnit })
+    await onNewProject({ nome: newNome.trim(), agencia: newAgencia.trim(), cliente: newCliente.trim(), duracao: newDuracao.trim(), duracaoUnit: newDuracaoUnit, memberIds: Array.from(selectedMemberIds) })
     closeModal()
   }
 
@@ -82,7 +104,7 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
     const delayMs = searchTerm === '' ? 0 : 300
     setLoadingProjects(true)
     const timer = setTimeout(async () => {
-      const list = searchTerm.trim() ? await searchProjects(searchTerm.trim()) : await listProjects()
+      const list = await listAccessibleProjects(searchTerm.trim() || undefined)
       setProjectsList(list as ProjectSummary[])
       setLoadingProjects(false)
     }, delayMs)
@@ -91,14 +113,21 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
 
   const [savingCopy, setSavingCopy] = useState(false)
 
-  const openCopy = () => {
-    // Pré-preenche com os dados do projeto atual + sufixo " (cópia)"
+  const openCopy = async () => {
     setCopyNome(projectData.nome ? `${projectData.nome} (cópia)` : '')
     setCopyAgencia(projectData.agencia || '')
     setCopyCliente(projectData.cliente || '')
     setCopyDuracao(projectData.duracao || '')
     setCopyDuracaoUnit(projectData.duracaoUnit || 'segundos')
     setModalOpen('copia')
+    setProfilesLoading(true)
+    const list = await listProfiles()
+    setProfiles(list as { id: string; name: string; surname: string; email: string; role: string }[])
+    const memberIds = projectDbId ? await getProjectMembers(projectDbId) : []
+    const ids = memberIds.length > 0 ? new Set(memberIds) : new Set(list.filter((p) => PROJECT_AUTO_INCLUDE_ROLES.includes(p.role as 'admin' | 'atendimento' | 'crew')).map((p) => p.id))
+    if (currentUserId) ids.add(currentUserId)
+    setSelectedMemberIds(ids)
+    setProfilesLoading(false)
   }
 
   const handleCreateCopy = async () => {
@@ -110,12 +139,24 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
       cliente: copyCliente.trim(),
       duracao: copyDuracao.trim(),
       duracaoUnit: copyDuracaoUnit,
+      memberIds: Array.from(selectedMemberIds),
     })
     setSavingCopy(false)
     closeModal()
   }
 
+  const toggleMember = (id: string) => {
+    setSelectedMemberIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
   const hasProject = !!projectData.nome
+  const hideAllActions = showOnlyLogout
+  const hideButton = (id: string) => restrictedHeaderButtons.includes(id)
   const jobIdDisplay = `JOB #${projectData.jobId || 'BZ0000'}`
   const displayName = loadingOpen ? 'Carregando projeto...' : (hasProject ? projectData.nome.toUpperCase() : 'NOME DO PROJETO')
   const displaySubline = loadingOpen ? '' : (hasProject
@@ -141,12 +182,16 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
         </div>
         {/* Botões mobile */}
         <div className="flex flex-wrap gap-1.5 sm:hidden justify-end items-center">
-          <button type="button" onClick={openNew} className={`${btnBaseClsMobile} flex items-center gap-1`} style={btnBaseStyle}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Novo</button>
-          <button type="button" onClick={openAbrir} className={`${btnBaseClsMobile} flex items-center gap-1`} style={btnBaseStyle}><FolderOpen size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Abrir</button>
-          <button type="button" onClick={openCopy} className={`${btnBaseClsMobile} flex items-center gap-1`} style={btnBaseStyle}><Copy size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar cópia</button>
-          <button type="button" onClick={onSave} disabled={saving} className={`btn-resolve-hover h-7 px-2 text-xs font-medium uppercase rounded flex items-center gap-1`} style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{saving ? '...' : 'Salvar'}</button>
+          {!hideAllActions && (
+            <>
+              {!hideButton('novo') && <button type="button" onClick={openNew} className={`${btnBaseClsMobile} flex items-center gap-1`} style={btnBaseStyle}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Novo</button>}
+              {!hideButton('abrir') && <button type="button" onClick={openAbrir} className={`${btnBaseClsMobile} flex items-center gap-1`} style={btnBaseStyle}><FolderOpen size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Abrir</button>}
+              {!hideButton('salvarCopia') && <button type="button" onClick={openCopy} className={`${btnBaseClsMobile} flex items-center gap-1`} style={btnBaseStyle}><Copy size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar cópia</button>}
+              {!hideButton('salvar') && <button type="button" onClick={onSave} disabled={saving} className={`btn-resolve-hover h-7 px-2 text-xs font-medium uppercase rounded flex items-center gap-1`} style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{saving ? '...' : 'Salvar'}</button>}
+            </>
+          )}
           {onLogout && <button type="button" onClick={onLogout} disabled={loggingOut} className={`${btnBaseClsMobile} flex items-center gap-1`} style={btnBaseStyle}><LogOut size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{loggingOut ? 'Saindo...' : 'Sair'}</button>}
-          {onOpenConfig && (
+          {!hideAllActions && !hideButton('config') && onOpenConfig && (
             <div className="flex items-center pl-2 ml-1 border-l" style={{ borderColor: resolve.border }}>
               <button type="button" onClick={onOpenConfig} aria-label="Configurações" className="flex items-center justify-center w-8 h-8 rounded transition-colors" style={{ color: resolve.muted }} onMouseEnter={(e) => { e.currentTarget.style.color = resolve.yellow }} onMouseLeave={(e) => { e.currentTarget.style.color = resolve.muted }}>
                 <Settings size={18} strokeWidth={1.5} aria-hidden style={{ color: 'currentColor' }} />
@@ -171,14 +216,18 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
 
       {/* Direita: botões desktop + Config */}
       <div className="hidden sm:flex gap-1.5 items-center">
-        <button type="button" onClick={openNew} className={`${btnBaseCls} flex items-center gap-1.5`} style={btnBaseStyle}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Novo</button>
-        <button type="button" onClick={openAbrir} className={`${btnBaseCls} flex items-center gap-1.5`} style={btnBaseStyle}><FolderOpen size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Abrir</button>
-        <button type="button" onClick={openCopy} className={`${btnBaseCls} flex items-center gap-1.5`} style={btnBaseStyle}><Copy size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar cópia</button>
-        <button type="button" onClick={onSave} disabled={saving} className="btn-resolve-hover h-7 px-3 text-xs font-medium uppercase tracking-wide rounded flex items-center gap-1.5" style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{saving ? 'Salvando...' : 'Salvar'}</button>
+        {!hideAllActions && (
+          <>
+            {!hideButton('novo') && <button type="button" onClick={openNew} className={`${btnBaseCls} flex items-center gap-1.5`} style={btnBaseStyle}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Novo</button>}
+            {!hideButton('abrir') && <button type="button" onClick={openAbrir} className={`${btnBaseCls} flex items-center gap-1.5`} style={btnBaseStyle}><FolderOpen size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Abrir</button>}
+            {!hideButton('salvarCopia') && <button type="button" onClick={openCopy} className={`${btnBaseCls} flex items-center gap-1.5`} style={btnBaseStyle}><Copy size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar cópia</button>}
+            {!hideButton('salvar') && <button type="button" onClick={onSave} disabled={saving} className="btn-resolve-hover h-7 px-3 text-xs font-medium uppercase tracking-wide rounded flex items-center gap-1.5" style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{saving ? 'Salvando...' : 'Salvar'}</button>}
+          </>
+        )}
         {onLogout && (
           <button type="button" onClick={onLogout} disabled={loggingOut} className="btn-resolve-hover h-7 px-3 text-xs font-medium uppercase tracking-wide rounded ml-1 flex items-center gap-1.5" style={{ backgroundColor: 'transparent', color: resolve.muted, borderColor: resolve.border }}><LogOut size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{loggingOut ? 'Saindo...' : 'Sair'}</button>
         )}
-        {onOpenConfig && (
+        {!hideAllActions && !hideButton('config') && onOpenConfig && (
           <div className="flex items-center pl-3 ml-2 border-l" style={{ borderColor: resolve.border }}>
             <button
               type="button"
@@ -224,6 +273,19 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
                     <option value="segundos">Sec.</option>
                     <option value="minutos">Min.</option>
                   </select>
+                </div>
+              </div>
+              <div>
+                <label className={modalLabelCls} style={{ color: resolve.muted }}>Usuários com acesso</label>
+                <div className="max-h-28 overflow-y-auto rounded border p-2 space-y-1" style={{ backgroundColor: resolve.bg, borderColor: resolve.border }}>
+                  {profilesLoading ? <span className="text-[11px]" style={{ color: resolve.muted }}>Carregando...</span> : profiles.map((p) => (
+                    <label key={p.id} className="flex items-center gap-2 cursor-pointer text-[11px]">
+                      <input type="checkbox" checked={selectedMemberIds.has(p.id)} onChange={() => toggleMember(p.id)} />
+                      <span style={{ color: resolve.text }}>{[p.name, p.surname].filter(Boolean).join(' ') || p.email}</span>
+                      <span style={{ color: resolve.muted }}>({PROFILE_LABELS[p.role as keyof typeof PROFILE_LABELS] ?? p.role})</span>
+                    </label>
+                  ))}
+                  {!profilesLoading && profiles.length === 0 && <span className="text-[11px]" style={{ color: resolve.muted }}>Nenhum usuário.</span>}
                 </div>
               </div>
               <div className="flex gap-2 justify-end pt-2">
@@ -312,6 +374,19 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
                     <option value="segundos">Sec.</option>
                     <option value="minutos">Min.</option>
                   </select>
+                </div>
+              </div>
+              <div>
+                <label className={modalLabelCls} style={{ color: resolve.muted }}>Usuários com acesso</label>
+                <div className="max-h-28 overflow-y-auto rounded border p-2 space-y-1" style={{ backgroundColor: resolve.bg, borderColor: resolve.border }}>
+                  {profilesLoading ? <span className="text-[11px]" style={{ color: resolve.muted }}>Carregando...</span> : profiles.map((p) => (
+                    <label key={p.id} className="flex items-center gap-2 cursor-pointer text-[11px]">
+                      <input type="checkbox" checked={selectedMemberIds.has(p.id)} onChange={() => toggleMember(p.id)} />
+                      <span style={{ color: resolve.text }}>{[p.name, p.surname].filter(Boolean).join(' ') || p.email}</span>
+                      <span style={{ color: resolve.muted }}>({PROFILE_LABELS[p.role as keyof typeof PROFILE_LABELS] ?? p.role})</span>
+                    </label>
+                  ))}
+                  {!profilesLoading && profiles.length === 0 && <span className="text-[11px]" style={{ color: resolve.muted }}>Nenhum usuário.</span>}
                 </div>
               </div>
               <div className="flex gap-2 justify-end pt-2">

@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   title: 'CineBuddy - Orçamento Audiovisual',
   description: 'Sistema de orçamento e gestão de projetos audiovisuais',
   manifest: '/manifest.webmanifest',
-  icons: { icon: '/icon.svg' },
+  // icons removidos do metadata para evitar que Next.js gere /icon (aciona @vercel/og que falha no Windows)
   appleWebApp: {
     capable: true,
     title: 'CineBuddy',
@@ -48,6 +48,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" className={`${plusJakarta.variable} ${bebasNeue.variable} ${jetbrainsMono.variable}`} style={{ backgroundColor: '#0d0d0f' }}>
+      <head>
+        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+      </head>
       <body className="min-h-screen antialiased font-sans" style={{ backgroundColor: '#0d0d0f', color: '#e8e8ec' }}>
         <AuthProvider>
           {children}

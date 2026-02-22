@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
+import type { ProfileRole } from '@/lib/permissions'
 
-export type ProfileRole = 'admin' | 'producer'
+export type { ProfileRole }
 
 export interface Profile {
   id: string

@@ -20,11 +20,24 @@ import { ROLES_DEPARTAMENTOS_ORDER } from '@/lib/constants'
 import { APP_ICONS, GALLERY_ICONS } from '@/lib/icons-gallery'
 import { getCompany, saveCompany, uploadCompanyLogo } from '@/lib/services/company'
 import {
-  listProjects, updateProject, deleteProject,
+  listProjects, updateProject, deleteProject, setProjectMembers, getProjectMembers, getUserProjectIds, setUserProjects,
   type ProjectRecord,
 } from '@/lib/services/projects'
 import { addLog, listLogs, type ActivityLog } from '@/lib/services/activity-logs'
-import { listProfiles, updateProfile, type Profile, type ProfileRole } from '@/lib/services/profiles'
+import { listProfiles, updateProfile, type Profile } from '@/lib/services/profiles'
+import { PROFILE_LABELS, getRestrictedConfigTabs, type ProfileRole } from '@/lib/permissions'
+import {
+  setProfileRestrictions,
+  NAV_PAGE_KEYS,
+  NAV_PAGE_LABELS,
+  HEADER_BUTTON_KEYS,
+  HEADER_BUTTON_LABELS,
+  CONFIG_TAB_KEYS,
+  CONFIG_TAB_LABELS,
+  FILME_BUTTON_KEYS,
+  FILME_BUTTON_LABELS,
+  type ProfileRestriction,
+} from '@/lib/services/profile-restrictions'
 import { supabase } from '@/lib/supabase'
 import { X, Copy, Pencil, Save, Plus, RefreshCw, HardDrive } from 'lucide-react'
 
@@ -136,6 +149,8 @@ export interface ViewConfigProps {
   onLogoChange?: (url: string) => void
   currentProfile?: Profile | null
   isAdmin?: boolean
+  restrictions?: import('@/lib/services/profile-restrictions').ProfileRestriction[]
+  onRefreshRestrictions?: () => Promise<void>
   onRecriarPastaDrive?: (projectId: string) => void | Promise<void>
   driveCallbackMessage?: { type: 'success' | 'error'; msg: string } | null
   onDismissDriveMessage?: () => void
@@ -145,12 +160,16 @@ export default function ViewConfig({
   onLogoChange,
   currentProfile,
   isAdmin,
+  restrictions = [],
+  onRefreshRestrictions,
   onRecriarPastaDrive,
   driveCallbackMessage,
   onDismissDriveMessage,
 }: ViewConfigProps) {
   const [activeTab, setActiveTab] = useState<ConfigTab>('company')
   const [iconsSearch, setIconsSearch] = useState('')
+  const restrictedConfigTabs = getRestrictedConfigTabs(currentProfile?.role, restrictions)
+  const visibleTabs = TABS.filter((t) => !restrictedConfigTabs.includes(t.id))
 
   /* ── Dados da produtora ── */
   const [companyName, setCompanyName] = useState('')
@@ -174,9 +193,43 @@ export default function ViewConfig({
   const [uSurname, setUSurname] = useState('')
   const [uEmail, setUEmail] = useState('')
   const [uPassword, setUPassword] = useState('')
-  const [uRole, setURole] = useState<ProfileRole>('producer')
+  const [uRole, setURole] = useState<ProfileRole>('produtor_executivo')
   const [userSaving, setUserSaving] = useState(false)
   const [userError, setUserError] = useState('')
+  const [userProjectIds, setUserProjectIds] = useState<Set<string>>(new Set())
+  const [userProjectsLoading, setUserProjectsLoading] = useState(false)
+  const [userModalProjectsList, setUserModalProjectsList] = useState<ConfigProjectSummary[]>([])
+
+  /* ── Restrições de perfis ── */
+  const [restrictionsEdit, setRestrictionsEdit] = useState<ProfileRestriction[]>([])
+  const [restrictionsSaving, setRestrictionsSaving] = useState(false)
+  const PROFILE_ROLES: ProfileRole[] = ['admin', 'atendimento', 'produtor_executivo', 'crew', 'assistente_direcao', 'convidado']
+
+  useEffect(() => {
+    if (activeTab === 'users' && Array.isArray(restrictions)) {
+      setRestrictionsEdit(restrictions)
+    }
+  }, [activeTab, restrictions])
+
+  const isRestrictionChecked = (role: string, type: ProfileRestriction['restriction_type'], key: string) =>
+    restrictionsEdit.some((r) => r.role === role && r.restriction_type === type && r.restriction_key === key)
+
+  const toggleRestriction = (role: string, type: ProfileRestriction['restriction_type'], key: string) => {
+    const checked = isRestrictionChecked(role, type, key)
+    setRestrictionsEdit((prev) =>
+      checked ? prev.filter((r) => !(r.role === role && r.restriction_type === type && r.restriction_key === key)) : [...prev, { role, restriction_type: type, restriction_key: key }]
+    )
+  }
+
+  const saveRestrictions = async () => {
+    setRestrictionsSaving(true)
+    const res = await setProfileRestrictions(restrictionsEdit)
+    setRestrictionsSaving(false)
+    if (res.ok) {
+      await onRefreshRestrictions?.()
+      if (typeof window !== 'undefined') window.alert('Restrições salvas!')
+    } else if (typeof window !== 'undefined') window.alert(res.error || 'Erro ao salvar.')
+  }
 
   /* ── Google Drive (OAuth) ── */
   const [driveStatus, setDriveStatus] = useState<{ connected: boolean; email?: string; rootFolderId?: string | null } | null>(null)
@@ -185,6 +238,13 @@ export default function ViewConfig({
   const [driveLoading, setDriveLoading] = useState(false)
   const [driveConnecting, setDriveConnecting] = useState(false)
   const [driveDisconnecting, setDriveDisconnecting] = useState(false)
+
+  useEffect(() => {
+    if (restrictedConfigTabs.includes(activeTab)) {
+      const firstVisible = visibleTabs[0]?.id ?? 'company'
+      setActiveTab(firstVisible)
+    }
+  }, [restrictedConfigTabs, activeTab, visibleTabs])
 
   useEffect(() => {
     if (activeTab === 'users') {
@@ -223,15 +283,31 @@ export default function ViewConfig({
     })
   }, [activeTab, isAdmin])
 
-  const openUserModal = (p: null | 'new' | Profile) => {
+  const openUserModal = async (p: null | 'new' | Profile) => {
     if (p && p !== 'new' && !isAdmin && currentProfile && p.id !== currentProfile.id) return
     setUserModal(p)
     setUserError('')
     if (p === 'new') {
-      setUName(''); setUSurname(''); setUEmail(''); setUPassword(''); setURole('producer')
+      setUName(''); setUSurname(''); setUEmail(''); setUPassword(''); setURole('produtor_executivo')
+      setUserProjectIds(new Set())
     } else if (p) {
-      setUName(p.name); setUSurname(p.surname); setUEmail(p.email); setUPassword(''); setURole(p.role)
+      setUName(p.name); setUSurname(p.surname); setUEmail(p.email); setUPassword(''); setURole((String(p.role) === 'producer' ? 'produtor_executivo' : p.role) as ProfileRole)
+      setUserProjectsLoading(true)
+      const [projList, ids] = await Promise.all([listProjects(), getUserProjectIds(p.id)])
+      setUserModalProjectsList(projList as ConfigProjectSummary[])
+      setUserProjectIds(new Set(ids))
+      setUserProjectsLoading(false)
     }
+  }
+
+  const toggleUserProject = (projectId: string) => {
+    if (!userModal || userModal === 'new') return
+    setUserProjectIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(projectId)) next.delete(projectId)
+      else next.add(projectId)
+      return next
+    })
   }
 
   const MAX_ADMINS = 3
@@ -280,6 +356,11 @@ export default function ViewConfig({
             setUserError(error.message)
             return
           }
+        }
+        const projRes = await setUserProjects(userModal.id, Array.from(userProjectIds))
+        if (!projRes.ok) {
+          setUserError(projRes.error || 'Falha ao salvar projetos.')
+          return
         }
         await addLog({ action: 'update', entityType: 'profile', entityId: userModal.id, entityName: `${uName.trim()} ${uSurname.trim()}`.trim() || userModal.email })
         const list = await listProfiles()
@@ -756,6 +837,10 @@ export default function ViewConfig({
   const [pCliente, setPCliente] = useState('')
   const [pDuracao, setPDuracao] = useState('')
   const [pDuracaoUnit, setPDuracaoUnit] = useState<'segundos' | 'minutos'>('segundos')
+  const [pMemberIds, setPMemberIds] = useState<Set<string>>(new Set())
+  const [pMembersLoading, setPMembersLoading] = useState(false)
+  const [projectModalProfiles, setProjectModalProfiles] = useState<Profile[]>([])
+  const projectModalLoadingForRef = useRef<string | null>(null)
 
   const loadProjects = useCallback(async () => {
     setProjectsLoading(true)
@@ -768,13 +853,36 @@ export default function ViewConfig({
     if (activeTab === 'projects') loadProjects()
   }, [activeTab, loadProjects])
 
-  const openProjectModal = (proj: ConfigProjectSummary) => {
+  const openProjectModal = async (proj: ConfigProjectSummary) => {
+    projectModalLoadingForRef.current = proj.id
     setPNome(proj.nome)
     setPAgencia(proj.agencia)
     setPCliente(proj.cliente)
     setPDuracao(proj.duracao || '')
     setPDuracaoUnit((proj.duracao_unit as 'segundos' | 'minutos') || 'segundos')
     setProjectModal(proj)
+    setPMemberIds(new Set())
+    setPMembersLoading(true)
+    try {
+      const [profList, ids] = await Promise.all([listProfiles(), getProjectMembers(proj.id)])
+      if (projectModalLoadingForRef.current !== proj.id) return
+      setProjectModalProfiles(profList)
+      setPMemberIds(new Set(ids))
+    } finally {
+      if (projectModalLoadingForRef.current === proj.id) {
+        projectModalLoadingForRef.current = null
+      }
+      setPMembersLoading(false)
+    }
+  }
+
+  const toggleProjectMember = (id: string) => {
+    setPMemberIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   }
 
   const saveProjectEdit = async () => {
@@ -786,6 +894,11 @@ export default function ViewConfig({
       duracao: pDuracao.trim(),
       duracao_unit: pDuracaoUnit,
     })
+    const memRes = await setProjectMembers(projectModal.id, Array.from(pMemberIds))
+    if (!memRes.ok) {
+      if (typeof window !== 'undefined') window.alert(memRes.error || 'Erro ao salvar membros.')
+      return
+    }
     await addLog({ action: 'update', entityType: 'project', entityId: projectModal.id, entityName: pNome.trim(), details: { job_id: projectModal.job_id } })
     setProjectModal(null)
     loadProjects()
@@ -872,7 +985,7 @@ export default function ViewConfig({
     <PageLayout title="Configurações" contentLayout="single">
       {/* ── Abas ── */}
       <div className="flex flex-wrap gap-1.5 mb-4 rounded border p-2" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
-        {TABS.map((tab) => {
+        {visibleTabs.map((tab) => {
           const active = activeTab === tab.id
           return (
             <button
@@ -1168,12 +1281,94 @@ export default function ViewConfig({
                 <div><label className={labelCls} style={{ color: resolve.muted }}>E-mail</label><input type="email" className={inputCls} style={inputStyle} value={uEmail} onChange={(e) => setUEmail(e.target.value)} disabled={userModal !== 'new'} /></div>
                 <div><label className={labelCls} style={{ color: resolve.muted }}>Senha {userModal !== 'new' ? '(deixe em branco para não alterar)' : ''}</label><input type="password" className={inputCls} style={inputStyle} value={uPassword} onChange={(e) => setUPassword(e.target.value)} placeholder={userModal !== 'new' ? '••••••••' : ''} minLength={6} /></div>
                 {isAdmin && (
-                  <div><label className={labelCls} style={{ color: resolve.muted }}>Perfil</label><select className={inputCls} style={inputStyle} value={uRole} onChange={(e) => setURole(e.target.value as ProfileRole)}><option value="producer">Produtor</option><option value="admin">Administrador</option></select></div>
+                  <div><label className={labelCls} style={{ color: resolve.muted }}>Perfil</label><select className={inputCls} style={inputStyle} value={uRole} onChange={(e) => setURole(e.target.value as ProfileRole)}>{(['admin', 'atendimento', 'produtor_executivo', 'crew', 'assistente_direcao', 'convidado'] as const).map((r) => <option key={r} value={r}>{PROFILE_LABELS[r]}</option>)}</select></div>
+                )}
+                {userModal && userModal !== 'new' && (
+                  <div>
+                    <label className={labelCls} style={{ color: resolve.muted }}>Projetos com acesso</label>
+                    <div className="max-h-28 overflow-y-auto rounded border p-2 space-y-1" style={{ backgroundColor: resolve.bg, borderColor: resolve.border }}>
+                      {userProjectsLoading ? <span className="text-[11px]" style={{ color: resolve.muted }}>Carregando...</span> : userModalProjectsList.map((proj) => (
+                        <label key={proj.id} className="flex items-center gap-2 cursor-pointer text-[11px]">
+                          <input type="checkbox" checked={userProjectIds.has(proj.id)} onChange={() => toggleUserProject(proj.id)} />
+                          <span style={{ color: resolve.text }}>{proj.nome}</span>
+                          <span style={{ color: resolve.muted }}>#{proj.job_id}</span>
+                        </label>
+                      ))}
+                      {!userProjectsLoading && userModalProjectsList.length === 0 && <span className="text-[11px]" style={{ color: resolve.muted }}>Nenhum projeto.</span>}
+                    </div>
+                    <p className="text-[10px] mt-0.5" style={{ color: resolve.muted }}>Restrições do perfil: {PROFILE_LABELS[uRole]}</p>
+                  </div>
                 )}
                 {userError && <div className="text-[11px]" style={{ color: cinema.danger }}>{userError}</div>}
                 <div className="flex gap-2 justify-end">
                   <button type="button" onClick={() => setUserModal(null)} className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }}>Cancelar</button>
                   <button type="button" onClick={saveUser} disabled={userSaving} className={`${btnSmall} flex items-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{userSaving ? 'Salvando...' : 'Salvar'}</button>
+                </div>
+              </div>
+            )}
+            {isAdmin && (
+              <div className="mt-4 rounded-lg overflow-hidden" style={{ borderColor: resolve.border, borderWidth: 1, borderStyle: 'solid', backgroundColor: resolve.panel }}>
+                <div className="px-4 py-3 border-b" style={{ borderColor: resolve.border }}>
+                  <h3 className="text-[11px] font-medium uppercase tracking-wider" style={{ color: resolve.text }}>Restrições de perfis</h3>
+                  <p className="text-[10px] mt-1" style={{ color: resolve.muted }}>Marque os itens que cada perfil não pode acessar. PROJETO é controlado em Projetos com acesso.</p>
+                </div>
+                <div className="overflow-x-auto p-4">
+                  <table className="w-full text-[10px] border-collapse" style={{ color: resolve.text, minWidth: 800 }}>
+                    <thead>
+                      <tr>
+                        <th className="text-left text-[10px] uppercase pb-2 pr-4 pt-1 align-bottom" style={{ color: resolve.muted, borderBottom: `2px solid ${resolve.border}`, minWidth: 120 }}>Perfil</th>
+                        <th colSpan={NAV_PAGE_KEYS.length} className="text-center text-[10px] uppercase pb-2 px-2 pt-1 align-bottom" style={{ color: resolve.muted, backgroundColor: 'rgba(107, 91, 149, 0.15)', borderBottom: `2px solid ${resolve.border}`, borderLeft: `2px solid ${resolve.border}` }}>Páginas (nav)</th>
+                        <th colSpan={HEADER_BUTTON_KEYS.length} className="text-center text-[10px] uppercase pb-2 px-2 pt-1 align-bottom" style={{ color: resolve.muted, backgroundColor: 'rgba(107, 99, 130, 0.2)', borderBottom: `2px solid ${resolve.border}`, borderLeft: `2px solid ${resolve.border}` }}>Header</th>
+                        <th colSpan={CONFIG_TAB_KEYS.length} className="text-center text-[10px] uppercase pb-2 px-2 pt-1 align-bottom" style={{ color: resolve.muted, backgroundColor: 'rgba(92, 124, 153, 0.12)', borderBottom: `2px solid ${resolve.border}`, borderLeft: `2px solid ${resolve.border}` }}>Abas Config</th>
+                        <th colSpan={FILME_BUTTON_KEYS.length} className="text-center text-[10px] uppercase pb-2 px-2 pt-1 align-bottom" style={{ color: resolve.muted, backgroundColor: 'rgba(245, 197, 24, 0.08)', borderBottom: `2px solid ${resolve.border}`, borderLeft: `2px solid ${resolve.border}` }}>Botões Filme</th>
+                      </tr>
+                      <tr>
+                        <th className="pb-2 pr-4" style={{ borderBottom: `1px solid ${resolve.border}` }} />
+                        {NAV_PAGE_KEYS.map((k) => <th key={`nav-${k}`} className="text-center pb-2 px-2 font-normal" style={{ color: resolve.muted, backgroundColor: 'rgba(107, 91, 149, 0.08)', borderBottom: `1px solid ${resolve.border}`, borderLeft: k === NAV_PAGE_KEYS[0] ? `2px solid ${resolve.border}` : undefined }}>{NAV_PAGE_LABELS[k]}</th>)}
+                        {HEADER_BUTTON_KEYS.map((k, i) => <th key={`header-${k}`} className="text-center pb-2 px-2 font-normal" style={{ color: resolve.muted, backgroundColor: 'rgba(107, 99, 130, 0.1)', borderBottom: `1px solid ${resolve.border}`, borderLeft: i === 0 ? `2px solid ${resolve.border}` : undefined }}>{HEADER_BUTTON_LABELS[k]}</th>)}
+                        {CONFIG_TAB_KEYS.map((k, i) => <th key={`cfg-${k}`} className="text-center pb-2 px-2 font-normal" style={{ color: resolve.muted, backgroundColor: 'rgba(92, 124, 153, 0.06)', borderBottom: `1px solid ${resolve.border}`, borderLeft: i === 0 ? `2px solid ${resolve.border}` : undefined }}>{CONFIG_TAB_LABELS[k]}</th>)}
+                        {FILME_BUTTON_KEYS.map((k, i) => <th key={`filme-${k}`} className="text-center pb-2 px-2 font-normal" style={{ color: resolve.muted, backgroundColor: 'rgba(245, 197, 24, 0.05)', borderBottom: `1px solid ${resolve.border}`, borderLeft: i === 0 ? `2px solid ${resolve.border}` : undefined }}>{FILME_BUTTON_LABELS[k]}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {PROFILE_ROLES.map((role, ri) => (
+                        <tr key={role} style={{ backgroundColor: ri % 2 === 1 ? 'rgba(0,0,0,0.15)' : undefined }}>
+                          <td className="py-2 pr-4 font-medium" style={{ color: resolve.text, borderBottom: `1px solid ${resolve.border}` }}>{PROFILE_LABELS[role]}</td>
+                          {NAV_PAGE_KEYS.map((k, i) => (
+                            <td key={`${role}-nav-${k}`} className="py-2 px-2 text-center" style={{ borderBottom: `1px solid ${resolve.border}`, borderLeft: i === 0 ? `2px solid ${resolve.border}` : undefined, backgroundColor: 'rgba(107, 91, 149, 0.04)' }}>
+                              {role === 'admin' ? <span style={{ color: resolve.muted }}>—</span> : (
+                                <input type="checkbox" checked={isRestrictionChecked(role, 'nav_page', k)} onChange={() => toggleRestriction(role, 'nav_page', k)} className="cursor-pointer" />
+                              )}
+                            </td>
+                          ))}
+                          {HEADER_BUTTON_KEYS.map((k, i) => (
+                            <td key={`${role}-header-${k}`} className="py-2 px-2 text-center" style={{ borderBottom: `1px solid ${resolve.border}`, borderLeft: i === 0 ? `2px solid ${resolve.border}` : undefined, backgroundColor: 'rgba(107, 99, 130, 0.06)' }}>
+                              {role === 'admin' ? <span style={{ color: resolve.muted }}>—</span> : (
+                                <input type="checkbox" checked={isRestrictionChecked(role, 'header_button', k)} onChange={() => toggleRestriction(role, 'header_button', k)} className="cursor-pointer" />
+                              )}
+                            </td>
+                          ))}
+                          {CONFIG_TAB_KEYS.map((k, i) => (
+                            <td key={`${role}-cfg-${k}`} className="py-2 px-2 text-center" style={{ borderBottom: `1px solid ${resolve.border}`, borderLeft: i === 0 ? `2px solid ${resolve.border}` : undefined, backgroundColor: 'rgba(92, 124, 153, 0.03)' }}>
+                              {role === 'admin' ? <span style={{ color: resolve.muted }}>—</span> : (
+                                <input type="checkbox" checked={isRestrictionChecked(role, 'config_tab', k)} onChange={() => toggleRestriction(role, 'config_tab', k)} className="cursor-pointer" />
+                              )}
+                            </td>
+                          ))}
+                          {FILME_BUTTON_KEYS.map((k, i) => (
+                            <td key={`${role}-filme-${k}`} className="py-2 px-2 text-center" style={{ borderBottom: `1px solid ${resolve.border}`, borderLeft: i === 0 ? `2px solid ${resolve.border}` : undefined, backgroundColor: 'rgba(245, 197, 24, 0.03)' }}>
+                              {role === 'admin' ? <span style={{ color: resolve.muted }}>—</span> : (
+                                <input type="checkbox" checked={isRestrictionChecked(role, 'filme_button', k)} onChange={() => toggleRestriction(role, 'filme_button', k)} className="cursor-pointer" />
+                              )}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="px-4 py-3 border-t flex justify-end" style={{ borderColor: resolve.border }}>
+                  <button type="button" onClick={saveRestrictions} disabled={restrictionsSaving} className={`${btnSmall} flex items-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{restrictionsSaving ? 'Salvando...' : 'Salvar restrições'}</button>
                 </div>
               </div>
             )}
@@ -1554,6 +1749,19 @@ export default function ViewConfig({
                     <option value="segundos">Sec.</option>
                     <option value="minutos">Min.</option>
                   </select>
+                </div>
+              </div>
+              <div>
+                <label className={labelCls} style={{ color: resolve.muted }}>Usuários com acesso</label>
+                <div className="max-h-28 overflow-y-auto rounded border p-2 space-y-1" style={{ backgroundColor: resolve.bg, borderColor: resolve.border }}>
+                  {pMembersLoading ? <span className="text-[11px]" style={{ color: resolve.muted }}>Carregando...</span> : projectModalProfiles.map((p) => (
+                    <label key={p.id} className="flex items-center gap-2 cursor-pointer text-[11px]">
+                      <input type="checkbox" checked={pMemberIds.has(p.id)} onChange={() => toggleProjectMember(p.id)} />
+                      <span style={{ color: resolve.text }}>{[p.name, p.surname].filter(Boolean).join(' ') || p.email}</span>
+                      <span style={{ color: resolve.muted }}>({PROFILE_LABELS[p.role as keyof typeof PROFILE_LABELS] ?? p.role})</span>
+                    </label>
+                  ))}
+                  {!pMembersLoading && projectModalProfiles.length === 0 && <span className="text-[11px]" style={{ color: resolve.muted }}>Nenhum usuário.</span>}
                 </div>
               </div>
               <div className="flex gap-2 justify-end pt-2">

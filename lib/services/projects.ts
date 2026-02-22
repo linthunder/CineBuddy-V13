@@ -62,6 +62,21 @@ export async function searchProjects(term: string): Promise<Pick<ProjectRecord, 
   return data ?? []
 }
 
+/** Lista projetos acessíveis ao usuário atual (modal ABRIR). Usa API para filtrar por project_members. */
+export async function listAccessibleProjects(search?: string): Promise<Pick<ProjectRecord, 'id' | 'job_id' | 'nome' | 'agencia' | 'cliente' | 'duracao' | 'duracao_unit' | 'updated_at'>[]> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    const url = `/api/projects/list${search ? `?search=${encodeURIComponent(search)}` : ''}`
+    const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    if (!res.ok) return []
+    const data = await res.json()
+    return Array.isArray(data) ? data : []
+  } catch {
+    return []
+  }
+}
+
 /** Carrega um projeto completo pelo ID. */
 export async function getProject(id: string): Promise<ProjectRecord | null> {
   const { data, error } = await supabase
@@ -106,6 +121,87 @@ export async function updateProject(id: string, updates: Partial<ProjectInsert>)
     return null
   }
   return data
+}
+
+/** Define os membros de um projeto. Usa Supabase direto (requer RLS policies em project_members). */
+export async function setProjectMembers(projectId: string, memberIds: string[]): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { ok: false, error: 'Não autorizado.' }
+
+    const finalMemberIds = [...new Set([...memberIds, user.id])]
+
+    const { error: delErr } = await supabase.from('project_members').delete().eq('project_id', projectId)
+    if (delErr) {
+      console.error('[setProjectMembers] delete', delErr)
+      return { ok: false, error: delErr.message ?? 'Erro ao salvar membros.' }
+    }
+
+    if (finalMemberIds.length > 0) {
+      const rows = finalMemberIds.map((userId) => ({ project_id: projectId, user_id: userId }))
+      const { error: insertErr } = await supabase.from('project_members').insert(rows)
+      if (insertErr) {
+        console.error('[setProjectMembers] insert', insertErr)
+        return { ok: false, error: insertErr.message ?? 'Erro ao salvar membros.' }
+      }
+    }
+
+    return { ok: true }
+  } catch (e) {
+    console.error('[setProjectMembers]', e)
+    return { ok: false, error: e instanceof Error ? e.message : 'Erro ao salvar membros.' }
+  }
+}
+
+/** Retorna os IDs dos projetos aos quais um usuário tem acesso (via API). */
+export async function getUserProjectIds(userId: string): Promise<string[]> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    const res = await fetch(`/api/users/${userId}/projects`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    if (!res.ok) return []
+    const data = await res.json().catch(() => ({})) as { projectIds?: string[] }
+    return Array.isArray(data.projectIds) ? data.projectIds : []
+  } catch {
+    return []
+  }
+}
+
+/** Define os projetos aos quais um usuário tem acesso (via API). Sincroniza em uma única chamada. */
+export async function setUserProjects(userId: string, projectIds: string[]): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    const res = await fetch(`/api/users/${userId}/projects`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ projectIds }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) return { ok: false, error: (data as { error?: string }).error ?? 'Erro ao salvar projetos.' }
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Erro ao salvar projetos.' }
+  }
+}
+
+/** Retorna os IDs dos membros de um projeto. Usa Supabase direto (requer RLS policies em project_members). */
+export async function getProjectMembers(projectId: string): Promise<string[]> {
+  try {
+    const { data, error } = await supabase
+      .from('project_members')
+      .select('user_id')
+      .eq('project_id', projectId)
+
+    if (error) {
+      console.error('[getProjectMembers]', error)
+      return []
+    }
+    return (data ?? []).map((r) => r.user_id)
+  } catch (e) {
+    console.error('[getProjectMembers]', e)
+    return []
+  }
 }
 
 /** Remove um projeto. */

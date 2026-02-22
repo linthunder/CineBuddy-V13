@@ -25,16 +25,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Apenas administradores podem criar usuários.' }, { status: 403 })
     }
 
+    const VALID_ROLES = ['admin', 'atendimento', 'produtor_executivo', 'crew', 'assistente_direcao', 'convidado'] as const
     const body = await request.json()
-    const { name = '', surname = '', email = '', password = '', role = 'producer' } = body as {
-      name?: string; surname?: string; email?: string; password?: string; role?: 'admin' | 'producer'
+    const { name = '', surname = '', email = '', password = '', role = 'produtor_executivo' } = body as {
+      name?: string; surname?: string; email?: string; password?: string; role?: string
     }
 
     if (!email?.trim() || !password?.trim()) {
       return NextResponse.json({ error: 'E-mail e senha são obrigatórios.' }, { status: 400 })
     }
-    if (role !== 'admin' && role !== 'producer') {
-      return NextResponse.json({ error: 'Perfil inválido (admin ou produtor).' }, { status: 400 })
+    if (!VALID_ROLES.includes(role as typeof VALID_ROLES[number])) {
+      return NextResponse.json({ error: 'Perfil inválido.' }, { status: 400 })
     }
 
     if (role === 'admin') {
