@@ -68,7 +68,7 @@ export async function listAccessibleProjects(search?: string): Promise<Pick<Proj
     const { data: { session } } = await supabase.auth.getSession()
     const token = session?.access_token
     const url = `/api/projects/list${search ? `?search=${encodeURIComponent(search)}` : ''}`
-    const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    const res = await fetch(url, { cache: 'no-store', headers: token ? { Authorization: `Bearer ${token}` } : {} })
     if (!res.ok) return []
     const data = await res.json()
     return Array.isArray(data) ? data : []
@@ -107,11 +107,12 @@ export async function createProject(project: Partial<ProjectInsert>): Promise<Pr
   return data
 }
 
-/** Atualiza um projeto existente. */
+/** Atualiza um projeto existente. job_id é imutável e nunca é alterado. */
 export async function updateProject(id: string, updates: Partial<ProjectInsert>): Promise<ProjectRecord | null> {
+  const { job_id: _jobId, ...safeUpdates } = updates as Partial<ProjectInsert> & { job_id?: string }
   const { data, error } = await supabase
     .from('projects')
-    .update(updates)
+    .update(safeUpdates)
     .eq('id', id)
     .select()
     .single()

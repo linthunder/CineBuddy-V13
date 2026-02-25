@@ -37,7 +37,7 @@ export default function BottomNav({ currentView, onViewChange, disabledViews = [
       className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around py-2 border-t"
       style={{
         backgroundColor: resolve.panel,
-        borderColor: resolve.purple,
+        borderColor: resolve.yellow,
         minHeight: 52,
         paddingLeft: 'var(--page-gutter)',
         paddingRight: 'var(--page-gutter)',

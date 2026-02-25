@@ -39,17 +39,17 @@ import {
   type ProfileRestriction,
 } from '@/lib/services/profile-restrictions'
 import { supabase } from '@/lib/supabase'
-import { X, Copy, Pencil, Save, Plus, RefreshCw, HardDrive } from 'lucide-react'
+import { X, Copy, Pencil, Save, Plus, RefreshCw, HardDrive, Download, Upload } from 'lucide-react'
 
 type ConfigTab = 'company' | 'drive' | 'users' | 'collaborators' | 'cache_tables' | 'roles' | 'projects' | 'icons' | 'logs'
 
 const TABS: { id: ConfigTab; label: string }[] = [
-  { id: 'company', label: 'MINHA PRODUTORA' },
+  { id: 'company', label: 'PRODUTORA' },
   { id: 'drive', label: 'DRIVE' },
   { id: 'users', label: 'USUÁRIOS' },
   { id: 'collaborators', label: 'COLABORADORES' },
-  { id: 'cache_tables', label: 'TABELAS DE CACHÊ' },
-  { id: 'roles', label: 'FUNÇÕES E CACHÊS' },
+  { id: 'cache_tables', label: 'TABELAS' },
+  { id: 'roles', label: 'FUNÇÕES' },
   { id: 'projects', label: 'PROJETOS' },
   { id: 'icons', label: 'ÍCONES' },
   { id: 'logs', label: 'LOGS' },
@@ -57,6 +57,14 @@ const TABS: { id: ConfigTab; label: string }[] = [
 
 const inputCls = 'w-full px-2 py-1.5 text-[11px] rounded border'
 const inputStyle = { backgroundColor: resolve.bg, borderColor: resolve.border, color: resolve.text }
+/** Inputs/selects em cima de cabeçalhos amarelos: cinza escuro do cinema */
+const inputOnYellowHeaderStyle = { backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }
+const modalTitleStyle = { color: resolve.yellowDark }
+const modalPrimaryBtnStyle = { backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }
+/** Botões em cima de headers amarelos: cinza escuro padrão com texto claro, boa leitura sobre amarelo */
+const headerBtnOnYellowStyle = { backgroundColor: resolve.panel, color: resolve.yellow, border: '1px solid rgba(255,255,255,0.2)' }
+/** Botões Config: ícone apenas, cinza escuro, sem borda, hover sutil */
+const configIconBtnStyle = { backgroundColor: resolve.panel, color: resolve.muted, border: 'none' }
 const labelCls = 'block text-[11px] uppercase mb-1'
 const thCls = 'text-left text-[11px] uppercase pb-2 pr-3 whitespace-nowrap'
 const tdCls = 'py-1.5 pr-3 text-[11px] border-b align-middle'
@@ -285,6 +293,10 @@ export default function ViewConfig({
 
   const openUserModal = async (p: null | 'new' | Profile) => {
     if (p && p !== 'new' && !isAdmin && currentProfile && p.id !== currentProfile.id) return
+    // Ao trocar de usuário: salvar projetos do usuário atual antes de carregar o próximo (evita perder alterações)
+    if (userModal && userModal !== 'new' && userModal.id && p && p !== 'new' && p.id !== userModal.id) {
+      await setUserProjects(userModal.id, Array.from(userProjectIds))
+    }
     setUserModal(p)
     setUserError('')
     if (p === 'new') {
@@ -362,7 +374,7 @@ export default function ViewConfig({
           setUserError(projRes.error || 'Falha ao salvar projetos.')
           return
         }
-        await addLog({ action: 'update', entityType: 'profile', entityId: userModal.id, entityName: `${uName.trim()} ${uSurname.trim()}`.trim() || userModal.email })
+        await addLog({ action: 'update', entityType: 'profile', entityId: userModal.id, entityName: `${uName.trim()} ${uSurname.trim()}`.trim() || userModal.email, details: { page: 'Usuários' } })
         const list = await listProfiles()
         setProfiles(list)
         setUserModal(null)
@@ -430,7 +442,7 @@ export default function ViewConfig({
     })
     setCompanySaving(false)
     if (result) {
-      await addLog({ action: 'update', entityType: 'company', entityName: companyFantasy || companyName || 'Produtora' })
+      await addLog({ action: 'update', entityType: 'company', entityName: companyFantasy || companyName || 'Produtora', details: { page: 'Dados da produtora' } })
       if (typeof window !== 'undefined') window.alert('Dados da produtora salvos com sucesso!')
     } else {
       if (typeof window !== 'undefined') window.alert('Erro ao salvar. Verifique o console.')
@@ -488,7 +500,7 @@ export default function ViewConfig({
       if (created) await addLog({ action: 'create', entityType: 'collaborator', entityId: created.id, entityName: created.nome })
     } else if (collabModal) {
       await updateCollaborator(collabModal.id, data)
-      await addLog({ action: 'update', entityType: 'collaborator', entityId: collabModal.id, entityName: data.nome })
+      await addLog({ action: 'update', entityType: 'collaborator', entityId: collabModal.id, entityName: data.nome, details: { page: 'Colaboradores' } })
     }
     setCollabModal(null)
     loadCollabs()
@@ -576,7 +588,7 @@ export default function ViewConfig({
       }
     } else if (cacheTableModal) {
       await updateCacheTable(cacheTableModal.id, { name: ctName.trim(), description: ctDescription.trim(), source: ctSource.trim() })
-      await addLog({ action: 'update', entityType: 'cache_table', entityId: cacheTableModal.id, entityName: ctName.trim() })
+      await addLog({ action: 'update', entityType: 'cache_table', entityId: cacheTableModal.id, entityName: ctName.trim(), details: { page: 'Tabelas de cachê' } })
       setCacheTableModal(null)
       loadCacheTables()
     }
@@ -627,6 +639,7 @@ export default function ViewConfig({
   const [rDia, setRDia] = useState('')
   const [rSemana, setRSemana] = useState('')
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null)
+  const [hoveredRestrictionCol, setHoveredRestrictionCol] = useState<number | null>(null)
   const [draggedRoleId, setDraggedRoleId] = useState<string | null>(null)
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
 
@@ -675,7 +688,7 @@ export default function ViewConfig({
       if (created) await addLog({ action: 'create', entityType: 'role', entityId: created.id, entityName: created.funcao })
     } else if (roleModal) {
       await updateRole(roleModal.id, base)
-      await addLog({ action: 'update', entityType: 'role', entityId: roleModal.id, entityName: base.funcao })
+      await addLog({ action: 'update', entityType: 'role', entityId: roleModal.id, entityName: base.funcao, details: { page: 'Funções e cachês' } })
     }
     setRoleModal(null)
     loadRoles()
@@ -899,7 +912,7 @@ export default function ViewConfig({
       if (typeof window !== 'undefined') window.alert(memRes.error || 'Erro ao salvar membros.')
       return
     }
-    await addLog({ action: 'update', entityType: 'project', entityId: projectModal.id, entityName: pNome.trim(), details: { job_id: projectModal.job_id } })
+    await addLog({ action: 'update', entityType: 'project', entityId: projectModal.id, entityName: pNome.trim(), details: { job_id: projectModal.job_id, page: 'Projetos' } })
     setProjectModal(null)
     loadProjects()
     fetch('/api/drive/sync-project', {
@@ -961,9 +974,16 @@ export default function ViewConfig({
       )
     : logs
 
-  const formatActionLabel = (action: string) => {
+  const formatActionLabel = (action: string, details?: Record<string, unknown>) => {
     const map: Record<string, string> = { create: 'Criou', update: 'Atualizou', delete: 'Excluiu', open: 'Abrir', save: 'Salvou', copy: 'Copiou', upload: 'Enviou', import: 'Importou' }
-    return map[action] ?? action
+    const base = map[action] ?? action
+    if (action !== 'update' || !details) return base
+    const parts: string[] = []
+    if (details.page && typeof details.page === 'string') parts.push(details.page)
+    if (Array.isArray(details.budgetChanges) && details.budgetChanges.length > 0) {
+      parts.push(...(details.budgetChanges as string[]))
+    }
+    return parts.length > 0 ? `${base}: ${parts.join('; ')}` : base
   }
   const formatEntityLabel = (entityType: string) => {
     const map: Record<string, string> = { project: 'Projeto', company: 'Produtora', collaborator: 'Colaborador', role: 'Função', cache_table: 'Tabela de cachê', profile: 'Usuário', logo: 'Logo' }
@@ -984,33 +1004,37 @@ export default function ViewConfig({
   return (
     <PageLayout title="Configurações" contentLayout="single">
       {/* ── Abas ── */}
-      <div className="flex flex-wrap gap-1.5 mb-4 rounded border p-2" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
-        {visibleTabs.map((tab) => {
+      <div className="flex flex-wrap items-center gap-0 mb-4 rounded border p-1.5" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
+        {visibleTabs.map((tab, idx) => {
           const active = activeTab === tab.id
           return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className="btn-resolve-hover px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider rounded transition-colors"
-              style={{
-                backgroundColor: active ? resolve.yellowDark : 'transparent',
-                border: `1px solid ${active ? resolve.yellow : 'transparent'}`,
-                color: active ? resolve.bg : resolve.muted,
-              }}
-              onMouseEnter={(e) => {
-                if (!active) {
-                  e.currentTarget.style.color = resolve.yellow
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!active) {
-                  e.currentTarget.style.color = resolve.muted
-                }
-              }}
-            >
-              {tab.label}
-            </button>
+            <React.Fragment key={tab.id}>
+              <button
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className="btn-resolve-hover flex-1 min-w-0 px-2 py-1 text-[11px] font-medium uppercase tracking-wider rounded transition-colors"
+                style={{
+                  backgroundColor: active ? resolve.yellowDark : 'transparent',
+                  border: `1px solid ${active ? resolve.yellow : 'transparent'}`,
+                  color: active ? resolve.bg : resolve.muted,
+                }}
+                onMouseEnter={(e) => {
+                  if (!active) {
+                    e.currentTarget.style.color = resolve.yellow
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) {
+                    e.currentTarget.style.color = resolve.muted
+                  }
+                }}
+              >
+                {tab.label}
+              </button>
+              {idx < visibleTabs.length - 1 && (
+                <span className="flex-shrink-0 w-px mx-0.5 self-center" style={{ height: 14, backgroundColor: resolve.border }} aria-hidden />
+              )}
+            </React.Fragment>
           )
         })}
       </div>
@@ -1018,9 +1042,11 @@ export default function ViewConfig({
       {/* ═══ MINHA PRODUTORA ═══ */}
       {activeTab === 'company' && (
         <div className="rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
-          <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between" style={{ borderColor: resolve.border, color: resolve.muted }}>
-            <span>DADOS DA PRODUTORA</span>
-            <button type="button" className={`${btnSmall} btn-resolve-hover flex items-center justify-center gap-1.5`} style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }} onClick={handleSaveCompany} disabled={companySaving} title={companySaving ? 'Salvando...' : 'Salvar'} aria-label={companySaving ? 'Salvando...' : 'Salvar'}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{companySaving ? '...' : ''}</button>
+          <div
+            className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider"
+            style={{ backgroundColor: resolve.yellowDark, borderColor: 'rgba(0,0,0,0.2)', color: resolve.bg }}
+          >
+            <span style={{ color: resolve.bg }}>DADOS DA PRODUTORA</span>
           </div>
           <div className="p-3 sm:p-4 space-y-4">
             {/* Logo upload */}
@@ -1089,6 +1115,9 @@ export default function ViewConfig({
               <div><label className={labelCls} style={{ color: resolve.muted }}>Site</label><input type="text" className={inputCls} style={inputStyle} value={companySite} onChange={(e) => setCompanySite(e.target.value)} /></div>
             </div>
             <div><label className={labelCls} style={{ color: resolve.muted }}>Endereço Completo</label><input type="text" className={inputCls} style={inputStyle} value={companyAddr} onChange={(e) => setCompanyAddr(e.target.value)} /></div>
+            <div className="flex justify-end pt-2 border-t" style={{ borderColor: resolve.border }}>
+              <button type="button" className={`${btnSmall} btn-resolve-hover flex items-center justify-center w-9 p-0`} style={modalPrimaryBtnStyle} onClick={handleSaveCompany} disabled={companySaving} title={companySaving ? 'Salvando...' : 'Salvar'} aria-label={companySaving ? 'Salvando...' : 'Salvar'}><Save size={18} strokeWidth={2} style={{ color: 'currentColor' }} /></button>
+            </div>
           </div>
         </div>
       )}
@@ -1096,7 +1125,10 @@ export default function ViewConfig({
       {/* ═══ GOOGLE DRIVE ═══ */}
       {activeTab === 'drive' && (
         <div className="rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
-          <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center gap-2" style={{ borderColor: resolve.border, color: resolve.muted }}>
+          <div
+            className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center gap-2"
+            style={{ backgroundColor: resolve.yellowDark, borderColor: 'rgba(0,0,0,0.2)', color: resolve.bg }}
+          >
             <HardDrive size={14} strokeWidth={2} style={{ color: 'currentColor' }} />
             <span>GOOGLE DRIVE</span>
           </div>
@@ -1143,9 +1175,11 @@ export default function ViewConfig({
                     />
                     <button
                       type="button"
-                      className={`${btnSmall} btn-resolve-hover flex-shrink-0`}
-                      style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }}
+                      className={`${btnSmall} btn-resolve-hover flex-shrink-0 flex items-center justify-center w-9 p-0`}
+                      style={modalPrimaryBtnStyle}
                       disabled={driveSavingFolder || !driveRootFolderIdInput.trim()}
+                      title={driveSavingFolder ? '…' : 'Salvar pasta'}
+                      aria-label={driveSavingFolder ? '…' : 'Salvar pasta'}
                       onClick={async () => {
                         const id = driveRootFolderIdInput.trim()
                         if (!id) return
@@ -1172,7 +1206,7 @@ export default function ViewConfig({
                         }
                       }}
                     >
-                      {driveSavingFolder ? '…' : 'Salvar pasta'}
+                      <Save size={18} strokeWidth={2} style={{ color: 'currentColor' }} />
                     </button>
                   </div>
                   {driveStatus?.rootFolderId && (
@@ -1243,37 +1277,55 @@ export default function ViewConfig({
       {/* ═══ USUÁRIOS ═══ */}
       {activeTab === 'users' && (
         <div className="rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
-          <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between gap-2" style={{ borderColor: resolve.border, color: resolve.muted }}>
-            <span>USUÁRIOS ({profiles.length})</span>
+          <div
+            className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between gap-2"
+            style={{ backgroundColor: resolve.yellowDark, borderColor: 'rgba(0,0,0,0.2)', color: resolve.bg }}
+          >
+            <span style={{ color: resolve.bg }}>USUÁRIOS ({profiles.length})</span>
             {isAdmin && (
-              <button type="button" className={`${btnSmall} btn-resolve-hover flex items-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openUserModal('new')}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Novo usuário</button>
+              <button type="button" className={`${btnSmall} btn-resolve-hover flex items-center justify-center w-9 p-0`} style={headerBtnOnYellowStyle} onClick={() => openUserModal('new')} title="Novo usuário" aria-label="Novo usuário" onMouseEnter={(e) => { e.currentTarget.style.borderColor = resolve.yellow }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)' }}><Plus size={18} strokeWidth={2} style={{ color: 'currentColor' }} /></button>
             )}
           </div>
           <div className="p-3">
-            <div className="flex flex-wrap gap-1.5 mb-4 rounded border p-2" style={{ borderColor: resolve.border }}>
+            <div className="flex flex-wrap items-center gap-0 mb-4 rounded border p-1.5" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
               {profilesLoading ? (
-                <span className="text-[11px]" style={{ color: resolve.muted }}>Carregando...</span>
+                <span className="text-[11px] px-2" style={{ color: resolve.muted }}>Carregando...</span>
               ) : profiles.length === 0 ? (
-                <span className="text-[11px]" style={{ color: resolve.muted }}>Nenhum usuário.</span>
+                <span className="text-[11px] px-2" style={{ color: resolve.muted }}>Nenhum usuário.</span>
               ) : (
-                profiles.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => openUserModal(p)}
-                    className="btn-resolve-hover px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider rounded transition-colors"
-                    style={{
-                      backgroundColor: userModal && userModal !== 'new' && userModal.id === p.id ? resolve.accent : 'transparent',
-                      color: userModal && userModal !== 'new' && userModal.id === p.id ? resolve.bg : resolve.muted,
-                    }}
-                  >
-                    {p.name || p.surname ? [p.name, p.surname].filter(Boolean).join(' ') : p.email}
-                  </button>
+                profiles.map((p, idx) => (
+                  <React.Fragment key={p.id}>
+                    <button
+                      type="button"
+                      onClick={() => openUserModal(p)}
+                      className="btn-resolve-hover flex-1 min-w-0 px-2 py-1 text-[11px] font-medium uppercase tracking-wider rounded transition-colors truncate"
+                      style={{
+                        backgroundColor: userModal && userModal !== 'new' && userModal.id === p.id ? resolve.yellowDark : 'transparent',
+                        border: `1px solid ${userModal && userModal !== 'new' && userModal.id === p.id ? resolve.yellow : 'transparent'}`,
+                        color: userModal && userModal !== 'new' && userModal.id === p.id ? resolve.bg : resolve.muted,
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!(userModal && userModal !== 'new' && userModal.id === p.id)) {
+                          e.currentTarget.style.color = resolve.yellow
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!(userModal && userModal !== 'new' && userModal.id === p.id)) {
+                          e.currentTarget.style.color = resolve.muted
+                        }
+                      }}
+                    >
+                      {p.name || p.surname ? [p.name, p.surname].filter(Boolean).join(' ') : p.email}
+                    </button>
+                    {idx < profiles.length - 1 && (
+                      <span className="flex-shrink-0 w-px mx-0.5 self-center" style={{ height: 14, backgroundColor: resolve.border }} aria-hidden />
+                    )}
+                  </React.Fragment>
                 ))
               )}
             </div>
             {(userModal === 'new' || (userModal && userModal.id)) && (
-              <div className="rounded border p-4 space-y-3" style={{ borderColor: resolve.border }}>
+              <div className="rounded border p-4 space-y-3" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
                 <div className="grid grid-cols-2 gap-3">
                   <div><label className={labelCls} style={{ color: resolve.muted }}>Nome</label><input type="text" className={inputCls} style={inputStyle} value={uName} onChange={(e) => setUName(e.target.value)} /></div>
                   <div><label className={labelCls} style={{ color: resolve.muted }}>Sobrenome</label><input type="text" className={inputCls} style={inputStyle} value={uSurname} onChange={(e) => setUSurname(e.target.value)} /></div>
@@ -1302,73 +1354,96 @@ export default function ViewConfig({
                 {userError && <div className="text-[11px]" style={{ color: cinema.danger }}>{userError}</div>}
                 <div className="flex gap-2 justify-end">
                   <button type="button" onClick={() => setUserModal(null)} className={btnSmall} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }}>Cancelar</button>
-                  <button type="button" onClick={saveUser} disabled={userSaving} className={`${btnSmall} flex items-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{userSaving ? 'Salvando...' : 'Salvar'}</button>
+                  <button type="button" onClick={saveUser} disabled={userSaving} className={`${btnSmall} btn-resolve-hover flex items-center gap-1.5`} style={modalPrimaryBtnStyle}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{userSaving ? 'Salvando...' : 'Salvar'}</button>
                 </div>
               </div>
             )}
             {isAdmin && (
-              <div className="mt-4 rounded-lg overflow-hidden" style={{ borderColor: resolve.border, borderWidth: 1, borderStyle: 'solid', backgroundColor: resolve.panel }}>
-                <div className="px-4 py-3 border-b" style={{ borderColor: resolve.border }}>
-                  <h3 className="text-[11px] font-medium uppercase tracking-wider" style={{ color: resolve.text }}>Restrições de perfis</h3>
-                  <p className="text-[10px] mt-1" style={{ color: resolve.muted }}>Marque os itens que cada perfil não pode acessar. PROJETO é controlado em Projetos com acesso.</p>
+              <div className="mt-4 rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
+                <div className="px-3 py-1.5 border-b text-[11px] font-medium uppercase tracking-wider" style={{ backgroundColor: resolve.yellowDark, borderColor: 'rgba(0,0,0,0.2)', color: resolve.bg }}>
+                  <span style={{ color: resolve.bg }}>Restrições de perfis</span>
                 </div>
-                <div className="overflow-x-auto p-4">
-                  <table className="w-full text-[10px] border-collapse" style={{ color: resolve.text, minWidth: 800 }}>
+                <div className="overflow-x-auto overflow-y-visible px-2 sm:px-3 pb-2 sm:pb-3 pt-0 border-t" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
+                  <table className="w-full text-[11px] border-collapse" style={{ color: resolve.text, minWidth: 1100 }}>
                     <thead>
-                      <tr>
-                        <th className="text-left text-[10px] uppercase pb-2 pr-4 pt-1 align-bottom" style={{ color: resolve.muted, borderBottom: `2px solid ${resolve.border}`, minWidth: 120 }}>Perfil</th>
-                        <th colSpan={NAV_PAGE_KEYS.length} className="text-center text-[10px] uppercase pb-2 px-2 pt-1 align-bottom" style={{ color: resolve.muted, backgroundColor: 'rgba(107, 91, 149, 0.15)', borderBottom: `2px solid ${resolve.border}`, borderLeft: `2px solid ${resolve.border}` }}>Páginas (nav)</th>
-                        <th colSpan={HEADER_BUTTON_KEYS.length} className="text-center text-[10px] uppercase pb-2 px-2 pt-1 align-bottom" style={{ color: resolve.muted, backgroundColor: 'rgba(107, 99, 130, 0.2)', borderBottom: `2px solid ${resolve.border}`, borderLeft: `2px solid ${resolve.border}` }}>Header</th>
-                        <th colSpan={CONFIG_TAB_KEYS.length} className="text-center text-[10px] uppercase pb-2 px-2 pt-1 align-bottom" style={{ color: resolve.muted, backgroundColor: 'rgba(92, 124, 153, 0.12)', borderBottom: `2px solid ${resolve.border}`, borderLeft: `2px solid ${resolve.border}` }}>Abas Config</th>
-                        <th colSpan={FILME_BUTTON_KEYS.length} className="text-center text-[10px] uppercase pb-2 px-2 pt-1 align-bottom" style={{ color: resolve.muted, backgroundColor: 'rgba(245, 197, 24, 0.08)', borderBottom: `2px solid ${resolve.border}`, borderLeft: `2px solid ${resolve.border}` }}>Botões Filme</th>
+                      <tr className="border-b" style={{ borderColor: resolve.border, backgroundColor: resolve.panelHover }}>
+                        <th className="text-left text-xs uppercase font-semibold py-1.5 px-2 whitespace-nowrap transition-colors" style={{ color: '#eef0f4', backgroundColor: hoveredRestrictionCol === 0 ? 'rgba(255,255,255,0.08)' : undefined }} onMouseEnter={() => setHoveredRestrictionCol(0)} onMouseLeave={() => setHoveredRestrictionCol(null)}>Perfil</th>
+                        <th colSpan={NAV_PAGE_KEYS.length} className="text-center text-xs uppercase font-semibold py-1.5 px-2" style={{ color: '#eef0f4', backgroundColor: 'rgba(107, 91, 149, 0.25)', borderLeft: `1px solid ${resolve.border}` }}>Páginas (nav)</th>
+                        <th colSpan={HEADER_BUTTON_KEYS.length} className="text-center text-xs uppercase font-semibold py-1.5 px-2" style={{ color: '#eef0f4', backgroundColor: 'rgba(107, 99, 130, 0.3)', borderLeft: `1px solid ${resolve.border}` }}>Header</th>
+                        <th colSpan={CONFIG_TAB_KEYS.length} className="text-center text-xs uppercase font-semibold py-1.5 px-2" style={{ color: '#eef0f4', backgroundColor: 'rgba(92, 124, 153, 0.2)', borderLeft: `1px solid ${resolve.border}` }}>Abas Config</th>
+                        <th colSpan={FILME_BUTTON_KEYS.length} className="text-center text-xs uppercase font-semibold py-1.5 px-2" style={{ color: '#eef0f4', backgroundColor: 'rgba(184, 160, 53, 0.2)', borderLeft: `1px solid ${resolve.border}` }}>Botões Filme</th>
                       </tr>
-                      <tr>
-                        <th className="pb-2 pr-4" style={{ borderBottom: `1px solid ${resolve.border}` }} />
-                        {NAV_PAGE_KEYS.map((k) => <th key={`nav-${k}`} className="text-center pb-2 px-2 font-normal" style={{ color: resolve.muted, backgroundColor: 'rgba(107, 91, 149, 0.08)', borderBottom: `1px solid ${resolve.border}`, borderLeft: k === NAV_PAGE_KEYS[0] ? `2px solid ${resolve.border}` : undefined }}>{NAV_PAGE_LABELS[k]}</th>)}
-                        {HEADER_BUTTON_KEYS.map((k, i) => <th key={`header-${k}`} className="text-center pb-2 px-2 font-normal" style={{ color: resolve.muted, backgroundColor: 'rgba(107, 99, 130, 0.1)', borderBottom: `1px solid ${resolve.border}`, borderLeft: i === 0 ? `2px solid ${resolve.border}` : undefined }}>{HEADER_BUTTON_LABELS[k]}</th>)}
-                        {CONFIG_TAB_KEYS.map((k, i) => <th key={`cfg-${k}`} className="text-center pb-2 px-2 font-normal" style={{ color: resolve.muted, backgroundColor: 'rgba(92, 124, 153, 0.06)', borderBottom: `1px solid ${resolve.border}`, borderLeft: i === 0 ? `2px solid ${resolve.border}` : undefined }}>{CONFIG_TAB_LABELS[k]}</th>)}
-                        {FILME_BUTTON_KEYS.map((k, i) => <th key={`filme-${k}`} className="text-center pb-2 px-2 font-normal" style={{ color: resolve.muted, backgroundColor: 'rgba(245, 197, 24, 0.05)', borderBottom: `1px solid ${resolve.border}`, borderLeft: i === 0 ? `2px solid ${resolve.border}` : undefined }}>{FILME_BUTTON_LABELS[k]}</th>)}
+                      <tr className="border-b" style={{ borderColor: resolve.border, backgroundColor: resolve.panelHover }}>
+                        <th className="py-1.5 pr-2" style={{ borderColor: resolve.border }} onMouseEnter={() => setHoveredRestrictionCol(0)} onMouseLeave={() => setHoveredRestrictionCol(null)} />
+                        {NAV_PAGE_KEYS.map((k, i) => {
+                          const colIdx = 1 + i
+                          return <th key={`nav-${k}`} className="text-center py-1.5 px-1 text-[10px] font-medium whitespace-nowrap transition-colors" style={{ color: '#eef0f4', backgroundColor: hoveredRestrictionCol === colIdx ? 'rgba(255,255,255,0.12)' : 'rgba(107, 91, 149, 0.15)', borderLeft: k === NAV_PAGE_KEYS[0] ? `1px solid ${resolve.border}` : undefined }} onMouseEnter={() => setHoveredRestrictionCol(colIdx)} onMouseLeave={() => setHoveredRestrictionCol(null)}>{NAV_PAGE_LABELS[k]}</th>
+                        })}
+                        {HEADER_BUTTON_KEYS.map((k, i) => {
+                          const colIdx = 1 + NAV_PAGE_KEYS.length + i
+                          return <th key={`header-${k}`} className="text-center py-1.5 px-1 text-[10px] font-medium whitespace-nowrap transition-colors" style={{ color: '#eef0f4', backgroundColor: hoveredRestrictionCol === colIdx ? 'rgba(255,255,255,0.12)' : 'rgba(107, 99, 130, 0.15)', borderLeft: i === 0 ? `1px solid ${resolve.border}` : undefined }} onMouseEnter={() => setHoveredRestrictionCol(colIdx)} onMouseLeave={() => setHoveredRestrictionCol(null)}>{HEADER_BUTTON_LABELS[k]}</th>
+                        })}
+                        {CONFIG_TAB_KEYS.map((k, i) => {
+                          const colIdx = 1 + NAV_PAGE_KEYS.length + HEADER_BUTTON_KEYS.length + i
+                          return <th key={`cfg-${k}`} className="text-center py-1.5 px-1 text-[10px] font-medium whitespace-nowrap transition-colors" style={{ color: '#eef0f4', backgroundColor: hoveredRestrictionCol === colIdx ? 'rgba(255,255,255,0.12)' : 'rgba(92, 124, 153, 0.1)', borderLeft: i === 0 ? `1px solid ${resolve.border}` : undefined }} onMouseEnter={() => setHoveredRestrictionCol(colIdx)} onMouseLeave={() => setHoveredRestrictionCol(null)}>{CONFIG_TAB_LABELS[k]}</th>
+                        })}
+                        {FILME_BUTTON_KEYS.map((k, i) => {
+                          const colIdx = 1 + NAV_PAGE_KEYS.length + HEADER_BUTTON_KEYS.length + CONFIG_TAB_KEYS.length + i
+                          return <th key={`filme-${k}`} className="text-center py-1.5 px-1 text-[10px] font-medium whitespace-nowrap transition-colors" style={{ color: '#eef0f4', backgroundColor: hoveredRestrictionCol === colIdx ? 'rgba(255,255,255,0.12)' : 'rgba(184, 160, 53, 0.1)', borderLeft: i === 0 ? `1px solid ${resolve.border}` : undefined }} onMouseEnter={() => setHoveredRestrictionCol(colIdx)} onMouseLeave={() => setHoveredRestrictionCol(null)}>{FILME_BUTTON_LABELS[k]}</th>
+                        })}
                       </tr>
                     </thead>
                     <tbody>
-                      {PROFILE_ROLES.map((role, ri) => (
-                        <tr key={role} style={{ backgroundColor: ri % 2 === 1 ? 'rgba(0,0,0,0.15)' : undefined }}>
-                          <td className="py-2 pr-4 font-medium" style={{ color: resolve.text, borderBottom: `1px solid ${resolve.border}` }}>{PROFILE_LABELS[role]}</td>
-                          {NAV_PAGE_KEYS.map((k, i) => (
-                            <td key={`${role}-nav-${k}`} className="py-2 px-2 text-center" style={{ borderBottom: `1px solid ${resolve.border}`, borderLeft: i === 0 ? `2px solid ${resolve.border}` : undefined, backgroundColor: 'rgba(107, 91, 149, 0.04)' }}>
-                              {role === 'admin' ? <span style={{ color: resolve.muted }}>—</span> : (
-                                <input type="checkbox" checked={isRestrictionChecked(role, 'nav_page', k)} onChange={() => toggleRestriction(role, 'nav_page', k)} className="cursor-pointer" />
-                              )}
-                            </td>
-                          ))}
-                          {HEADER_BUTTON_KEYS.map((k, i) => (
-                            <td key={`${role}-header-${k}`} className="py-2 px-2 text-center" style={{ borderBottom: `1px solid ${resolve.border}`, borderLeft: i === 0 ? `2px solid ${resolve.border}` : undefined, backgroundColor: 'rgba(107, 99, 130, 0.06)' }}>
-                              {role === 'admin' ? <span style={{ color: resolve.muted }}>—</span> : (
-                                <input type="checkbox" checked={isRestrictionChecked(role, 'header_button', k)} onChange={() => toggleRestriction(role, 'header_button', k)} className="cursor-pointer" />
-                              )}
-                            </td>
-                          ))}
-                          {CONFIG_TAB_KEYS.map((k, i) => (
-                            <td key={`${role}-cfg-${k}`} className="py-2 px-2 text-center" style={{ borderBottom: `1px solid ${resolve.border}`, borderLeft: i === 0 ? `2px solid ${resolve.border}` : undefined, backgroundColor: 'rgba(92, 124, 153, 0.03)' }}>
-                              {role === 'admin' ? <span style={{ color: resolve.muted }}>—</span> : (
-                                <input type="checkbox" checked={isRestrictionChecked(role, 'config_tab', k)} onChange={() => toggleRestriction(role, 'config_tab', k)} className="cursor-pointer" />
-                              )}
-                            </td>
-                          ))}
-                          {FILME_BUTTON_KEYS.map((k, i) => (
-                            <td key={`${role}-filme-${k}`} className="py-2 px-2 text-center" style={{ borderBottom: `1px solid ${resolve.border}`, borderLeft: i === 0 ? `2px solid ${resolve.border}` : undefined, backgroundColor: 'rgba(245, 197, 24, 0.03)' }}>
-                              {role === 'admin' ? <span style={{ color: resolve.muted }}>—</span> : (
-                                <input type="checkbox" checked={isRestrictionChecked(role, 'filme_button', k)} onChange={() => toggleRestriction(role, 'filme_button', k)} className="cursor-pointer" />
-                              )}
-                            </td>
-                          ))}
+                      {PROFILE_ROLES.map((role) => (
+                        <tr key={role} className="table-row-hover border-b" style={{ borderColor: resolve.border }}>
+                          <td className="p-1.5 align-middle font-medium transition-colors" style={{ color: resolve.text, backgroundColor: hoveredRestrictionCol === 0 ? 'rgba(255,255,255,0.06)' : undefined }} onMouseEnter={() => setHoveredRestrictionCol(0)} onMouseLeave={() => setHoveredRestrictionCol(null)}>{PROFILE_LABELS[role]}</td>
+                          {NAV_PAGE_KEYS.map((k, i) => {
+                            const colIdx = 1 + i
+                            return (
+                              <td key={`${role}-nav-${k}`} className="p-1.5 align-middle text-center transition-colors" style={{ borderLeft: i === 0 ? `1px solid ${resolve.border}` : undefined, backgroundColor: hoveredRestrictionCol === colIdx ? 'rgba(255,255,255,0.08)' : 'rgba(107, 91, 149, 0.04)' }} onMouseEnter={() => setHoveredRestrictionCol(colIdx)} onMouseLeave={() => setHoveredRestrictionCol(null)}>
+                                {role === 'admin' ? <span style={{ color: resolve.muted }}>—</span> : (
+                                  <input type="checkbox" checked={isRestrictionChecked(role, 'nav_page', k)} onChange={() => toggleRestriction(role, 'nav_page', k)} className="cursor-pointer" />
+                                )}
+                              </td>
+                            )
+                          })}
+                          {HEADER_BUTTON_KEYS.map((k, i) => {
+                            const colIdx = 1 + NAV_PAGE_KEYS.length + i
+                            return (
+                              <td key={`${role}-header-${k}`} className="p-1.5 align-middle text-center transition-colors" style={{ borderLeft: i === 0 ? `1px solid ${resolve.border}` : undefined, backgroundColor: hoveredRestrictionCol === colIdx ? 'rgba(255,255,255,0.08)' : 'rgba(107, 99, 130, 0.06)' }} onMouseEnter={() => setHoveredRestrictionCol(colIdx)} onMouseLeave={() => setHoveredRestrictionCol(null)}>
+                                {role === 'admin' ? <span style={{ color: resolve.muted }}>—</span> : (
+                                  <input type="checkbox" checked={isRestrictionChecked(role, 'header_button', k)} onChange={() => toggleRestriction(role, 'header_button', k)} className="cursor-pointer" />
+                                )}
+                              </td>
+                            )
+                          })}
+                          {CONFIG_TAB_KEYS.map((k, i) => {
+                            const colIdx = 1 + NAV_PAGE_KEYS.length + HEADER_BUTTON_KEYS.length + i
+                            return (
+                              <td key={`${role}-cfg-${k}`} className="p-1.5 align-middle text-center transition-colors" style={{ borderLeft: i === 0 ? `1px solid ${resolve.border}` : undefined, backgroundColor: hoveredRestrictionCol === colIdx ? 'rgba(255,255,255,0.08)' : 'rgba(92, 124, 153, 0.03)' }} onMouseEnter={() => setHoveredRestrictionCol(colIdx)} onMouseLeave={() => setHoveredRestrictionCol(null)}>
+                                {role === 'admin' ? <span style={{ color: resolve.muted }}>—</span> : (
+                                  <input type="checkbox" checked={isRestrictionChecked(role, 'config_tab', k)} onChange={() => toggleRestriction(role, 'config_tab', k)} className="cursor-pointer" />
+                                )}
+                              </td>
+                            )
+                          })}
+                          {FILME_BUTTON_KEYS.map((k, i) => {
+                            const colIdx = 1 + NAV_PAGE_KEYS.length + HEADER_BUTTON_KEYS.length + CONFIG_TAB_KEYS.length + i
+                            return (
+                              <td key={`${role}-filme-${k}`} className="p-1.5 align-middle text-center transition-colors" style={{ borderLeft: i === 0 ? `1px solid ${resolve.border}` : undefined, backgroundColor: hoveredRestrictionCol === colIdx ? 'rgba(255,255,255,0.08)' : 'rgba(184, 160, 53, 0.03)' }} onMouseEnter={() => setHoveredRestrictionCol(colIdx)} onMouseLeave={() => setHoveredRestrictionCol(null)}>
+                                {role === 'admin' ? <span style={{ color: resolve.muted }}>—</span> : (
+                                  <input type="checkbox" checked={isRestrictionChecked(role, 'filme_button', k)} onChange={() => toggleRestriction(role, 'filme_button', k)} className="cursor-pointer" />
+                                )}
+                              </td>
+                            )
+                          })}
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-                <div className="px-4 py-3 border-t flex justify-end" style={{ borderColor: resolve.border }}>
-                  <button type="button" onClick={saveRestrictions} disabled={restrictionsSaving} className={`${btnSmall} flex items-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{restrictionsSaving ? 'Salvando...' : 'Salvar restrições'}</button>
+                <div className="px-3 py-2 border-t flex justify-end" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
+                  <button type="button" onClick={saveRestrictions} disabled={restrictionsSaving} className={`${btnSmall} btn-resolve-hover flex items-center justify-center w-9 p-0`} style={modalPrimaryBtnStyle} title={restrictionsSaving ? 'Salvando...' : 'Salvar restrições'} aria-label={restrictionsSaving ? 'Salvando...' : 'Salvar restrições'}><Save size={18} strokeWidth={2} style={{ color: 'currentColor' }} /></button>
                 </div>
               </div>
             )}
@@ -1381,13 +1456,16 @@ export default function ViewConfig({
        * ═══════════════════════════════════════════════════════ */}
       {activeTab === 'collaborators' && (
         <div className="rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
-          <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between gap-2" style={{ borderColor: resolve.border, color: resolve.muted }}>
-            <span>COLABORADORES ({collabs.length})</span>
+          <div
+            className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between gap-2"
+            style={{ backgroundColor: resolve.yellowDark, borderColor: 'rgba(0,0,0,0.2)', color: resolve.bg }}
+          >
+            <span style={{ color: resolve.bg }}>COLABORADORES ({collabs.length})</span>
             <div className="flex gap-1.5">
-              <button type="button" className={`${btnSmall} btn-resolve-hover`} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={exportCollabsCsv}>Exportar</button>
-              <button type="button" className={`${btnSmall} btn-resolve-hover`} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => collabFileRef.current?.click()}>Importar</button>
+              <button type="button" className={`${btnSmall} btn-resolve-hover flex items-center justify-center w-9 p-0`} style={headerBtnOnYellowStyle} onClick={exportCollabsCsv} title="Exportar" aria-label="Exportar" onMouseEnter={(e) => { e.currentTarget.style.borderColor = resolve.yellow }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)' }}><Download size={18} strokeWidth={2} style={{ color: 'currentColor' }} /></button>
+              <button type="button" className={`${btnSmall} btn-resolve-hover flex items-center justify-center w-9 p-0`} style={headerBtnOnYellowStyle} onClick={() => collabFileRef.current?.click()} title="Importar" aria-label="Importar" onMouseEnter={(e) => { e.currentTarget.style.borderColor = resolve.yellow }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)' }}><Upload size={18} strokeWidth={2} style={{ color: 'currentColor' }} /></button>
               <input ref={collabFileRef} type="file" accept=".csv" className="hidden" onChange={(e) => { if (e.target.files?.[0]) importCollabsCsv(e.target.files[0]); e.target.value = '' }} />
-              <button type="button" className={`${btnSmall} btn-resolve-hover flex items-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openCollabModal('new')}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Novo</button>
+              <button type="button" className={`${btnSmall} btn-resolve-hover flex items-center justify-center w-9 p-0`} style={headerBtnOnYellowStyle} onClick={() => openCollabModal('new')} title="Novo colaborador" aria-label="Novo colaborador" onMouseEnter={(e) => { e.currentTarget.style.borderColor = resolve.yellow }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)' }}><Plus size={18} strokeWidth={2} style={{ color: 'currentColor' }} /></button>
             </div>
           </div>
           <div className="p-3">
@@ -1412,7 +1490,7 @@ export default function ViewConfig({
                 </thead>
                 <tbody>
                   {filteredCollabs.map((c) => (
-                    <tr key={c.id} style={{ borderColor: resolve.border }}>
+                    <tr key={c.id} className="table-row-hover" style={{ borderColor: resolve.border }}>
                       <td className={tdCls} style={{ borderColor: resolve.border, fontWeight: 500 }}>{c.nome}</td>
                       <td className={tdCls} style={{ borderColor: resolve.border }}>{c.cpf || '—'}</td>
                       <td className={tdCls} style={{ borderColor: resolve.border }}>{c.telefone || '—'}</td>
@@ -1436,7 +1514,7 @@ export default function ViewConfig({
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && setCollabModal(null)} role="dialog" aria-modal="true" aria-labelledby="modal-title-collab">
           <div className="rounded border p-0 w-full max-w-lg shadow-lg overflow-hidden max-h-[90vh] overflow-y-auto" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
-              <h3 id="modal-title-collab" className="text-sm font-semibold uppercase tracking-wide" style={{ color: resolve.text }}>{collabModal === 'new' ? '➕ NOVO COLABORADOR' : '✏️ EDITAR COLABORADOR'}</h3>
+              <h3 id="modal-title-collab" className="text-sm font-semibold uppercase tracking-wide" style={modalTitleStyle}>{collabModal === 'new' ? '➕ NOVO COLABORADOR' : '✏️ EDITAR COLABORADOR'}</h3>
               <button type="button" onClick={() => setCollabModal(null)} className="btn-resolve-hover p-1 rounded border border-transparent transition-colors" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
             </div>
             <div className="p-4 space-y-3">
@@ -1462,7 +1540,7 @@ export default function ViewConfig({
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <button type="button" onClick={() => setCollabModal(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}>Cancelar</button>
-                <button type="button" onClick={saveCollab} className="btn-resolve-hover h-8 px-3 text-xs font-medium uppercase rounded flex items-center gap-1.5" style={{ backgroundColor: resolve.accent, color: resolve.bg }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar</button>
+                <button type="button" onClick={saveCollab} className="btn-resolve-hover h-8 px-3 text-xs font-medium uppercase rounded flex items-center gap-1.5" style={modalPrimaryBtnStyle}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar</button>
               </div>
             </div>
           </div>
@@ -1474,9 +1552,12 @@ export default function ViewConfig({
        * ═══════════════════════════════════════════════════════ */}
       {activeTab === 'cache_tables' && (
         <div className="rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
-          <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between gap-2" style={{ borderColor: resolve.border, color: resolve.muted }}>
-            <span>TABELAS DE CACHÊ ({cacheTables.length})</span>
-            <button type="button" className={`${btnSmall} btn-resolve-hover inline-flex items-center justify-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openCacheTableModal('new')}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor', flexShrink: 0 }} />Nova tabela</button>
+          <div
+            className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between gap-2"
+            style={{ backgroundColor: resolve.yellowDark, borderColor: 'rgba(0,0,0,0.2)', color: resolve.bg }}
+          >
+            <span style={{ color: resolve.bg }}>TABELAS DE CACHÊ ({cacheTables.length})</span>
+            <button type="button" className={`${btnSmall} btn-resolve-hover inline-flex items-center justify-center w-9 p-0`} style={headerBtnOnYellowStyle} onClick={() => openCacheTableModal('new')} title="Nova tabela" aria-label="Nova tabela" onMouseEnter={(e) => { e.currentTarget.style.borderColor = resolve.yellow }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)' }}><Plus size={18} strokeWidth={2} style={{ color: 'currentColor' }} /></button>
           </div>
           <p className="px-3 py-1.5 text-[10px]" style={{ color: resolve.muted, borderBottom: `1px solid ${resolve.border}` }}>As tabelas criadas, duplicadas e editadas são salvas automaticamente no banco de dados.</p>
           <div className="p-3">
@@ -1514,7 +1595,7 @@ export default function ViewConfig({
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && setCacheTableModal(null)} role="dialog" aria-modal="true" aria-labelledby="modal-title-cache-table">
           <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
-              <h3 id="modal-title-cache-table" className="text-sm font-semibold uppercase tracking-wide" style={{ color: resolve.text }}>{cacheTableModal === 'new' ? '➕ NOVA TABELA' : '✏️ EDITAR TABELA'}</h3>
+              <h3 id="modal-title-cache-table" className="text-sm font-semibold uppercase tracking-wide" style={modalTitleStyle}>{cacheTableModal === 'new' ? '➕ NOVA TABELA' : '✏️ EDITAR TABELA'}</h3>
               <button type="button" onClick={() => setCacheTableModal(null)} className="btn-resolve-hover p-1 rounded border border-transparent transition-colors" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
             </div>
             <div className="p-4 space-y-3">
@@ -1523,7 +1604,7 @@ export default function ViewConfig({
               <div><label className={labelCls} style={{ color: resolve.muted }}>Fonte</label><input type="text" className={inputCls} style={inputStyle} value={ctSource} onChange={(e) => setCtSource(e.target.value)} placeholder="Ex: SINDICINE 2024" /></div>
               <div className="flex gap-2 justify-end pt-2">
                 <button type="button" onClick={() => setCacheTableModal(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}>Cancelar</button>
-                <button type="button" onClick={saveCacheTable} className="btn-resolve-hover h-8 px-3 text-xs font-medium uppercase rounded flex items-center gap-1.5" style={{ backgroundColor: resolve.accent, color: resolve.bg }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar</button>
+                <button type="button" onClick={saveCacheTable} className="btn-resolve-hover h-8 px-3 text-xs font-medium uppercase rounded flex items-center gap-1.5" style={modalPrimaryBtnStyle}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar</button>
               </div>
             </div>
           </div>
@@ -1535,25 +1616,28 @@ export default function ViewConfig({
        * ═══════════════════════════════════════════════════════ */}
       {activeTab === 'roles' && (
         <div className="rounded border overflow-hidden min-w-0" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
-          <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider grid grid-cols-[1fr_auto] items-center gap-2 min-w-0 w-full" style={{ borderColor: resolve.border, color: resolve.muted }}>
-            <span className="min-w-0 truncate pr-2">FUNÇÕES E CACHÊS ({roles.length})</span>
+          <div
+            className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider grid grid-cols-[1fr_auto] items-center gap-2 min-w-0 w-full"
+            style={{ backgroundColor: resolve.yellowDark, borderColor: 'rgba(0,0,0,0.2)', color: resolve.bg }}
+          >
+            <span className="min-w-0 truncate pr-2" style={{ color: resolve.bg }}>FUNÇÕES E CACHÊS ({roles.length})</span>
             <div className="flex gap-1.5 flex-nowrap items-center justify-end min-w-0">
-              <select className={`${inputCls} shrink-0 w-auto max-w-[220px]`} style={inputStyle} value={selectedCacheTableId || ''} onChange={(e) => setSelectedCacheTableId(e.target.value || null)}>
+              <select className={`${inputCls} shrink-0 w-auto max-w-[220px]`} style={inputOnYellowHeaderStyle} value={selectedCacheTableId || ''} onChange={(e) => setSelectedCacheTableId(e.target.value || null)}>
                 <option value="">Selecione a tabela</option>
                 {cacheTables.map((t) => (
                   <option key={t.id} value={t.id}>{t.name}{t.is_default ? ' (padrão)' : ''}</option>
                 ))}
               </select>
-              <button type="button" className={`${btnSmall} btn-resolve-hover shrink-0 whitespace-nowrap`} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={exportRolesCsv}>Exportar</button>
-              <button type="button" className={`${btnSmall} btn-resolve-hover shrink-0 whitespace-nowrap`} style={{ backgroundColor: 'transparent', color: resolve.muted, border: `1px solid ${resolve.border}` }} onClick={() => rolesFileRef.current?.click()}>Importar</button>
+              <button type="button" className={`${btnSmall} btn-resolve-hover shrink-0 flex items-center justify-center w-9 p-0`} style={headerBtnOnYellowStyle} onClick={exportRolesCsv} title="Exportar" aria-label="Exportar" onMouseEnter={(e) => { e.currentTarget.style.borderColor = resolve.yellow }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)' }}><Download size={18} strokeWidth={2} style={{ color: 'currentColor' }} /></button>
+              <button type="button" className={`${btnSmall} btn-resolve-hover shrink-0 flex items-center justify-center w-9 p-0`} style={headerBtnOnYellowStyle} onClick={() => rolesFileRef.current?.click()} title="Importar" aria-label="Importar" onMouseEnter={(e) => { e.currentTarget.style.borderColor = resolve.yellow }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)' }}><Upload size={18} strokeWidth={2} style={{ color: 'currentColor' }} /></button>
               <input ref={rolesFileRef} type="file" accept=".csv" className="hidden" onChange={(e) => { if (e.target.files?.[0]) importRolesCsv(e.target.files[0]); e.target.value = '' }} />
-              <select className={`${inputCls} shrink-0 w-auto max-w-[180px]`} style={inputStyle} defaultValue="" onChange={(e) => { const v = e.target.value; if (v) { insertSeparator(v); e.target.value = ''; } }}>
+              <select className={`${inputCls} shrink-0 w-auto max-w-[180px]`} style={inputOnYellowHeaderStyle} defaultValue="" onChange={(e) => { const v = e.target.value; if (v) { insertSeparator(v); e.target.value = ''; } }}>
                 <option value="">Inserir separador...</option>
                 {ROLES_DEPARTAMENTOS_ORDER.map((d) => (
                   <option key={d} value={d}>{d}</option>
                 ))}
               </select>
-              <button type="button" className={`${btnSmall} btn-resolve-hover shrink-0 whitespace-nowrap flex items-center gap-1.5`} style={{ backgroundColor: resolve.accent, color: resolve.bg }} onClick={() => openRoleModal('new')}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Nova</button>
+              <button type="button" className={`${btnSmall} btn-resolve-hover shrink-0 flex items-center justify-center w-9 p-0`} style={headerBtnOnYellowStyle} onClick={() => openRoleModal('new')} title="Nova função" aria-label="Nova função" onMouseEnter={(e) => { e.currentTarget.style.borderColor = resolve.yellow }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)' }}><Plus size={18} strokeWidth={2} style={{ color: 'currentColor' }} /></button>
             </div>
           </div>
           <div className="p-3">
@@ -1656,7 +1740,7 @@ export default function ViewConfig({
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && setRoleModal(null)} role="dialog" aria-modal="true" aria-labelledby="modal-title-role">
           <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
-              <h3 id="modal-title-role" className="text-sm font-semibold uppercase tracking-wide" style={{ color: resolve.text }}>{roleModal === 'new' ? '➕ NOVA FUNÇÃO' : '✏️ EDITAR FUNÇÃO'}</h3>
+              <h3 id="modal-title-role" className="text-sm font-semibold uppercase tracking-wide" style={modalTitleStyle}>{roleModal === 'new' ? '➕ NOVA FUNÇÃO' : '✏️ EDITAR FUNÇÃO'}</h3>
               <button type="button" onClick={() => setRoleModal(null)} className="btn-resolve-hover p-1 rounded border border-transparent transition-colors" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
             </div>
             <div className="p-4 space-y-3">
@@ -1667,7 +1751,7 @@ export default function ViewConfig({
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <button type="button" onClick={() => setRoleModal(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}>Cancelar</button>
-                <button type="button" onClick={saveRole} className="btn-resolve-hover h-8 px-3 text-xs font-medium uppercase rounded flex items-center gap-1.5" style={{ backgroundColor: resolve.accent, color: resolve.bg }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar</button>
+                <button type="button" onClick={saveRole} className="btn-resolve-hover h-8 px-3 text-xs font-medium uppercase rounded flex items-center gap-1.5" style={modalPrimaryBtnStyle}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar</button>
               </div>
             </div>
           </div>
@@ -1679,8 +1763,11 @@ export default function ViewConfig({
        * ═══════════════════════════════════════════════════════ */}
       {activeTab === 'projects' && (
         <div className="rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
-          <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between gap-2" style={{ borderColor: resolve.border, color: resolve.muted }}>
-            <span>PROJETOS ({projects.length})</span>
+          <div
+            className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between gap-2"
+            style={{ backgroundColor: resolve.yellowDark, borderColor: 'rgba(0,0,0,0.2)', color: resolve.bg }}
+          >
+            <span style={{ color: resolve.bg }}>PROJETOS ({projects.length})</span>
           </div>
           <div className="p-3">
             <input type="text" className={`${inputCls} mb-3`} style={inputStyle} value={projectSearch} onChange={(e) => setProjectSearch(e.target.value)} placeholder="Buscar por nome, agência ou cliente..." />
@@ -1704,7 +1791,7 @@ export default function ViewConfig({
                 </thead>
                 <tbody>
                   {filteredProjects.map((p) => (
-                    <tr key={p.id} style={{ borderColor: resolve.border }}>
+                    <tr key={p.id} className="table-row-hover" style={{ borderColor: resolve.border }}>
                       <td className={tdCls} style={{ borderColor: resolve.border, color: resolve.muted, fontFamily: 'monospace' }}>#{p.job_id}</td>
                       <td className={tdCls} style={{ borderColor: resolve.border, fontWeight: 500 }}>{p.nome}</td>
                       <td className={tdCls} style={{ borderColor: resolve.border }}>{p.agencia || '—'}</td>
@@ -1731,7 +1818,7 @@ export default function ViewConfig({
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && setProjectModal(null)} role="dialog" aria-modal="true" aria-labelledby="modal-title-edit-project">
           <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
-              <h3 id="modal-title-edit-project" className="text-sm font-semibold uppercase tracking-wide" style={{ color: resolve.text }}>✏️ EDITAR PROJETO</h3>
+              <h3 id="modal-title-edit-project" className="text-sm font-semibold uppercase tracking-wide" style={modalTitleStyle}>✏️ EDITAR PROJETO</h3>
               <button type="button" onClick={() => setProjectModal(null)} className="btn-resolve-hover p-1 rounded border border-transparent transition-colors" style={{ color: resolve.muted }} aria-label="Fechar"><X size={18} strokeWidth={2} /></button>
             </div>
             <div className="p-4 space-y-3">
@@ -1766,7 +1853,7 @@ export default function ViewConfig({
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <button type="button" onClick={() => setProjectModal(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}>Cancelar</button>
-                <button type="button" onClick={saveProjectEdit} className="h-8 px-3 text-xs font-medium uppercase rounded flex items-center gap-1.5" style={{ backgroundColor: resolve.accent, color: resolve.bg }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar</button>
+                <button type="button" onClick={saveProjectEdit} className="btn-resolve-hover h-8 px-3 text-xs font-medium uppercase rounded flex items-center gap-1.5" style={modalPrimaryBtnStyle}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar</button>
               </div>
             </div>
           </div>
@@ -1776,7 +1863,10 @@ export default function ViewConfig({
       {/* ═══ ÍCONES (referência temporária – pode ser removida quando o sistema estiver completo) ═══ */}
       {activeTab === 'icons' && (
         <div className="rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
-          <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider" style={{ borderColor: resolve.border, color: resolve.muted }}>
+          <div
+            className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider"
+            style={{ backgroundColor: resolve.yellowDark, borderColor: 'rgba(0,0,0,0.2)', color: resolve.bg }}
+          >
             ÍCONES DO SISTEMA (Lucide)
           </div>
           <div className="p-4 space-y-6">
@@ -1835,41 +1925,51 @@ export default function ViewConfig({
       {/* ═══ LOGS ═══ */}
       {activeTab === 'logs' && (
         <div className="rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
-          <div className="px-3 py-2 border-b flex items-center justify-between gap-2 flex-wrap" style={{ borderColor: resolve.border, color: resolve.muted }}>
-            <span className="text-[11px] font-medium uppercase tracking-wider">LOG DE ATIVIDADES</span>
+          <div
+            className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider flex items-center justify-between gap-2"
+            style={{ backgroundColor: resolve.yellowDark, borderColor: 'rgba(0,0,0,0.2)', color: resolve.bg }}
+          >
+            <span style={{ color: resolve.bg }}>LOG DE ATIVIDADES</span>
             <input
               type="text"
-              className={inputCls}
-              style={{ ...inputStyle, maxWidth: 200 }}
+              className={`${inputCls} shrink-0 w-auto max-w-[200px]`}
+              style={inputOnYellowHeaderStyle}
               placeholder="Filtrar..."
               value={logsFilter}
               onChange={(e) => setLogsFilter(e.target.value)}
             />
           </div>
-          <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
+          <div className="overflow-x-auto max-h-[60vh] overflow-y-auto px-2 sm:px-3 pb-2 sm:pb-3 pt-0 border-t" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
             {logsLoading ? (
               <div className="p-8 text-center text-[11px]" style={{ color: resolve.muted }}>Carregando...</div>
             ) : filteredLogs.length === 0 ? (
               <div className="p-8 text-center text-[11px]" style={{ color: resolve.muted }}>Nenhum registro encontrado.</div>
             ) : (
-              <table className="w-full text-[11px]">
-                <thead className="sticky top-0 z-10" style={{ backgroundColor: resolve.panel }}>
-                  <tr style={{ borderBottom: `1px solid ${resolve.border}` }}>
-                    <th className={thCls} style={{ color: resolve.muted }}>Data/Hora</th>
-                    <th className={thCls} style={{ color: resolve.muted }}>Usuário</th>
-                    <th className={thCls} style={{ color: resolve.muted }}>Ação</th>
-                    <th className={thCls} style={{ color: resolve.muted }}>Entidade</th>
-                    <th className={thCls} style={{ color: resolve.muted }}>Item</th>
+              <table className="w-full border-collapse text-[11px] table-fixed">
+                <colgroup>
+                  <col style={{ width: '13%' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '38%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '20%' }} />
+                </colgroup>
+                <thead className="sticky top-0 z-10">
+                  <tr className="border-b" style={{ borderColor: resolve.border, backgroundColor: resolve.panelHover }}>
+                    <th className="text-left text-xs uppercase font-semibold py-1.5 px-2 whitespace-nowrap" style={{ color: '#eef0f4' }}>Data/Hora</th>
+                    <th className="text-left text-xs uppercase font-semibold py-1.5 px-2 whitespace-nowrap" style={{ color: '#eef0f4' }}>Usuário</th>
+                    <th className="text-left text-xs uppercase font-semibold py-1.5 px-2" style={{ color: '#eef0f4' }}>Ação</th>
+                    <th className="text-left text-xs uppercase font-semibold py-1.5 px-2 whitespace-nowrap" style={{ color: '#eef0f4' }}>Entidade</th>
+                    <th className="text-left text-xs uppercase font-semibold py-1.5 px-2 whitespace-nowrap" style={{ color: '#eef0f4' }}>Item</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredLogs.map((log) => (
-                    <tr key={log.id} style={{ borderBottom: `1px solid ${resolve.border}` }}>
-                      <td className={tdCls} style={{ color: resolve.muted }}>{formatLogDate(log.created_at)}</td>
-                      <td className={tdCls} style={{ color: resolve.text }}>{log.user_name || '—'}</td>
-                      <td className={tdCls} style={{ color: resolve.text }}>{formatActionLabel(log.action)}</td>
-                      <td className={tdCls} style={{ color: resolve.text }}>{formatEntityLabel(log.entity_type)}</td>
-                      <td className={tdCls} style={{ color: resolve.text }}>{log.entity_name || '—'}</td>
+                    <tr key={log.id} className="table-row-hover border-b" style={{ borderColor: resolve.border }}>
+                      <td className="p-1.5 align-middle" style={{ color: resolve.muted }}>{formatLogDate(log.created_at)}</td>
+                      <td className="p-1.5 align-middle" style={{ color: resolve.text }}>{log.user_name || '—'}</td>
+                      <td className="p-1.5 align-middle break-words" style={{ color: resolve.text }}>{formatActionLabel(log.action, log.details)}</td>
+                      <td className="p-1.5 align-middle" style={{ color: resolve.text }}>{formatEntityLabel(log.entity_type)}</td>
+                      <td className="p-1.5 align-middle" style={{ color: resolve.text }}>{log.entity_name || '—'}</td>
                     </tr>
                   ))}
                 </tbody>

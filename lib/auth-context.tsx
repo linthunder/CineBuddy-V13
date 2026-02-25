@@ -53,21 +53,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
-    /** Fallback curto: se getSession demorar, mostra o botao "Travou? Clique para continuar" apos 500ms */
+    /** Fallback curto: libera tela em 150ms se getSession demorar (evita travar em "Carregando...") */
     const fallbackShort = setTimeout(() => {
       if (cancelled) return
       setLoading(false)
-    }, 500)
+    }, 150)
 
-    /** Fallback máximo: garante que nunca ficamos travados mais que 3s (rede/Supabase lento) */
+    /** Fallback máximo: garante que nunca ficamos travados (rede/Supabase lento) */
     const fallbackMax = setTimeout(() => {
       if (cancelled) return
       setLoading(false)
-    }, 3000)
+    }, 2000)
 
     const sessionPromise = supabase.auth.getSession()
     const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) =>
-      setTimeout(() => resolve({ data: { session: null } }), 4000)
+      setTimeout(() => resolve({ data: { session: null } }), 3000)
     )
     Promise.race([sessionPromise, timeoutPromise])
       .then(({ data: { session: s } }) => {

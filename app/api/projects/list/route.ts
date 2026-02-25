@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('projects')
-      .select('id, job_id, nome, agencia, cliente, duracao, duracao_unit, updated_at')
+      .select('id, job_id, nome, agencia, cliente, duracao, duracao_unit, updated_at, status')
       .order('updated_at', { ascending: false })
 
     if (search) {
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    const projects = (allProjects ?? []) as { id: string; job_id: string; nome: string; agencia: string; cliente: string; duracao: string; duracao_unit: string; updated_at: string }[]
+    const projects = (allProjects ?? []) as { id: string; job_id: string; nome: string; agencia: string; cliente: string; duracao: string; duracao_unit: string; updated_at: string; status?: { initial?: string; final?: string; closing?: string } }[]
 
     if (projectIdsWithMembers.size === 0) {
       return NextResponse.json(projects)
@@ -66,6 +66,10 @@ export async function GET(request: NextRequest) {
       if (!projectIdsWithMembers.has(p.id)) return true
       return myProjectIds.has(p.id)
     })
+
+    if (process.env.NODE_ENV === 'development' && filtered.length === 0 && projects.length > 0 && projectIdsWithMembers.size > 0) {
+      console.warn('[projects/list] Usuário sem projetos visíveis. user_id=', caller.id, 'myProjectIds=', myProjectIds.size, 'projectsWithMembers=', projectIdsWithMembers.size)
+    }
 
     return NextResponse.json(filtered)
   } catch (err) {

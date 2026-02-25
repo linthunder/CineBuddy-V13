@@ -78,6 +78,13 @@ input[type='number'] {
   cursor: pointer;
 }
 
+/* Botões com ícone + texto: alinhamento horizontal (evita desalinhamento do SVG) */
+button.flex svg,
+button.inline-flex svg {
+  display: block;
+  flex-shrink: 0;
+}
+
 /* Budget table: sempre layout de tabela horizontal; overflow no container do bloco */
 .budget-table-cards {
   min-width: 0;
@@ -375,6 +382,22 @@ input[type='number'] {
   color: var(--resolve-yellow) !important;
 }
 
+/* Efeito padrão de highlight em linhas de tabela ao passar o mouse (ex.: Log, Colaboradores, Projetos) */
+.table-row-hover {
+  transition: background-color 0.15s ease;
+}
+.table-row-hover:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Padrão de botão chip/aba: selecionado = amarelo, não selecionado = transparente + hover amarelo */
+.btn-tab-chip {
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.btn-tab-chip:hover {
+  color: var(--resolve-yellow) !important;
+}
+
 /* ========== LAYOUT MESTRE (páginas: Orçamento, Filme, Config, etc.) ========== */
 .page-layout {
   padding-top: 0.25rem;
@@ -390,6 +413,11 @@ input[type='number'] {
   margin-bottom: var(--page-section-gap);
   margin-left: 0;
   margin-right: 0;
+}
+
+/* Oculta título inline quando a aba central (PageTitleTab) está ativa */
+[data-has-title-tab] .page-layout__title {
+  display: none;
 }
 
 @media (min-width: 640px) {
@@ -413,8 +441,8 @@ input[type='number'] {
 @media (min-width: 640px) {
   .page-layout__strip {
     position: sticky;
-    top: 72px; /* altura do header */
-    z-index: 40;
+    top: 72px; /* header 72px - strip rola com a página */
+    z-index: 30;
     margin-bottom: var(--page-section-gap-md);
   }
 }
@@ -469,4 +497,129 @@ input[type='number'] {
     grid-template-columns: repeat(2, 1fr);
     gap: var(--page-section-gap-lg);
   }
+}
+
+/* ========== CALENDÁRIO (FullCalendar) — tema escuro CineBuddy ========== */
+.cinebuddy-calendar {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.cinebuddy-calendar .fc {
+  --fc-border-color: var(--resolve-border);
+  --fc-button-bg-color: var(--resolve-bg);
+  --fc-button-border-color: var(--resolve-border);
+  --fc-button-text-color: var(--resolve-muted);
+  --fc-button-hover-bg-color: rgba(245, 197, 24, 0.15);
+  --fc-button-hover-border-color: var(--resolve-yellow);
+  --fc-button-hover-text-color: var(--resolve-yellow);
+  --fc-button-active-bg-color: rgba(245, 197, 24, 0.08);
+  --fc-button-active-border-color: var(--resolve-yellow);
+  --fc-today-bg-color: rgba(245, 197, 24, 0.08);
+  --fc-page-bg-color: var(--resolve-panel);
+  --fc-neutral-bg-color: #151518;
+  --fc-list-event-hover-bg-color: var(--resolve-panel-hover);
+}
+.cinebuddy-calendar .fc .fc-toolbar {
+  padding: 12px 16px;
+  background: linear-gradient(180deg, #222228 0%, #1a1a1e 100%);
+  border-bottom: 1px solid var(--resolve-border);
+}
+.cinebuddy-calendar .fc .fc-toolbar-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--resolve-text);
+  letter-spacing: 0.02em;
+}
+.cinebuddy-calendar .fc .fc-button {
+  padding: 6px 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+.cinebuddy-calendar .fc .fc-button:focus {
+  box-shadow: 0 0 0 2px rgba(245, 197, 24, 0.3);
+}
+.cinebuddy-calendar .fc .fc-col-header {
+  background: linear-gradient(180deg, #1e1e22 0%, #18181c 100%);
+}
+.cinebuddy-calendar .fc .fc-col-header-cell {
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--resolve-border);
+}
+.cinebuddy-calendar .fc .fc-col-header-cell-cushion {
+  color: var(--resolve-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.cinebuddy-calendar .fc .fc-daygrid-body {
+  background: var(--resolve-panel);
+}
+.cinebuddy-calendar .fc .fc-scrollgrid {
+  border-color: var(--resolve-border);
+}
+.cinebuddy-calendar .fc-theme-standard td,
+.cinebuddy-calendar .fc-theme-standard th {
+  border-color: var(--resolve-border);
+}
+.cinebuddy-calendar .fc .fc-daygrid-day {
+  background: var(--resolve-panel);
+}
+.cinebuddy-calendar .fc .fc-daygrid-day.fc-day-other {
+  background: rgba(13, 13, 15, 0.6);
+}
+.cinebuddy-calendar .fc .fc-daygrid-day-frame {
+  min-height: 100px;
+  padding: 6px;
+}
+.cinebuddy-calendar .fc .fc-daygrid-day-number {
+  color: var(--resolve-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 4px 6px;
+  border-radius: 4px;
+  min-width: 24px;
+  text-align: center;
+}
+.cinebuddy-calendar .fc .fc-daygrid-day:hover .fc-daygrid-day-number {
+  background: rgba(245, 197, 24, 0.1);
+  color: var(--resolve-text);
+}
+.cinebuddy-calendar .fc .fc-day-today .fc-daygrid-day-number {
+  color: var(--resolve-yellow);
+  font-weight: 700;
+  background: rgba(245, 197, 24, 0.15);
+}
+.cinebuddy-calendar .fc .fc-day-today .fc-daygrid-day-frame {
+  background: linear-gradient(135deg, rgba(245, 197, 24, 0.04) 0%, transparent 50%);
+  box-shadow: inset 0 0 0 1px rgba(245, 197, 24, 0.15);
+}
+.cinebuddy-calendar .fc .fc-daygrid-event {
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 4px 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  border-left: 3px solid transparent;
+}
+.cinebuddy-calendar .fc .fc-daygrid-event:hover {
+  filter: brightness(1.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+.cinebuddy-calendar .fc .fc-daygrid-more-link {
+  color: var(--resolve-yellow);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(245, 197, 24, 0.08);
+}
+.cinebuddy-calendar .fc .fc-daygrid-more-link:hover {
+  color: var(--resolve-bg);
+  background: var(--resolve-yellow);
+}
+.cinebuddy-calendar .fc .fc-more-link {
+  margin-top: 4px;
 }

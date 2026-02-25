@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { ScrollText, ClipboardList, Image, CalendarDays, DollarSign, Presentation, CalendarClock, Palette, FolderOpen } from 'lucide-react'
+import { ScrollText, ClipboardList, Image, CalendarDays, DollarSign, Presentation, CalendarClock, Palette, FolderOpen, ChevronLeft } from 'lucide-react'
 import PageLayout from '@/components/PageLayout'
 import { resolve } from '@/lib/theme'
 import type { ProjectData } from '@/lib/types'
 import type { ProfileRole } from '@/lib/permissions'
 import { getRoleDisabledFilmeButtons } from '@/lib/permissions'
 import type { ProfileRestriction } from '@/lib/services/profile-restrictions'
+import CalendarWidget from '@/components/CalendarWidget'
 
 interface ViewFilmeProps {
   projectData: ProjectData
@@ -18,6 +19,7 @@ interface ViewFilmeProps {
 
 export default function ViewFilme({ projectData, projectDbId, profileRole, restrictions }: ViewFilmeProps) {
   const [driveLoading, setDriveLoading] = useState(false)
+  const [selectedPanel, setSelectedPanel] = useState<string | null>(null)
   const disabledButtons = useMemo(
     () => new Set(getRoleDisabledFilmeButtons(profileRole, restrictions)),
     [profileRole, restrictions]
@@ -102,7 +104,11 @@ export default function ViewFilme({ projectData, projectDbId, profileRole, restr
               color: resolve.muted,
               boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
             }}
-            onClick={() => { if (!isDisabled && typeof window !== 'undefined') window.alert(`Em breve: ${a.label.toLowerCase()}`) }}
+            onClick={() => {
+              if (isDisabled) return
+              if (a.id === 'cronograma') setSelectedPanel('cronograma')
+              else if (typeof window !== 'undefined') window.alert(`Em breve: ${a.label.toLowerCase()}`)
+            }}
             onMouseEnter={(e) => {
               if (isDisabled) return
               const el = e.currentTarget
@@ -160,6 +166,32 @@ export default function ViewFilme({ projectData, projectDbId, profileRole, restr
           <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-wider text-center leading-tight px-0.5">{driveLoading ? '…' : driveAction.label}</span>
         </button>
       </div>
+
+      {selectedPanel === 'cronograma' && (
+        <div className="mt-6 rounded border p-4" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
+          <div className="flex items-center gap-2 mb-4">
+            <button
+              type="button"
+              onClick={() => setSelectedPanel(null)}
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded border text-[11px] uppercase"
+              style={{ borderColor: resolve.border, color: resolve.muted }}
+            >
+              <ChevronLeft size={14} /> Voltar
+            </button>
+            <h3 className="text-sm font-semibold uppercase" style={{ color: resolve.text }}>
+              Cronograma — {projectName}
+            </h3>
+          </div>
+          <p className="text-[11px] uppercase tracking-wider mb-3" style={{ color: resolve.muted }}>
+            Reuniões de apresentação, dia da produção, entrega e demais marcos.
+          </p>
+          <CalendarWidget
+            mode="cronograma"
+            projectId={projectDbId}
+            projectName={projectName}
+          />
+        </div>
+      )}
     </PageLayout>
   )
 }

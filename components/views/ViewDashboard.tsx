@@ -11,6 +11,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from 'recharts'
+import { RefreshCw } from 'lucide-react'
 
 /** Só renderiza o gráfico quando o container tem width/height > 0 para evitar aviso do Recharts (width/height 0). */
 function ChartContainer({
@@ -348,8 +349,11 @@ function KpiCard({ label, value, color, sub }: { label: string; value: string; c
 function SectionCard({ title, children, className = '' }: { title: string; children: React.ReactNode; className?: string }) {
   return (
     <div className={`rounded border overflow-hidden ${className}`} style={{ borderColor: resolve.border, borderRadius: 3 }}>
-      <div className="px-4 py-2 border-b" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
-        <h3 className="text-[11px] font-medium uppercase tracking-wider" style={{ color: resolve.muted }}>{title}</h3>
+      <div
+        className="px-4 py-2 border-b"
+        style={{ backgroundColor: resolve.yellowDark, borderColor: 'rgba(0,0,0,0.2)', color: resolve.bg }}
+      >
+        <h3 className="text-[11px] font-medium uppercase tracking-wider" style={{ color: resolve.bg }}>{title}</h3>
       </div>
       <div className="p-4" style={{ backgroundColor: resolve.panel }}>
         {children}
@@ -946,11 +950,15 @@ export default function ViewDashboard({ getData, projectStatus }: ViewDashboardP
         </div>
         <button
           type="button"
-          className="btn-resolve-hover flex items-center gap-1.5 px-3 py-1.5 border rounded text-[11px] font-medium uppercase tracking-wider"
-          style={{ borderColor: resolve.border, color: resolve.muted, borderRadius: 3 }}
+          className="btn-resolve-hover flex items-center justify-center w-9 h-9 rounded border transition-colors"
+          style={{ borderColor: resolve.border, color: resolve.muted, backgroundColor: resolve.panel, borderRadius: 3 }}
           onClick={() => setRefreshKey(k => k + 1)}
+          title="Atualizar"
+          aria-label="Atualizar"
+          onMouseEnter={(e) => { e.currentTarget.style.color = resolve.yellow }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = resolve.muted }}
         >
-          ↻ Atualizar
+          <RefreshCw size={18} strokeWidth={2} aria-hidden />
         </button>
       </div>
 

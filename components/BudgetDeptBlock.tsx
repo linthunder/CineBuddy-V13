@@ -66,11 +66,18 @@ export default function BudgetDeptBlock({
 
   return (
     <div className="overflow-hidden border rounded" style={{ borderColor: resolve.border, borderRadius: 3 }}>
-      <div className="px-2 sm:px-3 py-2.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 border-b" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
-        <span className="text-[13px] font-semibold uppercase tracking-wider" style={{ color: resolve.accent }}>{department}</span>
+      <div
+        className="px-2 sm:px-3 py-2.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 border-b"
+        style={{
+          backgroundColor: resolve.yellowDark,
+          borderColor: 'rgba(0,0,0,0.2)',
+          color: resolve.bg,
+        }}
+      >
+        <span className="text-[13px] font-semibold uppercase tracking-wider" style={{ color: resolve.bg }}>{department}</span>
         <span
           className={headerLabel != null ? 'text-[13px] font-semibold uppercase tracking-wider' : 'font-mono text-[13px] font-medium normal-case'}
-          style={{ color: headerLabel != null ? resolve.accent : resolve.yellow }}
+          style={{ color: resolve.bg }}
         >
           {headerLabel != null ? headerLabel || '—' : formatCurrency(totalDisplay)}
         </span>
@@ -183,7 +190,7 @@ export default function BudgetDeptBlock({
         )}
         {hasVerbaSection && (
           <div className="mt-2 border rounded-b overflow-hidden" style={{ borderColor: resolve.border, borderTop: 'none', borderRadius: '0 0 6px 6px' }}>
-            <div className="px-2 py-1.5 text-[11px] font-medium uppercase tracking-wider flex items-center gap-2" style={{ backgroundColor: resolve.accent, color: '#0d0d0f' }}>
+            <div className="px-2 py-1.5 text-[11px] font-medium uppercase tracking-wider flex items-center gap-2" style={{ backgroundColor: resolve.yellowDarker, color: resolve.bg }}>
               <Wallet size={16} strokeWidth={2} style={{ color: 'currentColor' }} aria-hidden />
               Verbas
             </div>

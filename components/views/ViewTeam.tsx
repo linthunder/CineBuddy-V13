@@ -3,9 +3,12 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import PageLayout from '@/components/PageLayout'
 import { resolve } from '@/lib/theme'
+
+const modalTitleStyle = { color: resolve.yellowDark }
+const modalPrimaryBtnStyle = { backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }
 import type { BudgetLinesByPhase, VerbaLinesByPhase, BudgetRow } from '@/lib/types'
 import { listCollaborators, type Collaborator } from '@/lib/services/collaborators'
-import { Info, DollarSign, PenLine, Receipt, FolderOpen } from 'lucide-react'
+import { Info, DollarSign, PenLine, Receipt, FolderOpen, RefreshCw } from 'lucide-react'
 import DriveLinkButton from '@/components/DriveLinkButton'
 import { memberFolderName, EQUIPE_DRIVE_PATH, CASTING_DRIVE_PATH } from '@/lib/drive-folder-structure'
 
@@ -157,17 +160,24 @@ export default function ViewTeam({ getBudgetData, projectDbId }: ViewTeamProps) 
         <button
           type="button"
           onClick={refresh}
-          className="btn-resolve-hover h-7 px-3 text-[11px] font-medium uppercase rounded transition-colors border"
-          style={{ backgroundColor: resolve.accent, color: resolve.bg, borderColor: resolve.accent }}
+          className="btn-resolve-hover flex items-center justify-center w-9 h-9 rounded border transition-colors"
+          style={{ borderColor: resolve.border, color: resolve.muted, backgroundColor: resolve.panel }}
+          title="Atualizar"
+          aria-label="Atualizar"
+          onMouseEnter={(e) => { e.currentTarget.style.color = resolve.yellow }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = resolve.muted }}
         >
-          Atualizar
+          <RefreshCw size={18} strokeWidth={2} aria-hidden />
         </button>
       </div>
 
       {/* Sem dados */}
       {teamData.length === 0 && (
         <div className="rounded border overflow-hidden" style={{ borderColor: resolve.border, backgroundColor: resolve.panel }}>
-          <div className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider" style={{ borderColor: resolve.border, color: resolve.muted }}>
+          <div
+            className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider"
+            style={{ backgroundColor: resolve.yellowDark, borderColor: 'rgba(0,0,0,0.2)', color: resolve.bg }}
+          >
             <span>EQUIPE</span>
           </div>
           <div className="p-8 text-center" style={{ color: resolve.muted }}>
@@ -186,7 +196,7 @@ export default function ViewTeam({ getBudgetData, projectDbId }: ViewTeamProps) 
         >
           <div
             className="px-3 py-2 border-b text-[11px] font-medium uppercase tracking-wider"
-            style={{ borderColor: resolve.border, color: resolve.muted, backgroundColor: 'rgba(255,255,255,0.03)' }}
+            style={{ backgroundColor: resolve.yellowDark, borderColor: 'rgba(0,0,0,0.2)', color: resolve.bg }}
           >
             {dept.department}
           </div>
@@ -293,7 +303,7 @@ export default function ViewTeam({ getBudgetData, projectDbId }: ViewTeamProps) 
             style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3 flex items-center gap-2" style={{ color: resolve.text }}>
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3 flex items-center gap-2" style={modalTitleStyle}>
               <span>ℹ</span> Contato
             </h3>
             {modalContact !== 'no-data' ? (
@@ -306,7 +316,7 @@ export default function ViewTeam({ getBudgetData, projectDbId }: ViewTeamProps) 
               <p className="text-sm" style={{ color: resolve.muted }}>Nenhum colaborador cadastrado com este nome.</p>
             )}
             <div className="mt-4 flex justify-end">
-              <button type="button" onClick={() => setModalContact(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ borderColor: resolve.border, color: resolve.text }}>Fechar</button>
+              <button type="button" onClick={() => setModalContact(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={modalPrimaryBtnStyle}>Fechar</button>
             </div>
           </div>
         </div>
@@ -324,7 +334,7 @@ export default function ViewTeam({ getBudgetData, projectDbId }: ViewTeamProps) 
             style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3 flex items-center gap-2" style={{ color: resolve.text }}>
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3 flex items-center gap-2" style={modalTitleStyle}>
               <span>$</span> Dados bancários
             </h3>
             {modalBank !== 'no-data' ? (
@@ -338,7 +348,7 @@ export default function ViewTeam({ getBudgetData, projectDbId }: ViewTeamProps) 
               <p className="text-sm" style={{ color: resolve.muted }}>Nenhum colaborador cadastrado com este nome.</p>
             )}
             <div className="mt-4 flex justify-end">
-              <button type="button" onClick={() => setModalBank(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ borderColor: resolve.border, color: resolve.text }}>Fechar</button>
+              <button type="button" onClick={() => setModalBank(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={modalPrimaryBtnStyle}>Fechar</button>
             </div>
           </div>
         </div>

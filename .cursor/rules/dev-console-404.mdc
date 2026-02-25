@@ -1,0 +1,32 @@
+# 404 em assets do Next (layout.css, main-app.js, page.js, etc.)
+
+## O que significa
+
+O navegador carrega o HTML da página, mas os arquivos de script e CSS (main-app.js, app-pages-internals.js, page.js, not-found.js, layout.css) retornam **404**. Isso acontece quando:
+
+- A **página veio do cache** e ainda aponta para chunks antigos (com outro hash). O servidor já gerou novos arquivos → 404.
+- O **servidor de desenvolvimento foi reiniciado** e os hashes dos arquivos mudaram; o HTML antigo continua pedindo os nomes antigos.
+- A aba foi aberta em **outra porta** ou o servidor não está rodando na URL que a página usa.
+
+Não é bug do código do projeto.
+
+## O que fazer (nessa ordem)
+
+1. **Sempre abrir o app na URL do servidor**  
+   Use **apenas** o endereço que o terminal mostra depois de `npm run dev` (ex.: `http://localhost:3000`). Não abrir por `file://` nem outra porta.
+
+2. **Refresh forçado**  
+   Com o servidor rodando: **Ctrl+Shift+R** (Windows/Linux) ou **Cmd+Shift+R** (Mac) para recarregar sem cache.
+
+3. **Se ainda der 404: limpar build e reiniciar**  
+   - No terminal onde está o `npm run dev`: **Ctrl+C**.
+   - Rodar: `npm run dev:clean`  
+     (apaga a pasta `.next` e sobe o dev de novo.)
+   - Abrir **uma nova aba** em `http://localhost:3000` e dar **Ctrl+Shift+R**.
+
+4. **Porta 3000 em uso**  
+   Se aparecer "address already in use": `npm run dev:force` (mata o processo na 3000 e sobe o dev).
+
+## Produção
+
+Em produção (`npm run build` + `npm run start`) esses 404 não ocorrem: os assets são fixos e servidos pelo mesmo servidor.

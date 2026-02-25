@@ -14,6 +14,8 @@ export const resolve = {
   /** Amarelo para hover e destaque (estilo Resolve/cinema) */
   yellow: '#f5c518',
   yellowDark: '#b8a035',
+  /** Amarelo ainda mais escuro — subcabeçalhos (ex: Verbas) */
+  yellowDarker: '#8a7828',
   /** Roxo para detalhes e bordas secundárias */
   purple: '#6b5b95',
   purpleLight: '#8b7ab5',

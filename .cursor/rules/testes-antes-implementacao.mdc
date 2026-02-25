@@ -1,0 +1,44 @@
+---
+description: Rodar testes e build de forma autônoma antes de enviar implementações.
+globs:
+alwaysApply: true
+---
+
+# Testes autônomos antes da implementação
+
+Antes de considerar uma implementação concluída e enviada ao usuário, executar **de forma autônoma**:
+
+## 1. Build do projeto
+
+```bash
+npm run build
+```
+
+- Se falhar: corrigir erros (TypeScript, lint, imports) e rodar novamente.
+- Só seguir após build bem-sucedido.
+
+## 2. Servidor de desenvolvimento (quando relevante)
+
+- **Preferir** `npm run dev:clean` (limpa `.next` e sobe o dev) para evitar erros "Cannot find module './XXX.js'" e ChunkLoadError. Ver regra `next-cache-causa-raiz.mdc`.
+- Se usar `npm run dev` e surgir erro de chunk/módulo no servidor: parar o servidor, rodar `npm run dev:clean` e recarregar a página com Ctrl+Shift+R.
+- Rodar em background quando o usuário pedir ou quando for preciso validar a interface.
+- Se a porta 3000 estiver em uso: usar `npm run dev:force` ou avisar o usuário.
+
+## 3. Testes automatizados (se existirem)
+
+- Se o projeto tiver `npm test`, `npm run test` ou script de testes: executar antes de dar por concluído.
+- Se os testes falharem: investigar e corrigir antes de finalizar.
+
+## 4. Ordem recomendada
+
+1. Implementar a alteração
+2. Rodar `npm run build`
+3. Corrigir erros até o build passar
+4. Rodar testes (se houver)
+5. Rodar `npm run dev` em background (se for útil validar no navegador)
+6. Informar o usuário que a implementação está concluída
+
+## Exceções
+
+- Apenas documentação ou alterações de texto: build pode ser opcional.
+- Alterações em arquivos de configuração não-TypeScript: avaliar caso a caso.

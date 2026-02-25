@@ -148,6 +148,20 @@ function calcOvertime(line: ClosingLine): number {
   return total
 }
 
+/** Valor agregado do percentual adicional aplicado às diárias */
+function calcAdditional(line: ClosingLine): number {
+  if (!line.isLabor) return 0
+  const diarias = normalizeDiarias(line)
+  const unitPerDay = line.type === 'sem' ? line.finalUnitCost / 5 : line.finalUnitCost
+  let total = 0
+  for (const d of diarias) {
+    if (d.dailyHours <= 0) continue
+    const baseForDay = (unitPerDay / d.dailyHours) * d.dailyHours
+    total += baseForDay * (d.additionalPct / 100)
+  }
+  return total
+}
+
 function findCollaboratorByName(collaborators: Collaborator[], name: string): Collaborator | undefined {
   const normalized = (name || '').trim().toLowerCase()
   return collaborators.find((c) => c.nome?.trim().toLowerCase() === normalized)
@@ -158,7 +172,9 @@ function calcTotalNF(line: ClosingLine): number {
   const base = line.isLabor && line.type === 'dia'
     ? (line.finalUnitCost ?? 0) * Math.max(1, normalizeDiarias(line).length)
     : line.finalValue
-  return base + calcOvertime(line)
+  const diarias = normalizeDiarias(line)
+  const deslocamento = (line.finalExtraCost ?? 0) * Math.max(1, diarias.length)
+  return base + calcOvertime(line) + calcAdditional(line) + deslocamento
 }
 
 const inputStyle: React.CSSProperties = {
@@ -167,12 +183,16 @@ const inputStyle: React.CSSProperties = {
   color: resolve.text,
   borderRadius: 2,
 }
+const modalTitleStyle = { color: resolve.yellowDark }
+const modalPrimaryBtnStyle = { backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }
 const inputClassName = 'w-full py-1 px-2 text-[11px] focus:outline-none'
-/** Selects da linha de diária: compactos e bem distribuídos */
-const inputDiariaClassName = 'w-full max-w-[6.5rem] py-0.5 px-1.5 text-[10px] focus:outline-none'
+/** Selects/input da linha de diária: largura fixa padronizada (6.5rem) para inputs Cachê/Desl. */
+const inputDiariaClassName = 'w-[6.5rem] min-w-[6.5rem] py-0.5 px-1.5 text-[10px] focus:outline-none'
+/** Selects Diária/H. Extra/Adicional: 50% da largura dos inputs (3.25rem) */
+const selectDiariaClassName = 'w-[3.25rem] min-w-[3.25rem] py-0.5 px-1.5 text-[10px] focus:outline-none'
 /** Linha vertical que ocupa toda a altura do container (uso em células com flex items-stretch) */
-const sepVertical = (key?: string) => (
-  <span key={key} className="flex-shrink-0 w-px min-h-full self-stretch" style={{ backgroundColor: resolve.border }} aria-hidden />
+const sepVertical = (key?: string, color?: string) => (
+  <span key={key} className="flex-shrink-0 w-px min-h-full self-stretch" style={{ backgroundColor: color ?? resolve.border }} aria-hidden />
 )
 const iconBtnCls = 'team-info-btn w-7 h-7 flex items-center justify-center rounded border transition-colors text-xs font-medium'
 
@@ -300,6 +320,12 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
   /** Estado de edição do campo Valor nas linhas extra (evita "1000,00" virar "1,00" ao digitar) */
   const [editingExtraValorId, setEditingExtraValorId] = useState<string | null>(null)
   const [editingExtraValorRaw, setEditingExtraValorRaw] = useState('')
+  /** Estado de edição do campo Deslocamento nas linhas labor */
+  const [editingDeslocamentoId, setEditingDeslocamentoId] = useState<string | null>(null)
+  const [editingDeslocamentoRaw, setEditingDeslocamentoRaw] = useState('')
+  /** Estado de edição do campo Cachê (finalUnitCost) nas linhas labor */
+  const [editingCacheId, setEditingCacheId] = useState<string | null>(null)
+  const [editingCacheRaw, setEditingCacheRaw] = useState('')
   const loadedFromDB = useRef(false)
 
   const toEditValue = (n: number): string => (n <= 0 ? '' : n.toFixed(2).replace('.', ','))
@@ -343,12 +369,14 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
     },
   }))
 
+  const phaseDefaults = getPhaseDefaults?.()
   useEffect(() => {
     if (!finalSnapshot) return
     if (loadedFromDB.current) { loadedFromDB.current = false; return }
     const lines: ClosingLine[] = []
     ;(['pre', 'prod', 'pos'] as const).forEach((phase) => {
       const depts = DEPARTMENTS[phase]
+      const defaultDesl = phaseDefaults?.[phase]?.deslocamento ?? 0
       depts.forEach((dept) => {
         const rows: BudgetRow[] = finalSnapshot.budgetLines[phase]?.[dept] ?? []
         const isLabor = LABOR_DEPTS.includes(dept as never)
@@ -360,6 +388,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
           const complementaryTotal = isLabor ? (laborRow.complementaryLines ?? []).reduce((s, c) => s + c.value, 0) : 0
           const numDias = Math.max(1, row.quantity || 1)
           const diarias: DiariaEntry[] = Array.from({ length: numDias }, () => defaultDiaria())
+          const extraCostVal = isLabor ? (laborRow.extraCost ?? defaultDesl) : 0
           lines.push({
             id: row.id,
             department: dept,
@@ -371,7 +400,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
             isVerba: false,
             finalValue: total,
             finalUnitCost: row.unitCost,
-            finalExtraCost: isLabor ? (laborRow.extraCost ?? 0) : 0,
+            finalExtraCost: extraCostVal,
             finalQuantity: row.quantity,
             complementaryTotal: complementaryTotal > 0 ? complementaryTotal : undefined,
             diarias,
@@ -406,7 +435,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
     })
     setClosingLines(lines)
     setExpenses([])
-  }, [finalSnapshot])
+  }, [finalSnapshot, phaseDefaults])
 
   const updateLine = useCallback((id: string, updates: Partial<ClosingLine>) => {
     if (isLocked) return
@@ -647,7 +676,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
   const financeStrip = (
     <div
       className="rounded overflow-hidden grid grid-cols-1 lg:grid-cols-5 gap-0 border-b min-w-0"
-      style={{ backgroundColor: resolve.panel, borderColor: resolve.purple, borderRadius: 3 }}
+      style={{ backgroundColor: resolve.panel, borderColor: resolve.yellow, borderRadius: 3 }}
     >
       <div className="p-3 border-b lg:border-b-0 lg:border-r flex flex-col items-center justify-center min-w-0" style={{ borderColor: resolve.border }}>
         <label className="text-[11px] uppercase tracking-wider font-medium mb-0.5" style={{ color: resolve.muted }}>Valor total</label>
@@ -719,22 +748,6 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
           ))}
         </select>
       </div>
-      {onToggleLock && (
-        <button
-          type="button"
-          onClick={onToggleLock}
-          className="ml-auto h-8 px-2 sm:px-3 md:px-4 rounded text-[10px] sm:text-xs font-medium uppercase tracking-wide transition-colors border flex items-center gap-1"
-          style={{
-            backgroundColor: isLocked ? '#e67e22' : cinema.success,
-            borderColor: isLocked ? '#e67e22' : cinema.success,
-            color: '#ffffff',
-          }}
-        >
-          {isLocked ? <LockOpen size={16} strokeWidth={2} aria-hidden style={{ color: '#fff' }} /> : <Lock size={16} strokeWidth={2} aria-hidden style={{ color: '#fff' }} />}
-          <span className="md:hidden">{isLocked ? 'Reabrir' : 'Concluir'}</span>
-          <span className="hidden md:inline">{isLocked ? 'Reabrir fechamento' : 'Concluir fechamento'}</span>
-        </button>
-      )}
       {/* Modal de seleção dos itens do Saving */}
       {savingModalOpen && (
         <div
@@ -747,7 +760,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
             style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: resolve.text }}>Itens incluídos no Saving</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3" style={modalTitleStyle}>Itens incluídos no Saving</h3>
             <div className="flex flex-col gap-2 mb-4">
               {SAVING_ITEMS.map(({ key, label }) => (
                 <label key={key} className="flex items-center gap-2 cursor-pointer text-[12px]" style={{ color: resolve.text }}>
@@ -768,8 +781,8 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
             <button
               type="button"
               onClick={() => setSavingModalOpen(false)}
-              className="w-full py-2 rounded text-xs font-medium uppercase border"
-              style={{ backgroundColor: resolve.yellowDark, borderColor: resolve.yellow, color: resolve.bg }}
+              className="btn-resolve-hover w-full py-2 rounded text-xs font-medium uppercase border"
+              style={modalPrimaryBtnStyle}
             >
               Fechar
             </button>
@@ -803,6 +816,22 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
             </button>
           )
         })}
+        {onToggleLock && (
+          <button
+            type="button"
+            onClick={onToggleLock}
+            className="btn-resolve-hover h-8 flex-1 sm:flex-none min-w-0 px-2 sm:px-3 md:px-4 rounded text-[10px] sm:text-xs font-medium uppercase tracking-wide transition-colors border flex items-center justify-center gap-1 ml-auto"
+            style={{
+              backgroundColor: isLocked ? '#e67e22' : cinema.success,
+              borderColor: isLocked ? '#e67e22' : cinema.success,
+              color: '#ffffff',
+            }}
+          >
+            {isLocked ? <LockOpen size={16} strokeWidth={2} aria-hidden style={{ color: '#fff' }} /> : <Lock size={16} strokeWidth={2} aria-hidden style={{ color: '#fff' }} />}
+            <span className="md:hidden">{isLocked ? 'Reabrir' : 'Concluir'}</span>
+            <span className="hidden md:inline">{isLocked ? 'Reabrir fechamento' : 'Concluir fechamento'}</span>
+          </button>
+        )}
       </div>
 
       {/* Blocos do departamento da fase ativa */}
@@ -816,21 +845,24 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
               const deptTotal = lines.reduce((s, l) => s + calcTotalNF(l), 0)
               return (
                 <div key={`${activePhase}-${dept}`} className="overflow-hidden border rounded mb-6" style={{ borderColor: resolve.border, borderRadius: 3 }}>
-                  <div className="px-3 py-2 flex justify-between items-center border-b" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
-                    <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: resolve.muted }}>{dept}</span>
+                  <div
+                    className="px-2 sm:px-3 py-2.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 border-b"
+                    style={{ backgroundColor: resolve.yellowDark, borderColor: 'rgba(0,0,0,0.2)', color: resolve.bg }}
+                  >
+                    <span className="text-[13px] font-semibold uppercase tracking-wider" style={{ color: resolve.bg }}>{dept}</span>
                     <div className="flex items-center gap-2">
                       {!isLocked && COST_DEPTS_WITH_EXTRA.includes(dept as (typeof COST_DEPTS_WITH_EXTRA)[number]) && (
                         <button
                           type="button"
                           onClick={() => addExtraLine(dept)}
                           className="btn-resolve-hover h-7 px-2 flex items-center justify-center gap-1 rounded border text-[10px] font-medium uppercase"
-                          style={{ borderColor: resolve.border, color: resolve.text }}
+                          style={{ borderColor: 'rgba(0,0,0,0.3)', color: resolve.bg }}
                           title="Adicionar despesa extra"
                         >
                           <Plus size={12} strokeWidth={2} style={{ color: 'currentColor' }} />Extra
                         </button>
                       )}
-                      <span className="font-mono text-[13px] font-medium" style={{ color: resolve.text }}>{formatCurrency(deptTotal)}</span>
+                      <span className="font-mono text-[13px] font-medium normal-case" style={{ color: resolve.bg }}>{formatCurrency(deptTotal)}</span>
                     </div>
                   </div>
 
@@ -870,7 +902,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                           key={line.id}
                           className="border-b last:border-b-0"
                           style={{
-                            borderColor: resolve.border,
+                            borderColor: lineIdx < itemsToRender.length - 1 ? resolve.yellowDark : resolve.border,
                             borderBottomWidth: lineIdx < itemsToRender.length - 1 ? 2 : undefined,
                             marginBottom: lineIdx < itemsToRender.length - 1 ? 0 : undefined,
                           }}
@@ -927,21 +959,12 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                             </div>
                           ) : (
                             <>
-                              {/* Linha principal: nome, função, jornada (diária/semana), botão FECHAR (sem+expandido) e botões de informação */}
-                              <div className="flex items-center gap-2 px-3 py-2.5 flex-wrap" style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}>
-                                <div className="min-w-0 flex items-center gap-2 flex-wrap flex-1">
-                                  <span className="text-xs font-medium" style={{ color: resolve.text }}>{line.name || '—'}</span>
+                              {/* Linha principal: nome à esquerda; valor+ badge e botões à direita — mesma cor do bloco de orçamento */}
+                              <div className="flex items-center gap-2 px-3 py-2.5 flex-wrap" style={{ backgroundColor: resolve.panel }}>
+                                <div className="min-w-0 flex items-baseline gap-2 flex-wrap flex-1">
+                                  <span className="text-[16px] font-bold" style={{ color: resolve.yellowDark }}>{line.name || '—'}</span>
                                   {line.role && line.role !== line.name && (
-                                    <span className="text-[11px]" style={{ color: resolve.muted }}>{line.role}</span>
-                                  )}
-                                  {line.isLabor && line.type && (
-                                    <span
-                                      className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded"
-                                      style={{ backgroundColor: resolve.border, color: resolve.muted }}
-                                      title="Jornada de pagamento"
-                                    >
-                                      {JORNADA_LABEL[line.type] ?? line.type}
-                                    </span>
+                                    <span className="text-[12px] leading-none" style={{ color: resolve.muted }}>{line.role}</span>
                                   )}
                                   {line.isLabor && line.type === 'sem' && showOvertimeForLineId[line.id] && (
                                     <button
@@ -954,29 +977,41 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                                     </button>
                                   )}
                                 </div>
-                                {(line.name || line.role) || line.isExtra ? (
-                                  <div className="flex items-center justify-center gap-0.5 flex-wrap">
-                                    {isCastProfessional && (
-                                      <button type="button" onClick={() => addExtraLine('CASTING', line.id)} className={iconBtnCls} style={{ borderColor: resolve.border, color: resolve.text }} title="Adicionar linha extra abaixo"><Plus size={17} strokeWidth={1.5} /></button>
-                                    )}
-                                    {(line.isLabor || isCastProfessional) && (line.name || line.role) && (
-                                      <>
-                                        <button type="button" title="Telefone, e-mail e endereço" className={iconBtnCls} style={{ borderColor: resolve.border, color: resolve.text }} onClick={() => setModalContact(collab ?? 'no-data')}><Info size={17} strokeWidth={1.5} /></button>
-                                        <button type="button" title="Dados bancários e PIX" className={iconBtnCls} style={{ borderColor: resolve.border, color: resolve.text }} onClick={() => setModalBank(collab ?? 'no-data')}><DollarSign size={17} strokeWidth={1.5} /></button>
-                                        <DriveLinkButton projectId={projectDbId ?? null} drivePath={getLineContractPath(line)} variant="contract" className={`${iconBtnCls} w-7 h-7 flex items-center justify-center rounded border transition-colors`} style={{ borderColor: resolve.border, color: resolve.text }}><PenLine size={17} strokeWidth={1.5} /></DriveLinkButton>
-                                        <DriveLinkButton projectId={projectDbId ?? null} drivePath={getLineInvoicePath(line)} variant="invoice" className={`${iconBtnCls} w-7 h-7 flex items-center justify-center rounded border transition-colors`} style={{ borderColor: resolve.border, color: resolve.text }}><Receipt size={17} strokeWidth={1.5} /></DriveLinkButton>
-                                      </>
-                                    )}
-                                    {(line.name || line.role) && (
-                                      <DriveLinkButton projectId={projectDbId ?? null} drivePath={getLineFolderPath(line)} variant="folder" title="Abrir pasta no Drive" className={`${iconBtnCls} w-7 h-7 flex items-center justify-center rounded border transition-colors`} style={{ borderColor: resolve.border, color: resolve.text }}><FolderOpen size={17} strokeWidth={1.5} /></DriveLinkButton>
-                                    )}
-                                  </div>
-                                ) : null}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  {line.isLabor && (line.type === 'dia' || line.type === 'sem') && line.type && (
+                                    <div
+                                      className="h-7 px-2 flex items-center justify-center rounded border text-[10px] font-medium uppercase shrink-0"
+                                      style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.04)', color: resolve.muted }}
+                                      title={JORNADA_LABEL[line.type] ?? line.type}
+                                      aria-hidden
+                                    >
+                                      {JORNADA_LABEL[line.type] ?? line.type}
+                                    </div>
+                                  )}
+                                  {(line.name || line.role) || line.isExtra ? (
+                                    <div className="flex items-center justify-center gap-0.5 flex-wrap">
+                                      {isCastProfessional && (
+                                        <button type="button" onClick={() => addExtraLine('CASTING', line.id)} className={iconBtnCls} style={{ borderColor: resolve.border, color: resolve.text }} title="Adicionar linha extra abaixo"><Plus size={17} strokeWidth={1.5} /></button>
+                                      )}
+                                      {(line.isLabor || isCastProfessional) && (line.name || line.role) && (
+                                        <>
+                                          <button type="button" title="Telefone, e-mail e endereço" className={iconBtnCls} style={{ borderColor: resolve.border, color: resolve.text }} onClick={() => setModalContact(collab ?? 'no-data')}><Info size={17} strokeWidth={1.5} /></button>
+                                          <button type="button" title="Dados bancários e PIX" className={iconBtnCls} style={{ borderColor: resolve.border, color: resolve.text }} onClick={() => setModalBank(collab ?? 'no-data')}><DollarSign size={17} strokeWidth={1.5} /></button>
+                                          <DriveLinkButton projectId={projectDbId ?? null} drivePath={getLineContractPath(line)} variant="contract" className={`${iconBtnCls} w-7 h-7 flex items-center justify-center rounded border transition-colors`} style={{ borderColor: resolve.border, color: resolve.text }}><PenLine size={17} strokeWidth={1.5} /></DriveLinkButton>
+                                          <DriveLinkButton projectId={projectDbId ?? null} drivePath={getLineInvoicePath(line)} variant="invoice" className={`${iconBtnCls} w-7 h-7 flex items-center justify-center rounded border transition-colors`} style={{ borderColor: resolve.border, color: resolve.text }}><Receipt size={17} strokeWidth={1.5} /></DriveLinkButton>
+                                        </>
+                                      )}
+                                      {(line.name || line.role) && (
+                                        <DriveLinkButton projectId={projectDbId ?? null} drivePath={getLineFolderPath(line)} variant="folder" title="Abrir pasta no Drive" className={`${iconBtnCls} w-7 h-7 flex items-center justify-center rounded border transition-colors`} style={{ borderColor: resolve.border, color: resolve.text }}><FolderOpen size={17} strokeWidth={1.5} /></DriveLinkButton>
+                                      )}
+                                    </div>
+                                  ) : null}
+                                </div>
                               </div>
 
                               {/* Uma linha de diária por dia (labor). Por semana: oculto até clicar em "Calcular hora extra das diárias" */}
                           {line.isLabor && line.type === 'sem' && !showOvertimeForLineId[line.id] && (
-                            <div className="px-3 py-2 border-t flex items-center" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.01)' }}>
+                            <div className="px-3 py-2 border-t flex items-center" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.04)' }}>
                               <button
                                 type="button"
                                 onClick={() => expandOvertimeForSemLine(line.id)}
@@ -989,119 +1024,149 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                             </div>
                           )}
                           {line.isLabor && (line.type !== 'sem' || showOvertimeForLineId[line.id]) && (
-                            <div className="px-3 py-3 border-t space-y-3" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.01)' }}>
-                              {diarias.map((d, diariaIdx) => (
+                            <div className="px-3 py-2 border-t space-y-2" style={{ borderColor: resolve.border, backgroundColor: 'rgba(255,255,255,0.06)' }}>
+                              {diarias.map((d, diariaIdx) => {
+                                const isEditingDesl = editingDeslocamentoId === line.id
+                                const deslVal = line.finalExtraCost ?? 0
+                                const deslDisplay = isEditingDesl ? editingDeslocamentoRaw : (deslVal > 0 ? formatCurrency(deslVal) : '')
+                                const phaseDesl = phaseDefaults?.[line.phase as PhaseKey]?.deslocamento ?? 0
+                                const isEditingCache = editingCacheId === line.id
+                                const cacheVal = line.finalUnitCost ?? 0
+                                const cacheDisplay = isEditingCache ? editingCacheRaw : (cacheVal > 0 ? formatCurrency(cacheVal) : '')
+                                return (
                                 <div
                                   key={diariaIdx}
-                                  className={`grid grid-cols-2 sm:grid-cols-5 gap-x-1.5 gap-y-1 items-center ${diariaIdx < diarias.length - 1 ? 'border-b pb-3' : ''}`}
+                                  className={`flex items-center gap-x-6 gap-y-1 ${diariaIdx < diarias.length - 1 ? 'border-b pb-2' : ''}`}
                                   style={{ borderColor: diariaIdx < diarias.length - 1 ? resolve.border : undefined }}
                                 >
-                                  <div className="self-stretch h-full min-h-0 flex items-stretch gap-1.5 min-w-0 col-span-2 sm:col-span-1">
-                                    <span className="text-[10px] uppercase whitespace-nowrap truncate flex items-center font-bold" style={{ color: resolve.muted }} title="Valor da diária de referência">{formatCurrency(getCachePerDay(line))}/dia</span>
-                                    {sepVertical()}
+                                  <div className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-[11px] font-bold" style={{ backgroundColor: resolve.yellowDark, color: resolve.bg }} aria-hidden>
+                                    {diariaIdx + 1}
                                   </div>
-                                  <div>
-                                    <label className="block text-[10px] uppercase mb-0.5" style={{ color: resolve.muted }}>Diária {diarias.length > 1 ? `${diariaIdx + 1} (horas)` : 'de'}</label>
-                                    <select className={inputDiariaClassName} style={inputStyle} value={d.dailyHours} onChange={(e) => updateDiaria(line.id, diariaIdx, { dailyHours: Number(e.target.value) })}>
-                                      {DAILY_HOURS_OPTIONS.map((h) => <option key={h} value={h}>{h}h</option>)}
-                                    </select>
+                                  <div className="min-w-0 grid grid-cols-5 gap-x-0 items-center">
+                                    <div className="flex items-center gap-1.5 min-w-0 w-[190px]">
+                                      <span className="text-[10px] uppercase shrink-0" style={{ color: resolve.muted }}>Cachê</span>
+                                      <input
+                                        className={inputDiariaClassName}
+                                        style={inputStyle}
+                                        value={cacheDisplay}
+                                        placeholder="R$ 0,00"
+                                        onFocus={() => { setEditingCacheId(line.id); setEditingCacheRaw(cacheVal > 0 ? formatCurrency(cacheVal) : '') }}
+                                        onChange={(e) => { const raw = e.target.value; setEditingCacheRaw(raw); updateLine(line.id, { finalUnitCost: parseCurrencyInput(raw) }) }}
+                                        onBlur={() => setEditingCacheId(null)}
+                                      />
+                                    </div>
+                                    <div className="flex items-center gap-1.5 min-w-0 w-[190px]">
+                                      <span className="text-[10px] uppercase shrink-0" style={{ color: resolve.muted }}>Desl.</span>
+                                      <input
+                                        className={inputDiariaClassName}
+                                        style={inputStyle}
+                                        value={deslDisplay}
+                                        placeholder={phaseDesl > 0 ? formatCurrency(phaseDesl) : 'R$ 0,00'}
+                                        onFocus={() => { setEditingDeslocamentoId(line.id); setEditingDeslocamentoRaw(deslVal > 0 ? formatCurrency(deslVal) : '') }}
+                                        onChange={(e) => { const raw = e.target.value; setEditingDeslocamentoRaw(raw); updateLine(line.id, { finalExtraCost: parseCurrencyInput(raw) }) }}
+                                        onBlur={() => setEditingDeslocamentoId(null)}
+                                      />
+                                    </div>
+                                    <div className="flex items-center gap-1.5 min-w-0 w-[190px]">
+                                      <span className="text-[10px] uppercase shrink-0" style={{ color: resolve.muted }}>Diária {diarias.length > 1 ? `${diariaIdx + 1}` : 'de'}</span>
+                                      <select className={selectDiariaClassName} style={inputStyle} value={d.dailyHours} onChange={(e) => updateDiaria(line.id, diariaIdx, { dailyHours: Number(e.target.value) })}>
+                                        {DAILY_HOURS_OPTIONS.map((h) => <option key={h} value={h}>{h}h</option>)}
+                                      </select>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 min-w-0 w-[190px]">
+                                      <span className="text-[10px] uppercase shrink-0" style={{ color: resolve.muted }}>Hora extra</span>
+                                      <select className={selectDiariaClassName} style={inputStyle} value={d.overtimeHours} onChange={(e) => updateDiaria(line.id, diariaIdx, { overtimeHours: Number(e.target.value) })}>
+                                        {OVERTIME_OPTIONS.map((h) => <option key={h} value={h}>{h}h</option>)}
+                                      </select>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 min-w-0 w-[190px]">
+                                      <span className="text-[10px] uppercase shrink-0" style={{ color: resolve.muted }}>Adicional</span>
+                                      <select className={selectDiariaClassName} style={inputStyle} value={d.additionalPct} onChange={(e) => updateDiaria(line.id, diariaIdx, { additionalPct: Number(e.target.value) })}>
+                                        {ADDITIONAL_OPTIONS.map((p) => <option key={p} value={p}>{p}%</option>)}
+                                      </select>
+                                    </div>
                                   </div>
-                                  <div>
-                                    <label className="block text-[10px] uppercase mb-0.5" style={{ color: resolve.muted }}>Adicional</label>
-                                    <select className={inputDiariaClassName} style={inputStyle} value={d.additionalPct} onChange={(e) => updateDiaria(line.id, diariaIdx, { additionalPct: Number(e.target.value) })}>
-                                      {ADDITIONAL_OPTIONS.map((p) => <option key={p} value={p}>{p}%</option>)}
-                                    </select>
-                                  </div>
-                                  <div>
-                                    <label className="block text-[10px] uppercase mb-0.5" style={{ color: resolve.muted }}>Horas Extra</label>
-                                    <select className={inputDiariaClassName} style={inputStyle} value={d.overtimeHours} onChange={(e) => updateDiaria(line.id, diariaIdx, { overtimeHours: Number(e.target.value) })}>
-                                      {OVERTIME_OPTIONS.map((h) => <option key={h} value={h}>{h}h</option>)}
-                                    </select>
-                                  </div>
-                                  <div className="flex items-center gap-1 col-span-2 sm:col-span-1">
+                                  <div className="flex items-center gap-1 flex-shrink-0 ml-auto">
+                                    {diariaIdx === diarias.length - 1 && (
+                                      <button type="button" onClick={() => addDiaria(line.id)} className="btn-resolve-hover h-7 w-7 flex items-center justify-center rounded border transition-colors" style={{ borderColor: resolve.border, color: resolve.text }} title="Adicionar diária" aria-label="Adicionar diária"><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} /></button>
+                                    )}
                                     {diarias.length > 1 && (
                                       <button type="button" onClick={() => removeDiaria(line.id, diariaIdx)} className="btn-danger-hover h-7 w-7 flex items-center justify-center rounded border transition-colors" style={{ borderColor: resolve.border, color: resolve.muted }} title="Excluir diária" aria-label="Excluir diária"><X size={14} strokeWidth={2} /></button>
                                     )}
-                                    {diariaIdx === diarias.length - 1 && (
-                                      <button type="button" onClick={() => addDiaria(line.id)} className="btn-resolve-hover h-7 px-2 flex items-center justify-center gap-1 rounded border text-[10px] font-medium uppercase" style={{ borderColor: resolve.border, color: resolve.text }} title="Adicionar diária"><Plus size={12} strokeWidth={2} style={{ color: 'currentColor' }} />Diária</button>
-                                    )}
                                   </div>
                                 </div>
-                              ))}
+                              )})}
                             </div>
                           )}
                             </>
                           )}
 
-                          {/* Linha de resumo: CACHÊ TOTAL | CACHÊ DIA 1… (ou REF. CACHÊ/DIA para sem) | DESL. | HE | Saving */}
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-1.5 border-t text-[10px] uppercase tracking-wider" style={{ borderColor: resolve.border, color: resolve.muted }}>
+                          {/* Linha de resumo: valores abaixo das colunas Cachê | Desl. | Diária de | H. Extra | Adicional */}
+                          <div className="flex items-center gap-x-6 px-3 py-1.5 border-t text-[10px] uppercase tracking-wider" style={{ borderColor: resolve.border, color: resolve.muted, backgroundColor: 'rgba(255,255,255,0.07)' }}>
                             {line.isLabor ? (
                               <>
-                                <span className="whitespace-nowrap">Cachê total <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency(line.finalUnitCost * line.finalQuantity)}</strong></span>
-                                {line.type === 'dia' && (
-                                  <>
-                                    {sepVertical()}
-                                    {diarias.length <= 1 ? (
-                                      <span className="whitespace-nowrap">Cachê/dia <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency(getCachePerDay(line))}</strong></span>
-                                    ) : (
-                                      diarias.map((_, i) => (
-                                        <Fragment key={i}>
-                                          {i > 0 && sepVertical()}
-                                          <span className="whitespace-nowrap">Cachê dia {i + 1} <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency(getCachePerDay(line))}</strong></span>
-                                        </Fragment>
-                                      ))
-                                    )}
-                                  </>
-                                )}
-                                {line.finalExtraCost > 0 && (
-                                  <>
-                                    {sepVertical()}
-                                    <span className="whitespace-nowrap">Desl. <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency(line.finalExtraCost * line.finalQuantity)}</strong></span>
-                                  </>
-                                )}
+                                <div className="w-6 flex-shrink-0" aria-hidden />
+                                <div className="min-w-0 grid grid-cols-5 gap-x-0 items-center">
+                                  <div className="flex items-center gap-1.5 min-w-0 w-[190px]">
+                                    <span className="text-[10px] uppercase shrink-0" style={{ color: resolve.muted }}>Cachê</span>
+                                    <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency(line.type === 'dia' ? (line.finalUnitCost ?? 0) * Math.max(1, diarias.length) : (line.finalUnitCost ?? 0))}</strong>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 min-w-0 w-[190px]">
+                                    <span className="text-[10px] uppercase shrink-0" style={{ color: resolve.muted }}>Desl.</span>
+                                    <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency((line.finalExtraCost ?? 0) * Math.max(1, diarias.length))}</strong>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 min-w-0 w-[190px]" aria-hidden />
+                                  <div className="flex items-center gap-1.5 min-w-0 w-[190px]">
+                                    <span className="text-[10px] uppercase shrink-0" style={{ color: resolve.muted }}>Hora extra</span>
+                                    <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency(overtime)}</strong>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 min-w-0 w-[190px]">
+                                    <span className="text-[10px] uppercase shrink-0" style={{ color: resolve.muted }}>Adicional</span>
+                                    <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency(calcAdditional(line))}</strong>
+                                  </div>
+                                </div>
                                 {(line.complementaryTotal ?? 0) > 0 && (
-                                  <>
-                                    {sepVertical()}
-                                    <span className="whitespace-nowrap">Complementares <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency(line.complementaryTotal!)}</strong></span>
-                                  </>
-                                )}
-                                {line.type === 'sem' && (
-                                  <>
-                                    {sepVertical()}
-                                    <span className="whitespace-nowrap">Ref. cachê/dia <span className="font-mono" style={{ color: resolve.muted }}>{formatCurrency(getCachePerDay(line))}</span></span>
-                                  </>
-                                )}
-                                {overtime > 0 && (
-                                  <>
-                                    {sepVertical()}
-                                    <span className="whitespace-nowrap">HE <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency(overtime)}</strong></span>
-                                  </>
+                                  <div className="flex-shrink-0">
+                                    <span className="text-[10px]" style={{ color: resolve.muted }}>Compl. </span>
+                                    <strong className="font-mono" style={{ color: resolve.accent }}>{formatCurrency(line.complementaryTotal!)}</strong>
+                                  </div>
                                 )}
                                 {saving.responsibleId === line.id && valueToPay > 0 && (
-                                  <>
-                                    {sepVertical()}
-                                    <span className="whitespace-nowrap">Saving <strong className="font-mono" style={{ color: cinema.success }}>{formatCurrency(valueToPay)}</strong></span>
-                                  </>
+                                  <div className="flex-shrink-0">
+                                    <span className="text-[10px]" style={{ color: resolve.muted }}>Saving </span>
+                                    <strong className="font-mono" style={{ color: cinema.success }}>{formatCurrency(valueToPay)}</strong>
+                                  </div>
                                 )}
+                                <div className="flex items-center gap-2 flex-shrink-0 ml-auto items-center">
+                                  <span className="font-mono text-[14px] font-medium whitespace-nowrap py-0.5 leading-none flex items-center" style={{ color: cinema.success }}>
+                                    {formatCurrency(saving.responsibleId === line.id && valueToPay > 0 ? totalNF + valueToPay : totalNF)}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="text-[10px] font-medium uppercase px-2.5 py-0.5 rounded transition-colors whitespace-nowrap"
+                                    style={{ backgroundColor: line.payStatus === 'pago' ? cinema.success : cinema.danger, color: '#fff' }}
+                                    onClick={() => updateLine(line.id, { payStatus: line.payStatus === 'pago' ? 'pendente' : 'pago' })}
+                                  >
+                                    {line.payStatus === 'pago' ? 'PAGO ✓' : 'A PAGAR'}
+                                  </button>
+                                </div>
                               </>
                             ) : (
                               <>
                                 {line.isVerba && <span>Verba</span>}
+                                <div className="ml-auto flex items-center gap-2">
+                                  <span className="font-mono text-[10px] font-medium" style={{ color: cinema.success }}>{formatCurrency(totalNF)}</span>
+                                  <button
+                                    type="button"
+                                    className="text-[10px] font-medium uppercase px-2.5 py-0.5 rounded transition-colors whitespace-nowrap"
+                                    style={{ backgroundColor: line.payStatus === 'pago' ? cinema.success : cinema.danger, color: '#fff' }}
+                                    onClick={() => updateLine(line.id, { payStatus: line.payStatus === 'pago' ? 'pendente' : 'pago' })}
+                                  >
+                                    {line.payStatus === 'pago' ? 'PAGO ✓' : 'A PAGAR'}
+                                  </button>
+                                </div>
                               </>
                             )}
-                            <div className="ml-auto flex items-center gap-2 flex-shrink-0">
-                              <span className="font-mono text-[11px] font-medium whitespace-nowrap" style={{ color: resolve.yellow }}>
-                                {formatCurrency(saving.responsibleId === line.id && valueToPay > 0 ? totalNF + valueToPay : totalNF)}
-                              </span>
-                              <button
-                                type="button"
-                                className="text-[10px] font-medium uppercase px-2.5 py-0.5 rounded transition-colors whitespace-nowrap"
-                                style={{ backgroundColor: line.payStatus === 'pago' ? cinema.success : cinema.danger, color: '#fff' }}
-                                onClick={() => updateLine(line.id, { payStatus: line.payStatus === 'pago' ? 'pendente' : 'pago' })}
-                              >
-                                {line.payStatus === 'pago' ? 'PAGO ✓' : 'A PAGAR'}
-                              </button>
-                            </div>
                           </div>
                 </div>
               )
@@ -1116,8 +1181,11 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
 
       {/* Prestação de contas */}
       <div className={`overflow-hidden border rounded mt-1 ${isLocked ? 'locked-sheet' : ''}`} style={{ borderColor: resolve.border, borderRadius: 3 }}>
-        <div className="px-3 py-2 flex justify-between items-center border-b" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }}>
-          <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: resolve.muted }}>Prestação de contas</span>
+        <div
+          className="px-2 sm:px-3 py-2.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 border-b"
+          style={{ backgroundColor: resolve.yellowDark, borderColor: 'rgba(0,0,0,0.2)', color: resolve.bg }}
+        >
+          <span className="text-[13px] font-semibold uppercase tracking-wider" style={{ color: resolve.bg }}>Prestação de contas</span>
         </div>
         <div className="p-2 sm:p-3 overflow-x-auto min-w-0" style={{ backgroundColor: resolve.panel }}>
           {EXPENSE_DEPARTMENTS.map((dept) => {
@@ -1128,7 +1196,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
             const budget = expenseDeptBudget[dept] ?? 0
             return (
             <div key={dept} className="mt-4 first:mt-0">
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5 py-2 px-3 rounded border-l-2" style={{ borderColor: resolve.border, borderLeftColor: resolve.accent, backgroundColor: 'rgba(255,255,255,0.06)' }}>
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5 py-2 px-3 rounded border-l-2" style={{ borderColor: resolve.border, borderLeftColor: resolve.yellowDark, backgroundColor: 'rgba(255,255,255,0.06)' }}>
                 <div className="flex flex-wrap items-center gap-2 min-w-0">
                   <span className="text-[11px] font-semibold uppercase tracking-wider shrink-0" style={{ color: resolve.text }}>{dept}</span>
                   <span className="text-[10px] text-left shrink-0" style={{ color: resolve.muted }}>Responsáveis:</span>
@@ -1136,8 +1204,8 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                     {r1 || r2 ? (
                       [r1, r2].filter(Boolean).map((name, i) => (
                       <Fragment key={`${dept}-resp-${i}`}>
-                        {i > 0 && sepVertical(`sep-${dept}-${i}`)}
-                        <span className="text-[11px] truncate" style={{ color: resolve.text }}>{name}</span>
+                        {i > 0 && sepVertical(`sep-${dept}-${i}`, resolve.yellowDark)}
+                        <span className="text-[11px] truncate" style={{ color: resolve.yellowDark }}>{name}</span>
                       </Fragment>
                       ))
                     ) : (
@@ -1184,7 +1252,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
                   )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <span className={`font-mono text-[11px] font-medium ${saldo < 0 ? '' : ''}`} style={{ color: saldo < 0 ? cinema.danger : resolve.text }}>
+                  <span className={`font-mono text-[11px] font-medium ${saldo < 0 ? '' : ''}`} style={{ color: saldo < 0 ? cinema.danger : cinema.success }}>
                     {formatCurrency(saldo)}
                   </span>
                   {budget > 0 && (
@@ -1281,7 +1349,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
       {expenseResponsibleModalDept !== null && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setExpenseResponsibleModalDept(null)}>
           <div className="rounded border p-4 w-full max-w-md shadow-lg" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: resolve.text }}>Responsáveis — {expenseResponsibleModalDept}</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3" style={modalTitleStyle}>Responsáveis — {expenseResponsibleModalDept}</h3>
             <p className="text-[10px] uppercase tracking-wider mb-2" style={{ color: resolve.muted }}>Até 2 responsáveis (clique para adicionar)</p>
             <div className="flex flex-wrap gap-1.5 mb-3">
               {[expenseDepartmentConfig[expenseResponsibleModalDept]?.responsible1, expenseDepartmentConfig[expenseResponsibleModalDept]?.responsible2].filter(Boolean).map((name, idx) => (
@@ -1323,7 +1391,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
               })}
             </div>
             <div className="mt-4 flex justify-end">
-              <button type="button" onClick={() => setExpenseResponsibleModalDept(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ borderColor: resolve.border, color: resolve.text }}>Fechar</button>
+              <button type="button" onClick={() => setExpenseResponsibleModalDept(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={modalPrimaryBtnStyle}>Fechar</button>
             </div>
           </div>
         </div>
@@ -1333,7 +1401,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
       {linkModal !== null && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setLinkModal(null)}>
           <div className="rounded border p-4 w-full max-w-lg shadow-lg" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: resolve.text }}>Link para prestação de contas</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={modalTitleStyle}>Link para prestação de contas</h3>
             {'error' in linkModal ? (
               <p className="text-sm mb-4" style={{ color: cinema.danger }}>{linkModal.error}</p>
             ) : (
@@ -1359,7 +1427,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
               </>
             )}
             <div className="flex justify-end">
-              <button type="button" onClick={() => setLinkModal(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ borderColor: resolve.border, color: resolve.text }}>Fechar</button>
+              <button type="button" onClick={() => setLinkModal(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={modalPrimaryBtnStyle}>Fechar</button>
             </div>
           </div>
         </div>
@@ -1369,7 +1437,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
       {modalContact !== null && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setModalContact(null)}>
           <div className="rounded border p-4 w-full max-w-sm shadow-lg" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3 flex items-center gap-2" style={{ color: resolve.text }}><span>ℹ</span> Contato</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3 flex items-center gap-2" style={modalTitleStyle}><span>ℹ</span> Contato</h3>
             {modalContact !== 'no-data' ? (
               <div className="space-y-0 text-sm">
                 <CopyableLine label="Telefone" value={modalContact.telefone ?? ''} />
@@ -1380,7 +1448,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
               <p className="text-sm" style={{ color: resolve.muted }}>Nenhum colaborador cadastrado com este nome.</p>
             )}
             <div className="mt-4 flex justify-end">
-              <button type="button" onClick={() => setModalContact(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ borderColor: resolve.border, color: resolve.text }}>Fechar</button>
+              <button type="button" onClick={() => setModalContact(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={modalPrimaryBtnStyle}>Fechar</button>
             </div>
           </div>
         </div>
@@ -1390,7 +1458,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
       {modalBank !== null && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setModalBank(null)}>
           <div className="rounded border p-4 w-full max-w-sm shadow-lg" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3 flex items-center gap-2" style={{ color: resolve.text }}><span>$</span> Dados bancários</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3 flex items-center gap-2" style={modalTitleStyle}><span>$</span> Dados bancários</h3>
             {modalBank !== 'no-data' ? (
               <div className="space-y-0 text-sm">
                 <CopyableLine label="Banco" value={modalBank.banco ?? ''} />
@@ -1402,7 +1470,7 @@ const ViewFechamento = forwardRef<ViewFechamentoHandle, ViewFechamentoProps>(fun
               <p className="text-sm" style={{ color: resolve.muted }}>Nenhum colaborador cadastrado com este nome.</p>
             )}
             <div className="mt-4 flex justify-end">
-              <button type="button" onClick={() => setModalBank(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ borderColor: resolve.border, color: resolve.text }}>Fechar</button>
+              <button type="button" onClick={() => setModalBank(null)} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={modalPrimaryBtnStyle}>Fechar</button>
             </div>
           </div>
         </div>

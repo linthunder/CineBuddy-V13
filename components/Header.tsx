@@ -11,6 +11,8 @@ import { PROFILE_LABELS, PROJECT_AUTO_INCLUDE_ROLES } from '@/lib/permissions'
 /* ── Estilos reutilizáveis ── */
 const modalInputStyle = { backgroundColor: resolve.bg, borderColor: resolve.border, color: resolve.text }
 const modalLabelCls = 'block text-[11px] uppercase text-left mb-0.5'
+const modalTitleStyle = { color: resolve.yellowDark }
+const modalPrimaryBtnStyle = { backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }
 const btnBaseCls = 'btn-resolve-hover h-7 px-3 border text-xs font-medium uppercase tracking-wide rounded'
 const btnBaseClsMobile = 'btn-resolve-hover h-7 px-2 border text-xs font-medium uppercase rounded'
 const btnBaseStyle = { backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }
@@ -163,22 +165,49 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
     ? `${projectData.agencia || '—'} • ${projectData.cliente || '—'}`
     : 'AGÊNCIA • CLIENTE')
 
+  const Sep = () => <div className="w-px flex-shrink-0 self-center mx-2" style={{ height: 32, backgroundColor: resolve.border }} aria-hidden />
+
   return (
     <header
       className="fixed top-0 left-0 right-0 z-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 py-2 sm:h-[72px] border-b min-h-[72px]"
-      style={{ backgroundColor: resolve.panel, borderColor: resolve.border, paddingLeft: 'var(--page-gutter)', paddingRight: 'var(--page-gutter)' }}
+      style={{
+        backgroundColor: resolve.panel,
+        borderColor: resolve.border,
+        paddingLeft: 'var(--page-gutter)',
+        paddingRight: 'var(--page-gutter)',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+      }}
     >
-      {/* Esquerda: logo */}
-      <div className="flex items-center justify-between sm:justify-start gap-2 min-w-0">
-        <div className="flex items-center gap-2.5 flex-shrink-0">
-          <div className="w-9 h-9 rounded flex items-center justify-center font-bold text-[10px] flex-shrink-0 overflow-hidden" style={{ backgroundColor: resolve.accent, color: resolve.bg }}>
-            {logoUrl ? (
-              <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
-            ) : (
-              'CB'
-            )}
+      {/* Esquerda: logo | CineBuddy | JOB # | projeto — separadores verticais padronizados */}
+      <div className="flex items-center justify-between sm:justify-start min-w-0 flex-1 sm:flex-initial">
+        <div className="flex items-center flex-shrink-0" style={{ opacity: hasProject ? 1 : 0.5 }}>
+          {/* Logo empresa */}
+          <div className="flex items-center justify-center pr-2">
+            <div className="w-9 h-9 rounded flex items-center justify-center font-bold text-[10px] overflow-hidden" style={{ backgroundColor: resolve.accent, color: resolve.bg }}>
+              {logoUrl ? (
+                <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+              ) : (
+                'CB'
+              )}
+            </div>
           </div>
-          <img src="/cinebuddy-logo.png" alt="CineBuddy" className="w-auto object-contain" style={{ width: 145, height: 68, maxHeight: 68 }} />
+          <Sep />
+          <div className="flex items-center pl-2 pr-2">
+            <img src="/cinebuddy-logo.png" alt="CineBuddy" className="w-auto object-contain" style={{ width: 145, height: 68, maxHeight: 68 }} />
+          </div>
+          <div className="hidden sm:flex items-center">
+            <Sep />
+            <div className="pl-2 pr-2">
+              <span className="font-mono text-sm font-semibold whitespace-nowrap" style={{ color: resolve.text }}>{jobIdDisplay}</span>
+            </div>
+            <Sep />
+            <div className="flex items-center text-center text-xs pl-2 pr-2 py-1.5 min-w-0">
+              <div className="w-full min-w-0">
+                <strong className="block font-medium truncate" style={{ color: resolve.accent }}>{displayName}</strong>
+                <span className="block truncate mt-0.5" style={{ color: resolve.muted }}>{displaySubline}</span>
+              </div>
+            </div>
+          </div>
         </div>
         {/* Botões mobile */}
         <div className="flex flex-wrap gap-1.5 sm:hidden justify-end items-center">
@@ -186,31 +215,19 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
             <>
               {!hideButton('novo') && <button type="button" onClick={openNew} className={`${btnBaseClsMobile} flex items-center gap-1`} style={btnBaseStyle}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Novo</button>}
               {!hideButton('abrir') && <button type="button" onClick={openAbrir} className={`${btnBaseClsMobile} flex items-center gap-1`} style={btnBaseStyle}><FolderOpen size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Abrir</button>}
-              {!hideButton('salvarCopia') && <button type="button" onClick={openCopy} className={`${btnBaseClsMobile} flex items-center gap-1`} style={btnBaseStyle}><Copy size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar cópia</button>}
+              {!hideButton('salvarCopia') && <button type="button" onClick={openCopy} className={`${btnBaseClsMobile} flex items-center gap-1`} style={btnBaseStyle}><Copy size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Cópia</button>}
               {!hideButton('salvar') && <button type="button" onClick={onSave} disabled={saving} className={`btn-resolve-hover h-7 px-2 text-xs font-medium uppercase rounded flex items-center gap-1`} style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{saving ? '...' : 'Salvar'}</button>}
             </>
           )}
           {onLogout && <button type="button" onClick={onLogout} disabled={loggingOut} className={`${btnBaseClsMobile} flex items-center gap-1`} style={btnBaseStyle}><LogOut size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{loggingOut ? 'Saindo...' : 'Sair'}</button>}
           {!hideAllActions && !hideButton('config') && onOpenConfig && (
-            <div className="flex items-center pl-2 ml-1 border-l" style={{ borderColor: resolve.border }}>
+            <>
+              <Sep />
               <button type="button" onClick={onOpenConfig} aria-label="Configurações" className="flex items-center justify-center w-8 h-8 rounded transition-colors" style={{ color: resolve.muted }} onMouseEnter={(e) => { e.currentTarget.style.color = resolve.yellow }} onMouseLeave={(e) => { e.currentTarget.style.color = resolve.muted }}>
                 <Settings size={18} strokeWidth={1.5} aria-hidden style={{ color: 'currentColor' }} />
               </button>
-            </div>
+            </>
           )}
-        </div>
-      </div>
-
-      {/* Centro: ID do job + box (nome do projeto / agência • cliente) */}
-      <div className="hidden sm:flex items-stretch min-w-0" style={{ opacity: hasProject ? 1 : 0.5 }}>
-        <div className="flex items-center border-l pl-3 pr-3 md:pl-4 md:pr-4" style={{ borderColor: resolve.border }}>
-          <span className="font-mono text-sm font-semibold whitespace-nowrap" style={{ color: resolve.text }}>{jobIdDisplay}</span>
-        </div>
-        <div className="flex items-center border-l border-r text-center text-xs px-4 md:px-5 py-1.5 min-w-0" style={{ borderColor: resolve.border }}>
-          <div className="w-full min-w-0">
-            <strong className="block font-medium truncate" style={{ color: resolve.accent }}>{displayName}</strong>
-            <span className="block truncate mt-0.5" style={{ color: resolve.muted }}>{displaySubline}</span>
-          </div>
         </div>
       </div>
 
@@ -220,7 +237,7 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
           <>
             {!hideButton('novo') && <button type="button" onClick={openNew} className={`${btnBaseCls} flex items-center gap-1.5`} style={btnBaseStyle}><Plus size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Novo</button>}
             {!hideButton('abrir') && <button type="button" onClick={openAbrir} className={`${btnBaseCls} flex items-center gap-1.5`} style={btnBaseStyle}><FolderOpen size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Abrir</button>}
-            {!hideButton('salvarCopia') && <button type="button" onClick={openCopy} className={`${btnBaseCls} flex items-center gap-1.5`} style={btnBaseStyle}><Copy size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Salvar cópia</button>}
+            {!hideButton('salvarCopia') && <button type="button" onClick={openCopy} className={`${btnBaseCls} flex items-center gap-1.5`} style={btnBaseStyle}><Copy size={14} strokeWidth={2} style={{ color: 'currentColor' }} />Cópia</button>}
             {!hideButton('salvar') && <button type="button" onClick={onSave} disabled={saving} className="btn-resolve-hover h-7 px-3 text-xs font-medium uppercase tracking-wide rounded flex items-center gap-1.5" style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }}><Save size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{saving ? 'Salvando...' : 'Salvar'}</button>}
           </>
         )}
@@ -228,7 +245,8 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
           <button type="button" onClick={onLogout} disabled={loggingOut} className="btn-resolve-hover h-7 px-3 text-xs font-medium uppercase tracking-wide rounded ml-1 flex items-center gap-1.5" style={{ backgroundColor: 'transparent', color: resolve.muted, borderColor: resolve.border }}><LogOut size={14} strokeWidth={2} style={{ color: 'currentColor' }} />{loggingOut ? 'Saindo...' : 'Sair'}</button>
         )}
         {!hideAllActions && !hideButton('config') && onOpenConfig && (
-          <div className="flex items-center pl-3 ml-2 border-l" style={{ borderColor: resolve.border }}>
+          <>
+            <Sep />
             <button
               type="button"
               onClick={onOpenConfig}
@@ -240,7 +258,7 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
             >
               <Settings size={18} strokeWidth={1.5} aria-hidden style={{ color: 'currentColor' }} />
             </button>
-          </div>
+          </>
         )}
       </div>
 
@@ -249,7 +267,7 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && closeModal()}>
           <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
-              <h3 className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2" style={{ color: resolve.text }}><Plus size={18} strokeWidth={2} style={{ color: 'currentColor' }} aria-hidden />NOVO PROJETO</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2" style={modalTitleStyle}><Plus size={18} strokeWidth={2} style={{ color: 'currentColor' }} aria-hidden />NOVO PROJETO</h3>
               <button type="button" onClick={closeModal} className="p-1 rounded transition-colors" style={{ color: resolve.muted }} aria-label="Fechar" onMouseEnter={(e) => { e.currentTarget.style.color = cinema.danger }} onMouseLeave={(e) => { e.currentTarget.style.color = resolve.muted }}><X size={18} strokeWidth={2} style={{ color: 'currentColor' }} /></button>
             </div>
             <div className="p-4 space-y-3">
@@ -290,7 +308,7 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <button type="button" onClick={closeModal} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}>Cancelar</button>
-                <button type="button" onClick={handleCreateNew} className="btn-resolve-hover h-8 px-3 text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }} title="Criar projeto">Criar projeto</button>
+                <button type="button" onClick={handleCreateNew} className="btn-resolve-hover h-8 px-3 text-xs font-medium uppercase rounded" style={modalPrimaryBtnStyle} title="Criar projeto">Criar projeto</button>
               </div>
             </div>
           </div>
@@ -302,7 +320,7 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && closeModal()}>
           <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
-              <h3 className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2" style={{ color: resolve.text }}><FolderOpen size={18} strokeWidth={2} style={{ color: 'currentColor' }} aria-hidden />ABRIR PROJETO</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2" style={modalTitleStyle}><FolderOpen size={18} strokeWidth={2} style={{ color: 'currentColor' }} aria-hidden />ABRIR PROJETO</h3>
               <button type="button" onClick={closeModal} className="p-1 rounded transition-colors" style={{ color: resolve.muted }} aria-label="Fechar" onMouseEnter={(e) => { e.currentTarget.style.color = cinema.danger }} onMouseLeave={(e) => { e.currentTarget.style.color = resolve.muted }}><X size={18} strokeWidth={2} style={{ color: 'currentColor' }} /></button>
             </div>
             <div className="p-4">
@@ -338,7 +356,7 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
                 )}
               </div>
               <div className="flex justify-end pt-3">
-                <button type="button" onClick={closeModal} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }} title="Fechar">Fechar</button>
+                <button type="button" onClick={closeModal} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={modalPrimaryBtnStyle} title="Fechar">Fechar</button>
               </div>
             </div>
           </div>
@@ -350,7 +368,7 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={(e) => e.target === e.currentTarget && closeModal()}>
           <div className="rounded border p-0 w-full max-w-md shadow-lg overflow-hidden" style={{ backgroundColor: resolve.panel, borderColor: resolve.border }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: resolve.border }}>
-              <h3 className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2" style={{ color: resolve.text }}><Copy size={18} strokeWidth={2} style={{ color: 'currentColor' }} aria-hidden />SALVAR CÓPIA</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2" style={modalTitleStyle}><Copy size={18} strokeWidth={2} style={{ color: 'currentColor' }} aria-hidden />SALVAR CÓPIA</h3>
               <button type="button" onClick={closeModal} className="p-1 rounded transition-colors" style={{ color: resolve.muted }} aria-label="Fechar" onMouseEnter={(e) => { e.currentTarget.style.color = cinema.danger }} onMouseLeave={(e) => { e.currentTarget.style.color = resolve.muted }}><X size={18} strokeWidth={2} style={{ color: 'currentColor' }} /></button>
             </div>
             <div className="p-4 space-y-3">
@@ -391,7 +409,7 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <button type="button" onClick={closeModal} className="btn-resolve-hover h-8 px-3 border text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.panel, borderColor: resolve.border, color: resolve.text }}>Cancelar</button>
-                <button type="button" onClick={handleCreateCopy} disabled={savingCopy} className="btn-resolve-hover h-8 px-3 text-xs font-medium uppercase rounded" style={{ backgroundColor: resolve.yellowDark, color: resolve.bg, borderColor: resolve.yellow }}>{savingCopy ? 'Salvando...' : 'Criar cópia'}</button>
+                <button type="button" onClick={handleCreateCopy} disabled={savingCopy} className="btn-resolve-hover h-8 px-3 text-xs font-medium uppercase rounded" style={modalPrimaryBtnStyle}>{savingCopy ? 'Salvando...' : 'Criar cópia'}</button>
               </div>
             </div>
           </div>

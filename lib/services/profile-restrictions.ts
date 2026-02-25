@@ -10,27 +10,27 @@ export interface ProfileRestriction {
 
 export const NAV_PAGE_KEYS = ['home', 'filme', 'orcamento', 'orc-final', 'fechamento', 'dashboard', 'team'] as const
 export const NAV_PAGE_LABELS: Record<(typeof NAV_PAGE_KEYS)[number], string> = {
-  home: 'Home', filme: 'Filme', orcamento: 'Orç.', 'orc-final': 'Orç.Fin', fechamento: 'Fech.', dashboard: 'Dashboard', team: 'Equipe',
+  home: 'Home', filme: 'Filme', orcamento: 'Orç.Prev.', 'orc-final': 'Orç.Real.', fechamento: 'Fech.', dashboard: 'Dashboard', team: 'Equipe',
 }
 export const HEADER_BUTTON_KEYS = ['novo', 'abrir', 'salvarCopia', 'salvar', 'config'] as const
 export const HEADER_BUTTON_LABELS: Record<(typeof HEADER_BUTTON_KEYS)[number], string> = {
-  novo: 'Novo', abrir: 'Abrir', salvarCopia: 'Salvar cópia', salvar: 'Salvar', config: 'Config',
+  novo: 'Novo', abrir: 'Abrir', salvarCopia: 'Cópia', salvar: 'Salvar', config: 'Config',
 }
 export const CONFIG_TAB_KEYS = ['company', 'drive', 'users', 'collaborators', 'cache_tables', 'roles', 'projects', 'icons', 'logs'] as const
 export const CONFIG_TAB_LABELS: Record<(typeof CONFIG_TAB_KEYS)[number], string> = {
-  company: 'Produtora', drive: 'Drive', users: 'Usuários', collaborators: 'Colab.', cache_tables: 'Cachê', roles: 'Funções', projects: 'Projetos', icons: 'Ícones', logs: 'Logs',
+  company: 'Prod.', drive: 'Drive', users: 'Usuários', collaborators: 'Colab.', cache_tables: 'Cachê', roles: 'Funç.', projects: 'Proj.', icons: 'Ícones', logs: 'Logs',
 }
 export const FILME_BUTTON_KEYS = ['roteiro', 'decupagem', 'ordemDia', 'cronograma', 'moodboard', 'storyboard', 'orcamento', 'apresentacao', 'drive'] as const
 
 export const FILME_BUTTON_LABELS: Record<(typeof FILME_BUTTON_KEYS)[number], string> = {
   roteiro: 'Roteiro',
-  decupagem: 'Decupagem',
-  ordemDia: 'Ordem do Dia',
-  cronograma: 'Cronograma',
-  moodboard: 'Moodboard',
-  storyboard: 'Storyboard',
-  orcamento: 'Orç. Previsto',
-  apresentacao: 'Apresentação',
+  decupagem: 'Decup.',
+  ordemDia: 'Ordem',
+  cronograma: 'Cron.',
+  moodboard: 'Mood',
+  storyboard: 'Story',
+  orcamento: 'Orç.Prev.',
+  apresentacao: 'Apres.',
   drive: 'Drive',
 }
 

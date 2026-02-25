@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import LoginScreen from '@/components/LoginScreen'
 import Header from '@/components/Header'
+import PageTitleTab from '@/components/PageTitleTab'
 import BottomNav, { type ViewId } from '@/components/BottomNav'
 import ViewHome from '@/components/views/ViewHome'
 import ViewFilme from '@/components/views/ViewFilme'
@@ -18,6 +19,7 @@ import type { ProjectStatus, ProjectData, BudgetLinesByPhase, VerbaLinesByPhase,
 import { createProject, updateProject, getProject, setProjectMembers, type ProjectRecord } from '@/lib/services/projects'
 import { getCompany } from '@/lib/services/company'
 import { addLog } from '@/lib/services/activity-logs'
+import { formatCurrency } from '@/lib/utils'
 import { getRoleDisabledViews, shouldRestrictHeaderToLogoutOnly, getRestrictedHeaderButtons } from '@/lib/permissions'
 import { supabase } from '@/lib/supabase'
 
@@ -81,6 +83,18 @@ function mergeLinesByDepartment(
     result[phase] = merged
   }
   return result
+}
+
+/** Labels das páginas para o log de atividades */
+const PAGE_LABELS: Record<ViewId, string> = {
+  home: 'Home',
+  filme: 'Dados do projeto',
+  orcamento: 'Orçamento previsto',
+  'orc-final': 'Orçamento realizado',
+  fechamento: 'Fechamento',
+  team: 'Equipe',
+  dashboard: 'Dashboard',
+  config: 'Configurações',
 }
 
 const EMPTY_PROJECT: ProjectData = {
@@ -302,8 +316,10 @@ function HomeContent() {
           let verbaLinesInitial = (orcState?.verbaLines ?? {}) as unknown as Record<string, unknown>
           let budgetLinesFinal = (orcFinalState?.budgetLines ?? {}) as unknown as Record<string, unknown>
           let verbaLinesFinal = (orcFinalState?.verbaLines ?? {}) as unknown as Record<string, unknown>
+          let existingProject: ProjectRecord | null = null
           if (projectDbId) {
             const existing = await getProject(projectDbId)
+            existingProject = existing
             if (existing) {
               const existingInitial = (existing.budget_lines_initial ?? {}) as Record<string, unknown>
               const existingFinal = (existing.budget_lines_final ?? {}) as Record<string, unknown>
@@ -326,8 +342,9 @@ function HomeContent() {
             }
           }
 
+          // job_id só é enviado em CREATE; em UPDATE nunca alteramos (imutável)
           const payload = {
-            job_id: projectData.jobId,
+            ...(projectDbId ? {} : { job_id: projectData.jobId }),
             nome: projectData.nome,
             agencia: projectData.agencia,
             cliente: projectData.cliente,
@@ -366,12 +383,27 @@ function HomeContent() {
               setPendingProjectMemberIds([])
             }
             try {
+              const jobValuePrevisto = orcState?.jobValue ?? 0
+              const jobValueRealizado = orcFinalState?.jobValue ?? 0
+              const page = PAGE_LABELS[currentViewRef.current ?? 'home']
+              const details: Record<string, unknown> = { job_id: result.job_id }
+              if (projectDbId && existingProject) {
+                details.page = page
+                const changes: string[] = []
+                if (Math.abs((existingProject.job_value ?? 0) - jobValuePrevisto) > 0.01) {
+                  changes.push(`Orç. previsto: ${formatCurrency(existingProject.job_value)} → ${formatCurrency(jobValuePrevisto)}`)
+                }
+                if (Math.abs((existingProject.job_value_final ?? 0) - jobValueRealizado) > 0.01) {
+                  changes.push(`Orç. realizado: ${formatCurrency(existingProject.job_value_final)} → ${formatCurrency(jobValueRealizado)}`)
+                }
+                if (changes.length > 0) details.budgetChanges = changes
+              }
               await addLog({
                 action: projectDbId ? 'update' : 'create',
                 entityType: 'project',
                 entityId: result.id,
                 entityName: result.nome,
-                details: { job_id: result.job_id },
+                details,
               })
             } catch {
               // Log falhou (ex.: sessão inválida); não bloqueia sucesso do save
@@ -728,6 +760,15 @@ function HomeContent() {
     forceFinishLoading()
   }, [forceFinishLoading])
 
+  /** Escape automático: se loading persistir > 1.5s, libera a tela (evita travar em ambientes lentos) */
+  useEffect(() => {
+    if (!loading) return
+    const t = setTimeout(() => {
+      forceFinishLoading()
+    }, 1500)
+    return () => clearTimeout(t)
+  }, [loading, forceFinishLoading])
+
   /** Logout: salva o projeto aberto (se houver) em silêncio e faz logout. silent evita o alert "Crie um projeto primeiro". */
   const [loggingOut, setLoggingOut] = useState(false)
   const handleLogout = useCallback(() => {
@@ -752,8 +793,8 @@ function HomeContent() {
         <button
           type="button"
           onClick={handleForceContinue}
-          className="text-sm px-4 py-2.5 rounded border font-medium transition-colors hover:opacity-90 cursor-pointer"
-          style={{ borderColor: '#5c7c99', color: '#5c7c99', backgroundColor: 'rgba(92, 124, 153, 0.1)' }}
+          className="text-sm px-5 py-3 rounded border-2 font-semibold transition-all hover:opacity-100 hover:scale-105 cursor-pointer"
+          style={{ borderColor: '#f5c518', color: '#f5c518', backgroundColor: 'rgba(245, 197, 24, 0.15)' }}
         >
           Travou? Clique para continuar
         </button>
@@ -784,9 +825,11 @@ function HomeContent() {
         projectDbId={projectDbId}
       />
       <main
-        className="pt-[88px] sm:pt-[88px] pb-20 sm:pb-24 w-full min-h-0 min-w-0"
+        className="pt-[72px] sm:pt-[72px] pb-20 sm:pb-24 w-full min-h-0 min-w-0"
         style={{ backgroundColor: '#0d0d0f', color: '#e8e8ec', paddingLeft: 'var(--page-gutter-content)', paddingRight: 'var(--page-gutter-content)' }}
+        data-has-title-tab
       >
+        <PageTitleTab currentView={currentView} />
         <div style={{ display: currentView === 'home' ? 'block' : 'none' }}>
           <ViewHome />
         </div>

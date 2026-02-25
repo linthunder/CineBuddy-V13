@@ -1,0 +1,71 @@
+# Causa raiz: erros de servidor Next.js (Cannot find module './XXX.js')
+
+## Erro típico
+
+```
+Server Error
+Error: Cannot find module './276.js'
+Require stack:
+- .next\server\webpack-runtime.js
+- .next\server\app\_not-found\page.js
+- ...
+```
+
+Ou variantes: `./XXX.js`, `ChunkLoadError`, `layout.js` SyntaxError, 404 em `main-app.js`/`page.js`/`layout.css`.
+
+## Causa raiz
+
+A pasta **`.next`** é **cache de build do Next.js**. Ela guarda:
+
+- Chunks de JavaScript numerados (ex.: `276.js`, `393.js`) gerados pelo webpack
+- Referências internas (em `webpack-runtime.js`, `page.js`, etc.) que apontam para esses arquivos
+
+O Next.js **não garante** que o conteúdo de `.next` seja reutilizável entre:
+
+1. **`next build`** e **`next dev`** — o layout de chunks e os IDs mudam
+2. **Duas execuções diferentes de `next dev`** — após mudanças no código, os IDs dos chunks podem mudar
+3. **Build ou dev interrompidos** (Ctrl+C no meio) — a pasta fica incompleta ou inconsistente
+4. **Alterações em dependências ou em muitas pastas/arquivos** — o webpack gera um conjunto novo de chunks
+
+Quando o servidor (ou o navegador) usa **referências antigas** (ex.: “carregar 276.js”) mas o arquivo **não existe mais** ou tem **outro ID** na pasta atual, ocorre **Cannot find module './276.js'**.
+
+Ou seja: **cache `.next` desatualizado ou inconsistente** é a causa raiz desses erros, não o código da aplicação.
+
+## Diretriz obrigatória (blindar implementações)
+
+### Para o desenvolvedor / agente
+
+1. **Sempre que for iniciar o servidor de desenvolvimento**
+   - Preferir: **`npm run dev:clean`** (limpa `.next` e sobe o dev).
+   - Se usar só `npm run dev`, ao primeiro sinal de erro de chunk/module (Cannot find module, ChunkLoadError, 404 em assets), **parar o servidor**, rodar **`npm run dev:clean`** e abrir de novo `http://localhost:3000` com **Ctrl+Shift+R**.
+
+2. **Depois de rodar `npm run build`**
+   - Se em seguida for usar o app em modo dev, **não** usar apenas `npm run dev` sobre o mesmo `.next`.
+   - Rodar **`npm run dev:clean`** para garantir um cache dev limpo e evitar referências a chunks de build.
+
+3. **Ao ver qualquer erro de servidor relacionado a módulo/chunk**
+   - Tratar como **cache inconsistente** em primeiro lugar.
+   - Executar: **`npm run dev:clean`** (ou apagar manualmente a pasta `.next` e depois `npm run dev`).
+   - Só investigar outra causa (código, dependências) se o erro persistir **depois** de um dev:clean e um refresh forçado.
+
+4. **Não confiar em `.next` entre contextos diferentes**
+   - Troca de branch, pull com mudanças em `package.json` ou em muita estrutura do app: considerar limpar `.next` antes de `npm run dev` ou `npm run build`.
+
+### Scripts recomendados (já existentes)
+
+- **`npm run dev:clean`** — remove `.next` e inicia `next dev`. Use como padrão para desenvolvimento.
+- **`npm run dev:force`** — libera a porta 3000 e inicia o dev (útil quando a porta está em uso).
+- **`npm run build`** — build de produção. Para rodar dev depois, use `dev:clean`.
+
+## Resumo
+
+| Situação | Ação |
+|----------|------|
+| Iniciar desenvolvimento | Preferir `npm run dev:clean` |
+| Erro "Cannot find module './XXX.js'" ou ChunkLoadError | Parar servidor → `npm run dev:clean` → F5/Ctrl+Shift+R |
+| Depois de `npm run build`, quer rodar dev | Usar `npm run dev:clean` |
+| 404 em layout.css, main-app.js, page.js | Refresh forçado (Ctrl+Shift+R); se persistir, `npm run dev:clean` |
+| **GET http://localhost:3000/ 404** ou "Não abriu" | Outro processo está na porta 3000 (não é o Next). Rodar **`npm run dev:force`** (mata o processo na 3000 e inicia o Next). Depois abrir de novo http://localhost:3000. |
+| favicon.ico 404 | Opcional; o app usa `/icon.svg`. O navegador pode pedir favicon.ico; não é erro do app. |
+
+Seguir essa diretriz reduz erros repetidos de servidor e de carregamento de chunks no projeto Next.js.

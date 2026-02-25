@@ -55,6 +55,8 @@ export interface ViewOrcFinalHandle {
     phaseDefaults: PhaseDefaultsByPhase
     notes: Record<'pre' | 'prod' | 'pos', string>
     cacheTableId: string | null
+    jobValue: number
+    taxRate: number
   }
   loadState: (state: {
     budgetLines: BudgetLinesByPhase
@@ -89,8 +91,10 @@ const ViewOrcFinal = forwardRef<ViewOrcFinalHandle, ViewOrcFinalProps>(function 
     })
   }, [])
 
+  const initialJobValue = initialSnapshot?.jobValue ?? 0
+  const initialTaxRate = initialSnapshot?.taxRate ?? 12.5
   useImperativeHandle(ref, () => ({
-    getState: () => ({ budgetLines, verbaLines, miniTables, phaseDefaults, notes, cacheTableId }),
+    getState: () => ({ budgetLines, verbaLines, miniTables, phaseDefaults, notes, cacheTableId, jobValue: initialJobValue, taxRate: initialTaxRate }),
     loadState: (state) => {
       const hasData = Object.values(state.budgetLines).some((phase) =>
         Object.values(phase).some((rows) => Array.isArray(rows) && rows.length > 0)
@@ -103,11 +107,9 @@ const ViewOrcFinal = forwardRef<ViewOrcFinalHandle, ViewOrcFinalProps>(function 
       setNotes(state.notes)
       if (state.cacheTableId !== undefined) setCacheTableId(state.cacheTableId ?? null)
     },
-  }))
+  }), [budgetLines, verbaLines, miniTables, phaseDefaults, notes, cacheTableId, initialJobValue, initialTaxRate])
 
   /* Valores fixos do inicial */
-  const initialJobValue = initialSnapshot?.jobValue ?? 0
-  const initialTaxRate = initialSnapshot?.taxRate ?? 12.5
   const initialTaxValue = initialJobValue * (initialTaxRate / 100)
   const initialProfitNet = useMemo(() => {
     if (!initialSnapshot) return 0
