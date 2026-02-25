@@ -329,7 +329,10 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
                 {loadingProjects ? (
                   <div className="flex items-center justify-center h-[120px] text-xs" style={{ color: resolve.muted }}>Carregando...</div>
                 ) : projectsList.length === 0 ? (
-                  <div className="flex items-center justify-center h-[120px] text-xs" style={{ color: resolve.muted }}>Nenhum projeto encontrado.</div>
+                  <div className="flex flex-col items-center justify-center h-[120px] text-xs text-center px-2" style={{ color: resolve.muted }}>
+                    <span>Nenhum projeto encontrado.</span>
+                    <span className="mt-2 text-[11px]">Se você deveria ter acesso, peça ao administrador para ir em Configurações → Usuários, abrir seu usuário, marcar os projetos em &quot;Projetos com acesso&quot; e clicar em Salvar.</span>
+                  </div>
                 ) : (
                   <div className="space-y-1">
                     {projectsList.map((p) => (

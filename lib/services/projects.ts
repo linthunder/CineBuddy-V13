@@ -62,6 +62,20 @@ export async function searchProjects(term: string): Promise<Pick<ProjectRecord, 
   return data ?? []
 }
 
+/** Lista todos os projetos (apenas admin/atendimento). Usado em Config > Usuários para atribuir projetos. */
+export async function listAllProjectsForAdmin(): Promise<Pick<ProjectRecord, 'id' | 'job_id' | 'nome' | 'agencia' | 'cliente' | 'duracao' | 'duracao_unit' | 'updated_at'>[]> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    const res = await fetch('/api/projects/list-all', { cache: 'no-store', headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    if (!res.ok) return []
+    const data = await res.json()
+    return Array.isArray(data) ? data : []
+  } catch {
+    return []
+  }
+}
+
 /** Lista projetos acessíveis ao usuário atual (modal ABRIR). Usa API para filtrar por project_members. */
 export async function listAccessibleProjects(search?: string): Promise<Pick<ProjectRecord, 'id' | 'job_id' | 'nome' | 'agencia' | 'cliente' | 'duracao' | 'duracao_unit' | 'updated_at'>[]> {
   try {

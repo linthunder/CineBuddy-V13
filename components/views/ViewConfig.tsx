@@ -20,7 +20,7 @@ import { ROLES_DEPARTAMENTOS_ORDER } from '@/lib/constants'
 import { APP_ICONS, GALLERY_ICONS } from '@/lib/icons-gallery'
 import { getCompany, saveCompany, uploadCompanyLogo } from '@/lib/services/company'
 import {
-  listProjects, updateProject, deleteProject, setProjectMembers, getProjectMembers, getUserProjectIds, setUserProjects,
+  listProjects, listAllProjectsForAdmin, updateProject, deleteProject, setProjectMembers, getProjectMembers, getUserProjectIds, setUserProjects,
   type ProjectRecord,
 } from '@/lib/services/projects'
 import { addLog, listLogs, type ActivityLog } from '@/lib/services/activity-logs'
@@ -305,7 +305,7 @@ export default function ViewConfig({
     } else if (p) {
       setUName(p.name); setUSurname(p.surname); setUEmail(p.email); setUPassword(''); setURole((String(p.role) === 'producer' ? 'produtor_executivo' : p.role) as ProfileRole)
       setUserProjectsLoading(true)
-      const [projList, ids] = await Promise.all([listProjects(), getUserProjectIds(p.id)])
+      const [projList, ids] = await Promise.all([listAllProjectsForAdmin(), getUserProjectIds(p.id)])
       setUserModalProjectsList(projList as ConfigProjectSummary[])
       setUserProjectIds(new Set(ids))
       setUserProjectsLoading(false)
@@ -1337,7 +1337,19 @@ export default function ViewConfig({
                 )}
                 {userModal && userModal !== 'new' && (
                   <div>
+                    <p className="text-[10px] mb-1" style={{ color: resolve.muted }}>ID do usuário (para conferência no Supabase): <code className="select-all px-1 rounded" style={{ backgroundColor: resolve.bg, borderColor: resolve.border }}>{userModal.id}</code></p>
                     <label className={labelCls} style={{ color: resolve.muted }}>Projetos com acesso</label>
+                    <div className="flex items-center gap-2 mb-1">
+                      <button
+                        type="button"
+                        className="text-[10px] font-medium uppercase px-2 py-0.5 rounded border transition-colors"
+                        style={{ borderColor: resolve.border, color: resolve.muted }}
+                        onClick={() => setUserProjectIds(new Set(userModalProjectsList.map((proj) => proj.id)))}
+                        disabled={userProjectsLoading || userModalProjectsList.length === 0}
+                      >
+                        Dar acesso a todos os projetos
+                      </button>
+                    </div>
                     <div className="max-h-28 overflow-y-auto rounded border p-2 space-y-1" style={{ backgroundColor: resolve.bg, borderColor: resolve.border }}>
                       {userProjectsLoading ? <span className="text-[11px]" style={{ color: resolve.muted }}>Carregando...</span> : userModalProjectsList.map((proj) => (
                         <label key={proj.id} className="flex items-center gap-2 cursor-pointer text-[11px]">
