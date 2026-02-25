@@ -101,13 +101,17 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
     setModalOpen('abrir')
   }
 
+  const [projectsListUnauthorized, setProjectsListUnauthorized] = useState(false)
+
   useEffect(() => {
     if (modalOpen !== 'abrir') return
+    setProjectsListUnauthorized(false)
     const delayMs = searchTerm === '' ? 0 : 300
     setLoadingProjects(true)
     const timer = setTimeout(async () => {
-      const list = await listAccessibleProjects(searchTerm.trim() || undefined)
+      const { list, unauthorized } = await listAccessibleProjects(searchTerm.trim() || undefined)
       setProjectsList(list as ProjectSummary[])
+      setProjectsListUnauthorized(!!unauthorized)
       setLoadingProjects(false)
     }, delayMs)
     return () => clearTimeout(timer)
@@ -328,6 +332,11 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
               <div className="min-h-[120px] max-h-[300px] overflow-y-auto" style={{ color: resolve.text }}>
                 {loadingProjects ? (
                   <div className="flex items-center justify-center h-[120px] text-xs" style={{ color: resolve.muted }}>Carregando...</div>
+                ) : projectsListUnauthorized ? (
+                  <div className="flex flex-col items-center justify-center h-[120px] text-xs text-center px-2" style={{ color: resolve.muted }}>
+                    <span style={{ color: cinema.danger }}>Sessão expirada ou não autorizado.</span>
+                    <span className="mt-2 text-[11px]">Faça logout e entre novamente em <strong>cinebuddy.buzzccs.com.br</strong> para ver seus projetos.</span>
+                  </div>
                 ) : projectsList.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-[120px] text-xs text-center px-2" style={{ color: resolve.muted }}>
                     <span>Nenhum projeto encontrado.</span>

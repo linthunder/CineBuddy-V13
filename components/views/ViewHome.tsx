@@ -18,9 +18,9 @@ export default function ViewHome() {
   const [projects, setProjects] = useState<ProjectSummary[]>([])
 
   const loadProjects = useCallback(async () => {
-    const data = await listAccessibleProjects()
+    const { list } = await listAccessibleProjects()
     setProjects(
-      data.map((p) => ({
+      list.map((p) => ({
         id: p.id,
         nome: p.nome,
         job_id: (p as { job_id?: string }).job_id,

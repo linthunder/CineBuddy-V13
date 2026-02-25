@@ -34,11 +34,12 @@ export const FILME_BUTTON_LABELS: Record<(typeof FILME_BUTTON_KEYS)[number], str
   drive: 'Drive',
 }
 
-export async function getProfileRestrictions(): Promise<ProfileRestriction[]> {
+/** Se accessToken for passado, usa-o; senão obtém da sessão atual. Evita 401 por race em produção. */
+export async function getProfileRestrictions(accessToken?: string | null): Promise<ProfileRestriction[]> {
   try {
-    const { data: { session } } = await supabase.auth.getSession()
-    const token = session?.access_token
+    const token = accessToken ?? (await supabase.auth.getSession()).data.session?.access_token
     const res = await fetch('/api/permissions/restrictions', {
+      cache: 'no-store',
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
     if (!res.ok) return []
@@ -49,11 +50,11 @@ export async function getProfileRestrictions(): Promise<ProfileRestriction[]> {
   }
 }
 
-export async function setProfileRestrictions(restrictions: ProfileRestriction[]): Promise<{ ok: boolean; error?: string }> {
+export async function setProfileRestrictions(restrictions: ProfileRestriction[], accessToken?: string | null): Promise<{ ok: boolean; error?: string }> {
   try {
-    const { data: { session } } = await supabase.auth.getSession()
-    const token = session?.access_token
+    const token = accessToken ?? (await supabase.auth.getSession()).data.session?.access_token
     const res = await fetch('/api/permissions/restrictions', {
+      cache: 'no-store',
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({ restrictions }),

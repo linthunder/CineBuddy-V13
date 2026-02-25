@@ -76,18 +76,24 @@ export async function listAllProjectsForAdmin(): Promise<Pick<ProjectRecord, 'id
   }
 }
 
+export type ListAccessibleResult = {
+  list: Pick<ProjectRecord, 'id' | 'job_id' | 'nome' | 'agencia' | 'cliente' | 'duracao' | 'duracao_unit' | 'updated_at'>[]
+  unauthorized?: boolean
+}
+
 /** Lista projetos acessíveis ao usuário atual (modal ABRIR). Usa API para filtrar por project_members. */
-export async function listAccessibleProjects(search?: string): Promise<Pick<ProjectRecord, 'id' | 'job_id' | 'nome' | 'agencia' | 'cliente' | 'duracao' | 'duracao_unit' | 'updated_at'>[]> {
+export async function listAccessibleProjects(search?: string): Promise<ListAccessibleResult> {
   try {
     const { data: { session } } = await supabase.auth.getSession()
     const token = session?.access_token
     const url = `/api/projects/list${search ? `?search=${encodeURIComponent(search)}` : ''}`
     const res = await fetch(url, { cache: 'no-store', headers: token ? { Authorization: `Bearer ${token}` } : {} })
-    if (!res.ok) return []
+    if (res.status === 401) return { list: [], unauthorized: true }
+    if (!res.ok) return { list: [] }
     const data = await res.json()
-    return Array.isArray(data) ? data : []
+    return { list: Array.isArray(data) ? data : [] }
   } catch {
-    return []
+    return { list: [] }
   }
 }
 

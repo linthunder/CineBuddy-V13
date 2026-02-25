@@ -231,7 +231,8 @@ export default function ViewConfig({
 
   const saveRestrictions = async () => {
     setRestrictionsSaving(true)
-    const res = await setProfileRestrictions(restrictionsEdit)
+    const token = (await supabase.auth.getSession()).data.session?.access_token
+    const res = await setProfileRestrictions(restrictionsEdit, token)
     setRestrictionsSaving(false)
     if (res.ok) {
       await onRefreshRestrictions?.()

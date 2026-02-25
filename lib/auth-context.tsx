@@ -42,7 +42,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [hasUsers, setHasUsers] = useState<boolean | null>(readHasUsersFromStorage)
 
   const refreshRestrictions = useCallback(async () => {
-    const r = await getProfileRestrictions()
+    const token = (await supabase.auth.getSession()).data.session?.access_token
+    const r = await getProfileRestrictions(token)
     setRestrictions(r)
   }, [])
 
@@ -76,8 +77,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(fallbackMax)
         setSession(s ?? null)
         if (s) {
+          const token = s.access_token
           getMyProfile().then((p) => !cancelled && setProfile(p))
-          getProfileRestrictions().then((r) => !cancelled && setRestrictions(r))
+          getProfileRestrictions(token).then((r) => !cancelled && setRestrictions(r))
         } else setRestrictions([])
         setLoading(false)
       })
@@ -102,8 +104,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (cancelled) return
       setSession(s)
       if (s) {
+        const token = s.access_token
         getMyProfile().then(setProfile)
-        getProfileRestrictions().then(setRestrictions)
+        getProfileRestrictions(token).then(setRestrictions)
       } else {
         setProfile(null)
         setRestrictions([])
