@@ -25,6 +25,30 @@ export async function GET(request: NextRequest) {
     const search = request.nextUrl.searchParams.get('search')?.trim() ?? ''
     const supabase = createServerClient()
 
+    // Admin e atendimento veem todos os projetos (não dependem de project_members)
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', caller.id).single()
+    if (profile?.role === 'admin' || profile?.role === 'atendimento') {
+      let query = supabase
+        .from('projects')
+        .select('id, job_id, nome, agencia, cliente, duracao, duracao_unit, updated_at, status')
+        .order('updated_at', { ascending: false })
+      if (search) query = query.ilike('nome', `%${search}%`)
+      const { data: allProjectsAdmin, error: errAdmin } = await query
+      if (errAdmin) {
+        console.error('[projects/list]', errAdmin)
+        return NextResponse.json({ error: 'Erro ao listar projetos.' }, { status: 500 })
+      }
+      const list = (allProjectsAdmin ?? []) as { id: string; job_id: string; nome: string; agencia: string; cliente: string; duracao: string; duracao_unit: string; updated_at: string; status?: unknown }[]
+      const debug = request.nextUrl.searchParams.get('debug') === '1'
+      if (debug) {
+        return NextResponse.json({
+          projects: list,
+          _debug: { userId: caller.id, userEmail: (caller as { email?: string }).email ?? null, myProjectIdsCount: list.length, totalProjects: list.length, totalProjectsWithMembers: 0, role: profile?.role },
+        })
+      }
+      return NextResponse.json(list)
+    }
+
     // Projetos sem nenhum membro = todos têm acesso (retrocompatibilidade)
     // Projetos com membros = apenas os listados têm acesso
     const { data: projectsWithMembers } = await supabase
