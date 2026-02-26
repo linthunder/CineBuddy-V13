@@ -71,6 +71,20 @@ export async function GET(request: NextRequest) {
       console.warn('[projects/list] Usuário sem projetos visíveis. user_id=', caller.id, 'myProjectIds=', myProjectIds.size, 'projectsWithMembers=', projectIdsWithMembers.size)
     }
 
+    const debug = request.nextUrl.searchParams.get('debug') === '1'
+    if (debug) {
+      return NextResponse.json({
+        projects: filtered,
+        _debug: {
+          userId: caller.id,
+          userEmail: (caller as { email?: string }).email ?? null,
+          myProjectIdsCount: myProjectIds.size,
+          totalProjects: projects.length,
+          totalProjectsWithMembers: projectIdsWithMembers.size,
+        },
+      })
+    }
+
     return NextResponse.json(filtered)
   } catch (err) {
     console.error('[projects/list]', err)

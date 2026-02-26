@@ -102,16 +102,19 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
   }
 
   const [projectsListUnauthorized, setProjectsListUnauthorized] = useState(false)
+  const [projectsListDebug, setProjectsListDebug] = useState<{ userId: string; myProjectIdsCount: number; totalProjectsWithMembers: number } | null>(null)
 
   useEffect(() => {
     if (modalOpen !== 'abrir') return
     setProjectsListUnauthorized(false)
+    setProjectsListDebug(null)
     const delayMs = searchTerm === '' ? 0 : 300
     setLoadingProjects(true)
     const timer = setTimeout(async () => {
-      const { list, unauthorized } = await listAccessibleProjects(searchTerm.trim() || undefined)
+      const { list, unauthorized, _debug } = await listAccessibleProjects(searchTerm.trim() || undefined, true)
       setProjectsList(list as ProjectSummary[])
       setProjectsListUnauthorized(!!unauthorized)
+      if (_debug) setProjectsListDebug({ userId: _debug.userId, myProjectIdsCount: _debug.myProjectIdsCount, totalProjectsWithMembers: _debug.totalProjectsWithMembers })
       setLoadingProjects(false)
     }, delayMs)
     return () => clearTimeout(timer)
@@ -338,9 +341,15 @@ export default function Header({ projectData, logoUrl, loadingOpen = false, onNe
                     <span className="mt-2 text-[11px]">Faça logout e entre novamente em <strong>cinebuddy.buzzccs.com.br</strong> para ver seus projetos.</span>
                   </div>
                 ) : projectsList.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-[120px] text-xs text-center px-2" style={{ color: resolve.muted }}>
+                  <div className="flex flex-col items-center justify-center min-h-[120px] text-xs text-center px-2 py-3" style={{ color: resolve.muted }}>
                     <span>Nenhum projeto encontrado.</span>
                     <span className="mt-2 text-[11px]">Se você deveria ter acesso, peça ao administrador para ir em Configurações → Usuários, abrir seu usuário, marcar os projetos em &quot;Projetos com acesso&quot; e clicar em Salvar.</span>
+                    {projectsListDebug && projectsListDebug.myProjectIdsCount === 0 && projectsListDebug.totalProjectsWithMembers > 0 && (
+                      <p className="mt-3 text-[10px] font-mono px-2 py-1.5 rounded border break-all" style={{ borderColor: resolve.border, backgroundColor: resolve.bg, color: resolve.text }}>
+                        Para o administrador: user_id = <span className="select-all">{projectsListDebug.userId}</span>
+                        <br />Projetos atribuídos a você: 0. No Supabase (SQL Editor), use este id no script <code className="text-[9px]">fix_user_project_access.sql</code>.
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-1">

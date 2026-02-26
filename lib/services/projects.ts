@@ -79,18 +79,26 @@ export async function listAllProjectsForAdmin(): Promise<Pick<ProjectRecord, 'id
 export type ListAccessibleResult = {
   list: Pick<ProjectRecord, 'id' | 'job_id' | 'nome' | 'agencia' | 'cliente' | 'duracao' | 'duracao_unit' | 'updated_at'>[]
   unauthorized?: boolean
+  _debug?: { userId: string; userEmail: string | null; myProjectIdsCount: number; totalProjects: number; totalProjectsWithMembers: number }
 }
 
 /** Lista projetos acessíveis ao usuário atual (modal ABRIR). Usa API para filtrar por project_members. */
-export async function listAccessibleProjects(search?: string): Promise<ListAccessibleResult> {
+export async function listAccessibleProjects(search?: string, debug?: boolean): Promise<ListAccessibleResult> {
   try {
     const { data: { session } } = await supabase.auth.getSession()
     const token = session?.access_token
-    const url = `/api/projects/list${search ? `?search=${encodeURIComponent(search)}` : ''}`
+    const params = new URLSearchParams()
+    if (search) params.set('search', search)
+    if (debug) params.set('debug', '1')
+    const qs = params.toString()
+    const url = `/api/projects/list${qs ? `?${qs}` : ''}`
     const res = await fetch(url, { cache: 'no-store', headers: token ? { Authorization: `Bearer ${token}` } : {} })
     if (res.status === 401) return { list: [], unauthorized: true }
     if (!res.ok) return { list: [] }
     const data = await res.json()
+    if (data && typeof data === 'object' && Array.isArray(data.projects)) {
+      return { list: data.projects, _debug: data._debug }
+    }
     return { list: Array.isArray(data) ? data : [] }
   } catch {
     return { list: [] }
